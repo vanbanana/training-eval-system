@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>我的能力画像 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 420px; gap: 20px; }
+
+    /* weakness section */
+    .wk-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .wk-h-title {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .wk-h-title h3 {
+      margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);
+    }
+
+    .wkr-list { display: flex; flex-direction: column; }
+    .wkr {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .wkr:last-child { border-bottom: 0; }
+
+    .wkr-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .wkr-h-l {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .wkr-rank {
+      width: 24px; height: 24px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 700; font-size: 12px;
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+    }
+    .wkr-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .wkr-score {
+      font-size: 13px; font-weight: 600;
+      color: var(--accent);
+      font-family: var(--font-mono);
+    }
+    .wkr-progress {
+      height: 5px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .wkr-progress > div {
+      height: 100%; background: var(--accent);
+      border-radius: var(--radius-pill);
+    }
+    .wkr-progress.mid > div { background: var(--warning); }
+    .wkr-progress.high > div { background: var(--success); }
+    .wkr-rank.warn { background: var(--warning-soft); color: var(--warning); }
+    .wkr-rank.good { background: var(--success-soft); color: var(--success); }
+
+    /* AI suggestion alert */
+    .ai-suggest {
+      padding: 14px 16px;
+      background: var(--accent-soft);
+      border-radius: var(--radius-md);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .ai-suggest-h {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600;
+      color: var(--accent-strong);
+    }
+    .ai-suggest-body {
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--accent-strong);
+    }
+
+    .wkr-meta {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .wkr-link {
+      color: var(--primary);
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    /* radar */
+    .rh-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .radar-area {
+      height: 300px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* dim list right */
+    .d-h {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .d-row {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .d-row:last-child { border-bottom: 0; }
+    .d-row-name {
+      flex: 0 0 100px;
+      font-size: 13px; color: var(--ink);
+      font-weight: 500;
+    }
+    .d-row-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .d-row-bar > div {
+      height: 100%;
+      border-radius: var(--radius-pill);
+    }
+    .d-row-bar.high > div { background: var(--success); }
+    .d-row-bar.mid > div { background: var(--primary); }
+    .d-row-bar.low > div { background: var(--accent); }
+    .d-row-val {
+      flex: 0 0 70px;
+      font-family: var(--font-mono);
+      font-size: 13px; font-weight: 600;
+      color: var(--ink);
+      text-align: right;
+    }
+    .d-row-trend {
+      flex: 0 0 40px;
+      font-size: 11px;
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+    .d-row-trend.up { color: var(--success); }
+    .d-row-trend.down { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar" style="background: var(--accent-soft); color: var(--accent);">李</span><span class="user-name">李文清  同学</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link active">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">我的</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">学习中心</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">能力画像</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>我的能力画像</h1>
+        <p>基于近 8 次实训综合分析  ·  最近一次更新于今天 09:24</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">分享给老师</button>
+        <button class="btn btn-primary">导出 PDF</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT: weakness analysis -->
+      <section class="card" style="overflow: hidden;">
+        <header class="wk-h">
+          <div class="wk-h-title">
+            <i class="icon icon-target" style="color: var(--accent);"></i>
+            <h3>薄弱点 TOP 5  ·  附学习建议</h3>
+            <span class="label label-accent">AI 智能分析</span>
+          </div>
+          <a href="#" class="card-link">展开全部 ›</a>
+        </header>
+
+        <div class="wkr-list">
+          <!-- W1 测试用例覆盖度 -->
+          <div class="wkr">
+            <div class="wkr-h">
+              <div class="wkr-h-l">
+                <span class="wkr-rank">1</span>
+                <span class="wkr-name">测试用例覆盖度</span>
+                <span class="label label-danger">3 次实训低分</span>
+              </div>
+              <span class="wkr-score">掌握度 64</span>
+            </div>
+            <div class="wkr-progress"><div style="width: 64%;"></div></div>
+            <div class="ai-suggest">
+              <div class="ai-suggest-h">
+                <i class="icon icon-sparkles"></i>
+                <span>AI 学习建议</span>
+              </div>
+              <div class="ai-suggest-body">在最近 3 次实训中你的测试覆盖率均低于 65%，主要问题是边界条件与异常路径未覆盖。建议系统学习 JUnit 5 的 @ParameterizedTest 与 @ExceptionTest，并完成《单元测试实战》第 4-6 章的练习。预计 4-5 小时。</div>
+            </div>
+            <div class="wkr-meta">
+              <span>关联实训：第三次实训 #82 / 第二次实训 #76 / 第一次实训 #69</span>
+              <span class="wkr-link">查看完整建议 ›</span>
+            </div>
+          </div>
+
+          <!-- W2 性能优化思考 -->
+          <div class="wkr">
+            <div class="wkr-h">
+              <div class="wkr-h-l">
+                <span class="wkr-rank">2</span>
+                <span class="wkr-name">性能优化思考</span>
+                <span class="label label-warning">4 次实训未提及</span>
+              </div>
+              <span class="wkr-score">掌握度 70</span>
+            </div>
+            <div class="wkr-progress mid"><div style="width: 70%; background: var(--warning);"></div></div>
+            <div class="wkr-meta">
+              <span>建议：在报告中加入复杂度对比与基准测试数据</span>
+              <span class="wkr-link">查看完整建议 ›</span>
+            </div>
+          </div>
+
+          <!-- W3 并发原语理解 -->
+          <div class="wkr">
+            <div class="wkr-h">
+              <div class="wkr-h-l">
+                <span class="wkr-rank">3</span>
+                <span class="wkr-name">并发原语理解</span>
+                <span class="label label-warning">2 次实训扣分</span>
+              </div>
+              <span class="wkr-score">掌握度 75</span>
+            </div>
+            <div class="wkr-progress mid"><div style="width: 75%; background: var(--warning);"></div></div>
+            <div class="wkr-meta">
+              <span>建议：复习 wait/notify 与 Lock + Condition 实例对比</span>
+              <span class="wkr-link">查看完整建议 ›</span>
+            </div>
+          </div>
+
+          <!-- W4 代码注释规范 -->
+          <div class="wkr">
+            <div class="wkr-h">
+              <div class="wkr-h-l">
+                <span class="wkr-rank good">4</span>
+                <span class="wkr-name">代码注释规范</span>
+              </div>
+              <span class="wkr-score" style="color: var(--success);">掌握度 78</span>
+            </div>
+            <div class="wkr-progress high"><div style="width: 78%;"></div></div>
+            <div class="wkr-meta">
+              <span>建议：JavaDoc 文档注释覆盖率提升至 90%</span>
+              <span class="wkr-link">查看完整建议 ›</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT -->
+      <div class="flex-col gap-5">
+        <!-- 五维能力雷达 -->
+        <section class="card card-padded">
+          <div class="rh-row" style="margin-bottom: 14px;">
+            <div>
+              <div class="card-title">五维能力雷达</div>
+              <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">较 6 个月前</div>
+            </div>
+            <select class="tes-select"><option>近 6 个月</option><option>近 1 年</option></select>
+          </div>
+          <div class="radar-area">
+            <svg width="280" height="280" viewBox="0 0 280 280">
+              <!-- 5 levels of background polygons -->
+              <g stroke="#e5e7eb" fill="none" stroke-width="1">
+                <polygon points="140,20 261,108 215,250 65,250 19,108" />
+                <polygon points="140,44 237,116 198,228 82,228 43,116" />
+                <polygon points="140,68 213,124 181,206 99,206 67,124" />
+                <polygon points="140,92 189,132 164,184 116,184 91,132" />
+                <polygon points="140,116 165,140 147,162 133,162 115,140" />
+              </g>
+              <g stroke="#e5e7eb" stroke-width="1">
+                <line x1="140" y1="140" x2="140" y2="20" />
+                <line x1="140" y1="140" x2="261" y2="108" />
+                <line x1="140" y1="140" x2="215" y2="250" />
+                <line x1="140" y1="140" x2="65" y2="250" />
+                <line x1="140" y1="140" x2="19" y2="108" />
+              </g>
+              <!-- background (6 months ago) -->
+              <polygon
+                points="140,55 215,118 196,222 84,210 56,124"
+                fill="rgba(196, 150, 90, 0.12)"
+                stroke="#a47b2a" stroke-width="1.5"
+                stroke-dasharray="4,4"
+              />
+              <!-- current data -->
+              <polygon
+                points="140,38 235,114 192,238 60,232 27,108"
+                fill="rgba(30, 58, 95, 0.18)"
+                stroke="#1E3A5F" stroke-width="2"
+              />
+              <g fill="#1E3A5F">
+                <circle cx="140" cy="38" r="4" />
+                <circle cx="235" cy="114" r="4" />
+                <circle cx="192" cy="238" r="4" />
+                <circle cx="60" cy="232" r="4" />
+                <circle cx="27" cy="108" r="4" />
+              </g>
+              <g font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="600">
+                <text x="140" y="14" fill="#0f1b2d" text-anchor="middle">代码 92</text>
+                <text x="266" y="105" fill="#0f1b2d" text-anchor="start">功能 86</text>
+                <text x="220" y="265" fill="#0f1b2d" text-anchor="middle">测试 64</text>
+                <text x="60" y="265" fill="#0f1b2d" text-anchor="middle">报告 78</text>
+                <text x="14" y="105" fill="#0f1b2d" text-anchor="end">规范 84</text>
+              </g>
+            </svg>
+          </div>
+          <div class="flex justify-center gap-4 text-xs" style="color: var(--muted-foreground);">
+            <span class="flex items-center gap-2"><span style="width: 12px; height: 4px; background: var(--primary);"></span>当前</span>
+            <span class="flex items-center gap-2"><span style="width: 12px; height: 4px; background: var(--gold); border-top: 1px dashed var(--gold);"></span>6 个月前</span>
+          </div>
+        </section>
+
+        <!-- 五维明细 -->
+        <section class="card">
+          <header class="d-h">
+            <div class="card-title-sm" style="font-weight: 600; color: var(--ink);">五维明细</div>
+            <span class="text-xs" style="color: var(--muted-foreground);">近 8 次平均</span>
+          </header>
+          <div class="d-row">
+            <span class="d-row-name">代码规范性</span>
+            <div class="d-row-bar high"><div style="width: 92%;"></div></div>
+            <span class="d-row-val">92  / 100</span>
+            <span class="d-row-trend up">+8</span>
+          </div>
+          <div class="d-row">
+            <span class="d-row-name">功能完整性</span>
+            <div class="d-row-bar high"><div style="width: 86%;"></div></div>
+            <span class="d-row-val">86  / 100</span>
+            <span class="d-row-trend up">+5</span>
+          </div>
+          <div class="d-row">
+            <span class="d-row-name">测试与质量</span>
+            <div class="d-row-bar low"><div style="width: 64%;"></div></div>
+            <span class="d-row-val">64  / 100</span>
+            <span class="d-row-trend down">-2</span>
+          </div>
+          <div class="d-row">
+            <span class="d-row-name">实验报告</span>
+            <div class="d-row-bar mid"><div style="width: 78%;"></div></div>
+            <span class="d-row-val">78  / 100</span>
+            <span class="d-row-trend up">+4</span>
+          </div>
+          <div class="d-row">
+            <span class="d-row-name">创新性思考</span>
+            <div class="d-row-bar mid"><div style="width: 70%;"></div></div>
+            <span class="d-row-val">70  / 100</span>
+            <span class="d-row-trend up">+1</span>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

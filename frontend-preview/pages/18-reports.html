@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>报表中心 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    /* filter card */
+    .fh {
+      padding: 16px 24px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .fh-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .fh-right { margin-left: auto; font-size: 12px; color: var(--muted-foreground); cursor: pointer; }
+
+    .fb { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    .fb-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    .fb-cell { display: flex; flex-direction: column; gap: 8px; }
+    .fb-label { font-size: 12px; font-weight: 500; color: var(--ink); }
+
+    /* radio group */
+    .rgroup { display: flex; gap: 8px; }
+    .rchip {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      color: var(--foreground);
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      background: var(--surface);
+    }
+    .rchip:hover { border-color: var(--primary); }
+    .rchip.active {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .rchip .icon { font-size: 13px; }
+
+    .fb-actions { display: flex; justify-content: flex-end; }
+
+    /* recent table */
+    .rh {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .rt-cols {
+      display: grid;
+      grid-template-columns: 1fr 140px 120px 160px 120px 140px;
+      align-items: center;
+    }
+    .rt-head {
+      background: var(--surface-2);
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .rt-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .rt-row {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .rt-row:last-child { border-bottom: 0; }
+    .rt-row:hover { background: var(--surface-2); }
+
+    .rpt-name-cell { display: flex; align-items: center; gap: 10px; }
+    .rpt-icon {
+      width: 34px; height: 34px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .rpt-icon.pdf { background: var(--danger-soft); color: var(--danger); }
+    .rpt-icon.excel { background: var(--success-soft); color: var(--success); }
+    .rpt-icon.png { background: var(--info-soft); color: var(--info); }
+    .rpt-name {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .rpt-meta {
+      font-size: 11px; color: var(--muted-foreground); margin-top: 2px;
+    }
+
+    .rt-actions {
+      display: flex; align-items: center; gap: 12px;
+      justify-content: flex-end;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link active">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">教学资源</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">报表中心</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>报表中心</h1>
+        <p>按学生 / 班级 / 课程批量生成评价报告，支持 PDF 与 Excel 导出</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">导出历史</button>
+        <button class="btn btn-primary">+ 创建报表</button>
+      </div>
+    </div>
+
+    <!-- filter card -->
+    <section class="card" style="overflow: hidden;">
+      <header class="fh">
+        <i class="icon icon-sliders-horizontal" style="font-size: 14px; color: var(--ink);"></i>
+        <span class="fh-title">筛选条件</span>
+        <div class="flex-1"></div>
+        <span class="fh-right">清空筛选</span>
+      </header>
+
+      <div class="fb">
+        <div class="fb-row">
+          <div class="fb-cell">
+            <label class="fb-label">报表类型</label>
+            <select class="tes-select" style="height: 38px;">
+              <option>班级综合评价报告</option>
+              <option>个人评价报告</option>
+              <option>课程教学画像</option>
+            </select>
+          </div>
+          <div class="fb-cell">
+            <label class="fb-label">时间范围</label>
+            <select class="tes-select" style="height: 38px;">
+              <option>2026 春季学期</option>
+              <option>2025 秋季学期</option>
+            </select>
+          </div>
+          <div class="fb-cell">
+            <label class="fb-label">课程</label>
+            <select class="tes-select" style="height: 38px;">
+              <option>软件工程</option>
+              <option>数据结构</option>
+            </select>
+          </div>
+          <div class="fb-cell">
+            <label class="fb-label">班级</label>
+            <select class="tes-select" style="height: 38px;">
+              <option>软工 21-3 班</option>
+              <option>软工 21-2 班</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fb-row">
+          <div class="fb-cell">
+            <label class="fb-label">实训任务（可多选）</label>
+            <select class="tes-select" style="height: 38px;">
+              <option>全部任务（4）</option>
+            </select>
+          </div>
+          <div class="fb-cell">
+            <label class="fb-label">导出格式</label>
+            <div class="rgroup">
+              <span class="rchip active"><i class="icon icon-file-text" style="color: var(--danger);"></i><span>PDF</span></span>
+              <span class="rchip"><i class="icon icon-sheet" style="color: var(--success);"></i><span>Excel</span></span>
+            </div>
+          </div>
+          <div class="fb-cell">
+            <label class="fb-label">包含内容</label>
+            <div class="rgroup">
+              <span class="rchip active"><i class="icon icon-bar-chart-3"></i><span>可视化图表</span></span>
+              <span class="rchip"><i class="icon icon-table"></i><span>原始数据</span></span>
+            </div>
+          </div>
+          <div class="fb-cell">
+            <label class="fb-label">&nbsp;</label>
+            <button class="btn btn-primary" style="height: 38px;"><i class="icon icon-zap"></i><span>生成报表</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- recent reports -->
+    <section class="card" style="overflow: hidden;">
+      <header class="rh">
+        <span class="text-sm font-semibold" style="color: var(--ink);">近期生成的报表</span>
+        <span class="text-xs" style="color: var(--muted-foreground);">保留 30 天</span>
+      </header>
+
+      <div class="rt-cols rt-head">
+        <div>报表名称</div>
+        <div>类型</div>
+        <div>格式</div>
+        <div>生成时间</div>
+        <div>状态</div>
+        <div style="text-align: right;">操作</div>
+      </div>
+
+      <!-- Row 1 -->
+      <div class="rt-cols rt-row">
+        <div class="rpt-name-cell">
+          <div class="rpt-icon pdf"><i class="icon icon-file-text"></i></div>
+          <div>
+            <div class="rpt-name">软工 21-3 班 · 软件工程实践 #3 综合报告</div>
+            <div class="rpt-meta">2.4 MB  ·  含雷达图 / 维度对比 / 个人评分明细</div>
+          </div>
+        </div>
+        <div><span class="label label-info">班级报表</span></div>
+        <div><span class="flex items-center gap-2"><i class="icon icon-file-text" style="color: var(--danger); font-size: 13px;"></i><span class="text-xs font-medium">PDF</span></span></div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">今天 15:23</div>
+        <div><span class="label label-success">已就绪</span></div>
+        <div class="rt-actions">
+          <span style="color: var(--primary); font-weight: 600; cursor: pointer;">下载</span>
+          <span style="color: var(--muted-foreground); cursor: pointer;">分享</span>
+          <i class="icon icon-trash-2" style="color: var(--muted-foreground); cursor: pointer;"></i>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="rt-cols rt-row">
+        <div class="rpt-name-cell">
+          <div class="rpt-icon excel"><i class="icon icon-sheet"></i></div>
+          <div>
+            <div class="rpt-name">软件工程课程 · 2026 春季 教学画像</div>
+            <div class="rpt-meta">512 KB  ·  原始评价数据 + 班级对比图</div>
+          </div>
+        </div>
+        <div><span class="label label-success">教学画像</span></div>
+        <div><span class="flex items-center gap-2"><i class="icon icon-sheet" style="color: var(--success); font-size: 13px;"></i><span class="text-xs font-medium">Excel</span></span></div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">今天 11:58</div>
+        <div><span class="label label-success">已就绪</span></div>
+        <div class="rt-actions">
+          <span style="color: var(--primary); font-weight: 600; cursor: pointer;">下载</span>
+          <span style="color: var(--muted-foreground); cursor: pointer;">分享</span>
+          <i class="icon icon-trash-2" style="color: var(--muted-foreground); cursor: pointer;"></i>
+        </div>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="rt-cols rt-row">
+        <div class="rpt-name-cell">
+          <div class="rpt-icon png"><i class="icon icon-pie-chart"></i></div>
+          <div>
+            <div class="rpt-name">全院教学评价综合汇总</div>
+            <div class="rpt-meta">预计 8.4 MB  ·  含 4 个学期对比</div>
+          </div>
+        </div>
+        <div><span class="label label-info">全院汇总</span></div>
+        <div><span class="flex items-center gap-2"><i class="icon icon-file-text" style="color: var(--danger); font-size: 13px;"></i><span class="text-xs font-medium">PDF</span></span></div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">3 分钟前</div>
+        <div><span class="label label-info">生成中 65%</span></div>
+        <div class="rt-actions">
+          <span style="color: var(--ink); cursor: pointer;">取消</span>
+        </div>
+      </div>
+
+      <!-- Row 4 -->
+      <div class="rt-cols rt-row">
+        <div class="rpt-name-cell">
+          <div class="rpt-icon pdf"><i class="icon icon-file-text"></i></div>
+          <div>
+            <div class="rpt-name">李文清同学 · 个人画像  ·  软件工程实践 #3</div>
+            <div class="rpt-meta">1.8 MB  ·  雷达图 / 薄弱点 / AI 学习建议</div>
+          </div>
+        </div>
+        <div><span class="label label-warning">个人报告</span></div>
+        <div><span class="flex items-center gap-2"><i class="icon icon-file-text" style="color: var(--danger); font-size: 13px;"></i><span class="text-xs font-medium">PDF</span></span></div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">昨天 16:42</div>
+        <div><span class="label label-success">已就绪</span></div>
+        <div class="rt-actions">
+          <span style="color: var(--primary); font-weight: 600; cursor: pointer;">下载</span>
+          <span style="color: var(--muted-foreground); cursor: pointer;">分享</span>
+          <i class="icon icon-trash-2" style="color: var(--muted-foreground); cursor: pointer;"></i>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

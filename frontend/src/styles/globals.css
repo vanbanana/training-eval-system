@@ -1,0 +1,298 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* shadcn-vue 暗色主题切换钩子 */
+@custom-variant dark (&:is(.dark *));
+
+/* ==================== 主题变量（HSL）==================== */
+/* 沿用 frontend-preview/tokens.css 的「学院深蓝 + 暖橙」气质，转 HSL 让 shadcn 语义类生效 */
+:root {
+  --background: 220 14% 96%;        /* #f4f5f7 */
+  --foreground: 215 25% 16%;        /* #1f2937 */
+
+  --card: 0 0% 100%;                /* #ffffff */
+  --card-foreground: 215 25% 16%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 25% 16%;
+
+  --primary: 213 52% 25%;           /* #1e3a5f 学院深蓝 */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 213 52% 25%;
+
+  --muted: 220 18% 95%;             /* #eef1f4 */
+  --muted-foreground: 218 11% 40%;  /* #5b6473 */
+
+  --accent: 22 89% 41%;             /* #c2410c 暖橙 */
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 73% 41%;         /* #b91c1c */
+  --destructive-foreground: 0 0% 100%;
+
+  --success: 142 69% 29%;           /* #15803d */
+  --success-foreground: 0 0% 100%;
+
+  --warning: 32 91% 36%;            /* #b45309 */
+  --warning-foreground: 0 0% 100%;
+
+  --info: 224 76% 48%;              /* #1d4ed8 */
+  --info-foreground: 0 0% 100%;
+
+  --border: 220 13% 91%;            /* #e5e7eb */
+  --input: 220 13% 91%;
+  --ring: 213 52% 25%;
+
+  --radius: 0.625rem;               /* 10px */
+
+  /* 业务专用辅助 token */
+  --surface: 0 0% 100%;
+  --surface-2: 220 14% 98%;         /* #f9fafb */
+  --surface-3: 38 31% 92%;          /* #f2eee3 */
+  --border-soft: 38 23% 91%;
+  --border-strong: 218 13% 82%;     /* #cbd0d8 */
+  --ink: 215 47% 12%;               /* #0f1b2d */
+  --subtle-foreground: 220 10% 60%; /* #8e96a4 */
+
+  --primary-soft: 215 36% 93%;      /* #e5ecf4 */
+  --accent-soft: 22 80% 92%;        /* #fbe5d6 */
+  --accent-strong: 32 80% 28%;      /* #92400e */
+  --success-soft: 138 41% 93%;      /* #e6f4ec */
+  --warning-soft: 36 80% 90%;       /* #fbe8cf */
+  --danger: 0 73% 41%;
+  --danger-soft: 0 70% 95%;         /* #fbecec */
+  --info-soft: 221 56% 93%;         /* #e5ebf7 */
+  --gold: 35 58% 40%;               /* #a47b2a */
+  --gold-soft: 41 65% 90%;          /* #f5edd9 */
+
+  --chart-1: 213 52% 25%;
+  --chart-2: 22 89% 41%;
+  --chart-3: 142 69% 29%;
+  --chart-4: 32 91% 36%;
+  --chart-5: 224 76% 48%;
+}
+
+.dark {
+  --background: 215 47% 10%;
+  --foreground: 215 28% 92%;
+  --card: 215 35% 14%;
+  --card-foreground: 215 28% 92%;
+  --popover: 215 35% 14%;
+  --popover-foreground: 215 28% 92%;
+  --primary: 215 36% 70%;
+  --primary-foreground: 215 47% 10%;
+  --secondary: 215 30% 18%;
+  --secondary-foreground: 215 28% 92%;
+  --muted: 215 25% 20%;
+  --muted-foreground: 215 14% 65%;
+  --accent: 22 80% 60%;
+  --accent-foreground: 215 47% 10%;
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 142 50% 55%;
+  --warning: 32 80% 60%;
+  --info: 221 70% 70%;
+  --border: 215 28% 22%;
+  --input: 215 28% 22%;
+  --ring: 215 36% 70%;
+  --surface: 215 35% 14%;
+  --surface-2: 215 32% 17%;
+  --surface-3: 215 32% 17%;
+  --border-soft: 215 25% 24%;
+  --border-strong: 215 22% 32%;
+  --ink: 215 28% 92%;
+  --subtle-foreground: 215 12% 55%;
+  --primary-soft: 215 36% 22%;
+  --accent-soft: 22 50% 22%;
+  --accent-strong: 22 80% 70%;
+  --success-soft: 142 28% 22%;
+  --warning-soft: 36 32% 24%;
+  --danger: 0 62% 50%;
+  --danger-soft: 0 32% 22%;
+  --info-soft: 221 32% 24%;
+  --gold: 38 60% 60%;
+  --gold-soft: 41 30% 22%;
+}
+
+/* ==================== Tailwind v4 主题映射 ==================== */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-surface: hsl(var(--surface));
+  --color-surface-2: hsl(var(--surface-2));
+  --color-surface-3: hsl(var(--surface-3));
+  --color-border-soft: hsl(var(--border-soft));
+  --color-border-strong: hsl(var(--border-strong));
+  --color-ink: hsl(var(--ink));
+  --color-subtle-foreground: hsl(var(--subtle-foreground));
+
+  --color-primary-soft: hsl(var(--primary-soft));
+  --color-accent-soft: hsl(var(--accent-soft));
+  --color-accent-strong: hsl(var(--accent-strong));
+  --color-success-soft: hsl(var(--success-soft));
+  --color-warning-soft: hsl(var(--warning-soft));
+  --color-danger: hsl(var(--danger));
+  --color-danger-soft: hsl(var(--danger-soft));
+  --color-info-soft: hsl(var(--info-soft));
+  --color-gold: hsl(var(--gold));
+  --color-gold-soft: hsl(var(--gold-soft));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-pill: 9999px;
+
+  --font-sans: 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}
+
+/* ==================== 基础元素样式 ==================== */
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  html,
+  body {
+    font-family: var(--font-sans);
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background));
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+  body {
+    margin: 0;
+  }
+  /* 滚动条美化 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border-radius: 4px;
+  }
+}
+
+/* ==================== 兼容旧手搓类（迁移期间过渡用，后续会逐步替换）==================== */
+.text-ink { color: hsl(var(--ink)); }
+.text-fg { color: hsl(var(--foreground)); }
+.text-muted { color: hsl(var(--muted-foreground)); }
+.text-subtle { color: hsl(var(--subtle-foreground)); }
+.text-primary { color: hsl(var(--primary)); }
+.text-accent { color: hsl(var(--accent)); }
+.text-success { color: hsl(var(--success)); }
+.text-warning { color: hsl(var(--warning)); }
+.text-danger { color: hsl(var(--danger)); }
+.text-info { color: hsl(var(--info)); }
+.text-gold { color: hsl(var(--gold)); }
+.text-primary-foreground { color: hsl(var(--primary-foreground)); }
+.text-accent-strong { color: hsl(var(--accent-strong)); }
+.text-subtle-foreground { color: hsl(var(--subtle-foreground)); }
+.text-muted-foreground { color: hsl(var(--muted-foreground)); }
+
+.bg-background { background-color: hsl(var(--background)); }
+.bg-surface { background-color: hsl(var(--surface)); }
+.bg-surface-2 { background-color: hsl(var(--surface-2)); }
+.bg-surface-3 { background-color: hsl(var(--surface-3)); }
+.bg-primary { background-color: hsl(var(--primary)); }
+.bg-primary-soft { background-color: hsl(var(--primary-soft)); }
+.bg-accent { background-color: hsl(var(--accent)); }
+.bg-accent-soft { background-color: hsl(var(--accent-soft)); }
+.bg-success { background-color: hsl(var(--success)); }
+.bg-success-soft { background-color: hsl(var(--success-soft)); }
+.bg-warning { background-color: hsl(var(--warning)); }
+.bg-warning-soft { background-color: hsl(var(--warning-soft)); }
+.bg-danger { background-color: hsl(var(--danger)); }
+.bg-danger-soft { background-color: hsl(var(--danger-soft)); }
+.bg-info { background-color: hsl(var(--info)); }
+.bg-info-soft { background-color: hsl(var(--info-soft)); }
+.bg-gold { background-color: hsl(var(--gold)); }
+.bg-gold-soft { background-color: hsl(var(--gold-soft)); }
+.bg-muted { background-color: hsl(var(--muted)); }
+
+.border-default { border-color: hsl(var(--border)); }
+.border-soft { border-color: hsl(var(--border-soft)); }
+.border-strong { border-color: hsl(var(--border-strong)); }
+.border-border { border-color: hsl(var(--border)); }
+
+.font-mono-tes { font-family: var(--font-mono); }
+
+/* ==================== 全局动效（短而克制，性能友好） ==================== */
+@layer utilities {
+  /* 卡片/列表入场：浏览器原生 @starting-style，零运行时开销 */
+  .anim-in {
+    transition: opacity 250ms ease, transform 250ms ease;
+  }
+  @starting-style {
+    .anim-in {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  /* 数字滚动占位 */
+  .num-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ==================== 路由切换过渡（Vue Transition） ==================== */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}

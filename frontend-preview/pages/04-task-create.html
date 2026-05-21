@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>创建实训任务 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+
+    /* section card */
+    .sec-card { display: flex; flex-direction: column; }
+    .sec-hd {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .sec-hd-num {
+      width: 22px; height: 22px;
+      border-radius: var(--radius-pill);
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: grid; place-items: center;
+      font-size: 11px; font-weight: 600;
+    }
+    .sec-hd-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+    .sec-hd .right-actions { margin-left: auto; }
+    .sec-body { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+    /* form */
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-row-h { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-label {
+      font-size: 13px; font-weight: 500; color: var(--ink);
+    }
+    .form-label .req { color: var(--danger); margin-left: 2px; }
+    .form-help {
+      font-size: 11px; color: var(--muted-foreground); margin-top: 2px;
+    }
+    .form-counter { font-size: 11px; color: var(--subtle-foreground); margin-top: 2px; }
+    textarea.tes-textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-family: inherit; font-size: 13px;
+      resize: vertical;
+      background: var(--surface);
+      color: var(--foreground);
+      box-sizing: border-box;
+    }
+    textarea.tes-textarea:focus { outline: none; border-color: var(--primary); }
+
+    .input-input {
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      font-size: 13px;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: inherit;
+      color: var(--foreground);
+    }
+    .input-input:focus { outline: none; border-color: var(--primary); }
+
+    /* class chips */
+    .chips-wrap {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      padding: 8px 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      min-height: 40px; align-items: center;
+      background: var(--surface);
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 500;
+    }
+    .chip .x { cursor: pointer; font-size: 13px; opacity: 0.6; }
+    .chip .x:hover { opacity: 1; }
+    .chip-add {
+      color: var(--muted-foreground);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* dimension table */
+    .dim-tbl-hd {
+      display: grid;
+      grid-template-columns: 60px 240px 1fr 120px 80px;
+      padding: 14px 20px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 600;
+      color: var(--muted-foreground); letter-spacing: 1px;
+    }
+    .dim-row {
+      display: grid;
+      grid-template-columns: 60px 240px 1fr 120px 80px;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dim-row:last-child { border-bottom: 0; }
+    .dim-grip {
+      width: 24px; height: 24px;
+      display: grid; place-items: center;
+      color: var(--subtle-foreground);
+      cursor: grab;
+    }
+    .dim-add-btn {
+      padding: 14px 20px;
+      text-align: center;
+      color: var(--primary);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      background: var(--surface-2);
+    }
+    .dim-add-btn:hover { background: var(--primary-soft); }
+    .weight-input {
+      display: flex; align-items: center; gap: 6px;
+      width: 80px; height: 32px;
+      padding: 0 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+    .weight-input input {
+      border: 0; outline: 0; background: transparent;
+      width: 30px; font-size: 13px; text-align: right;
+      font-family: inherit;
+    }
+    .weight-input .unit { color: var(--muted-foreground); font-size: 12px; }
+    .icon-action-sm {
+      width: 28px; height: 28px;
+      display: grid; place-items: center;
+      border-radius: var(--radius-sm);
+      color: var(--muted-foreground);
+      cursor: pointer;
+    }
+    .icon-action-sm:hover { background: var(--surface-2); color: var(--ink); }
+
+    /* template list */
+    .tpl-item {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .tpl-item:last-child { border-bottom: 0; }
+    .tpl-item:hover { background: var(--surface-2); }
+    .tpl-item.active {
+      background: var(--primary-soft);
+    }
+    .tpl-item .tpl-radio {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border-strong);
+      border-radius: var(--radius-pill);
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .tpl-item.active .tpl-radio {
+      border-color: var(--primary);
+      background: radial-gradient(circle, var(--primary) 4px, transparent 5px);
+    }
+    .tpl-info { flex: 1; }
+    .tpl-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .tpl-meta { font-size: 11px; color: var(--muted-foreground); margin-top: 4px; }
+    .tpl-tag {
+      display: inline-block;
+      font-size: 10px; font-weight: 600;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--gold-soft);
+      color: var(--gold);
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ratio bar */
+    .ratio-bar {
+      height: 36px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+    }
+    .ratio-bar .obj { background: var(--primary); color: #fff; }
+    .ratio-bar .subj { background: var(--accent); color: #fff; }
+    .ratio-seg {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+    }
+    .ratio-legend {
+      display: flex; justify-content: space-between; font-size: 11px;
+    }
+    .ratio-legend > div { display: flex; align-items: center; gap: 6px; }
+    .ratio-legend .swatch { width: 8px; height: 8px; border-radius: var(--radius-sm); }
+    .ratio-legend .obj-sw { background: var(--primary); }
+    .ratio-legend .subj-sw { background: var(--accent); }
+
+    /* tip card */
+    .tip-card {
+      display: flex; flex-direction: column; gap: 10px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+    }
+    .tip-card-h {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--accent-strong);
+      font-size: 13px; font-weight: 600;
+    }
+    .tip-card-content {
+      color: var(--accent-strong);
+      font-size: 12px;
+      line-height: 1.8;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索任务、学生、班级</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link active">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">实训任务</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">创建实训任务</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>创建实训任务</h1>
+        <p>配置任务信息与多维度评价指标，发布后将通知关联班级所有学生</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">保存为草稿</button>
+        <button class="btn btn-primary">发布任务</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT -->
+      <div class="flex-col gap-5">
+
+        <!-- 基本信息 -->
+        <section class="card sec-card">
+          <header class="sec-hd">
+            <span class="sec-hd-num">1</span>
+            <span class="sec-hd-title">基本信息</span>
+          </header>
+          <div class="sec-body">
+            <div class="form-row">
+              <div class="flex justify-between items-center">
+                <label class="form-label">任务名称<span class="req">*</span></label>
+                <span class="form-counter">14 / 100</span>
+              </div>
+              <input class="input-input" placeholder="如：软件工程实践 · 第三次实训" value="软件工程实践 · 第三次实训" />
+              <span class="form-help">1-100 字符，发布后无法修改</span>
+            </div>
+
+            <div class="form-row-h">
+              <div class="form-row">
+                <label class="form-label">所属课程<span class="req">*</span></label>
+                <select class="tes-select" style="height: 40px;">
+                  <option>软件工程</option>
+                  <option>数据结构</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label class="form-label">截止时间<span class="req">*</span></label>
+                <div class="tes-input" style="height: 40px;">
+                  <i class="icon icon-calendar-clock"></i>
+                  <input type="text" value="2026-05-22 23:59" />
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label">发布班级<span class="req">*</span></label>
+              <div class="chips-wrap">
+                <span class="chip">软工 21-3 班 56 人 <span class="x">×</span></span>
+                <span class="chip">软工 21-2 班 54 人 <span class="x">×</span></span>
+                <span class="chip-add">+ 添加更多班级</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label">任务描述</label>
+              <textarea class="tes-textarea" placeholder="向学生说明任务背景与目标">基于课程前两次实训学习的内容，要求学生使用 Java 完成一个完整的工厂模式案例工程，并体现完成结构化的代码组织。</textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="flex justify-between items-center">
+                <label class="form-label">实训要求<span class="req">*</span></label>
+                <span class="form-counter">282 / 5000</span>
+              </div>
+              <textarea class="tes-textarea" rows="6" style="min-height: 130px;" placeholder="按步骤列出学生应完成的内容">1. 完成至少两种工厂模式的代码实现，可自行选定具体场景（PDF 或 Word）；
+2. 对每种工厂模式提供单元测试，覆盖率不低于 70%；
+3. 撰写不超过 2000 字的总结文档：原文 + 自行总结；
+4. 提交内容包含：源代码 + 文档 + 测试报告；</textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- 评价指标 -->
+        <section class="card sec-card">
+          <header class="sec-hd">
+            <span class="sec-hd-num">2</span>
+            <span class="sec-hd-title">评价指标</span>
+            <span class="label label-success" style="margin-left: 10px;">权重总和 100%</span>
+            <div class="right-actions flex gap-2">
+              <button class="btn btn-ghost btn-sm"><i class="icon icon-bookmark"></i><span>从模板加载</span></button>
+              <button class="btn btn-ghost btn-sm"><i class="icon icon-save"></i><span>保存为模板</span></button>
+            </div>
+          </header>
+
+          <div class="dim-tbl-hd">
+            <div></div>
+            <div>指标名称</div>
+            <div>评分依据</div>
+            <div>权重</div>
+            <div style="text-align: right;">操作</div>
+          </div>
+
+          <div class="dim-row">
+            <span class="dim-grip"><i class="icon icon-grip-vertical"></i></span>
+            <span class="text-sm font-semibold" style="color: var(--ink);">代码规范性</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">命名、注释、复用性、错误处理与风格统一</span>
+            <div class="weight-input"><input value="30" /><span class="unit">%</span></div>
+            <div class="text-right"><span class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-trash-2"></i></span></div>
+          </div>
+
+          <div class="dim-row">
+            <span class="dim-grip"><i class="icon icon-grip-vertical"></i></span>
+            <span class="text-sm font-semibold" style="color: var(--ink);">功能完整性</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">需求覆盖度与功能模块的完整实现</span>
+            <div class="weight-input"><input value="35" /><span class="unit">%</span></div>
+            <div class="text-right"><span class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-trash-2"></i></span></div>
+          </div>
+
+          <div class="dim-row">
+            <span class="dim-grip"><i class="icon icon-grip-vertical"></i></span>
+            <span class="text-sm font-semibold" style="color: var(--ink);">测试与质量</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">单元测试覆盖率与边界处理</span>
+            <div class="weight-input"><input value="20" /><span class="unit">%</span></div>
+            <div class="text-right"><span class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-trash-2"></i></span></div>
+          </div>
+
+          <div class="dim-row">
+            <span class="dim-grip"><i class="icon icon-grip-vertical"></i></span>
+            <span class="text-sm font-semibold" style="color: var(--ink);">实验报告与文档</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">报告结构、内容清晰度与图表表达</span>
+            <div class="weight-input"><input value="15" /><span class="unit">%</span></div>
+            <div class="text-right"><span class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-trash-2"></i></span></div>
+          </div>
+
+          <div class="dim-add-btn">+ 添加新评价维度（最多 10 项）</div>
+        </section>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex-col gap-5">
+
+        <!-- 评价模板 -->
+        <section class="card sec-card">
+          <header class="sec-hd" style="padding: 18px 20px;">
+            <span class="sec-hd-title">评价模板</span>
+            <a href="#" class="card-link" style="margin-left: auto;">管理 ›</a>
+          </header>
+          <div class="tpl-item active">
+            <span class="tpl-radio"></span>
+            <div class="tpl-info">
+              <div class="tpl-name">代码类项目评价 v2<span class="tpl-tag">系统</span></div>
+              <div class="tpl-meta">4 个指标 · 标准化方案 · 已被使用 28 次</div>
+            </div>
+          </div>
+          <div class="tpl-item">
+            <span class="tpl-radio"></span>
+            <div class="tpl-info">
+              <div class="tpl-name">文档型实训评价</div>
+              <div class="tpl-meta">3 个指标 · 由我创建</div>
+            </div>
+          </div>
+          <div class="tpl-item">
+            <span class="tpl-radio"></span>
+            <div class="tpl-info">
+              <div class="tpl-name">综合实训评价</div>
+              <div class="tpl-meta">5 个指标 · 团队共享</div>
+            </div>
+          </div>
+          <div class="tpl-item">
+            <span class="tpl-radio"></span>
+            <div class="tpl-info">
+              <div class="tpl-name">报告类评价 · 单页</div>
+              <div class="tpl-meta">2 个指标 · 由我创建</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 客观与主观比例 -->
+        <section class="card card-padded" style="display: flex; flex-direction: column; gap: 14px;">
+          <div>
+            <div class="card-title-sm" style="color: var(--ink);">客观与主观比例</div>
+            <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">系统将按以下比例计算综合得分</div>
+          </div>
+          <div class="ratio-bar">
+            <div class="ratio-seg obj" style="flex: 0 0 60%;">AI 客观 60%</div>
+            <div class="ratio-seg subj" style="flex: 0 0 40%;">教师主观 40%</div>
+          </div>
+          <div class="ratio-legend">
+            <div><span class="swatch obj-sw"></span><span>客观分（AI 评分）</span></div>
+            <div><span class="swatch subj-sw"></span><span>主观分（教师审核）</span></div>
+          </div>
+          <div class="text-xs" style="color: var(--muted-foreground);">提示：可在「评价指标权重」栏调整比例。</div>
+        </section>
+
+        <!-- 警告提示 -->
+        <section class="tip-card">
+          <div class="tip-card-h">
+            <i class="icon icon-info"></i>
+            <span>发布前请确认以下事项</span>
+          </div>
+          <div class="tip-card-content">• 任务名称、评价指标在发布后将无法修改
+• 截止时间必须晚于当前时间
+• 系统将自动通知关联班级所有学生</div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

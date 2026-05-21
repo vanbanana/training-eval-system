@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>评价结果 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 460px; gap: 20px; }
+
+    /* 综合得分卡 */
+    .score-card { padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+    .sc-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sc-num {
+      font-size: 56px; font-weight: 700;
+      color: var(--ink); line-height: 1;
+      font-feature-settings: 'tnum';
+    }
+    .sc-num .of {
+      font-size: 14px; color: var(--muted-foreground);
+      font-weight: 400; margin-left: 4px;
+    }
+    .sc-meta {
+      display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+    }
+    .sc-meta-row {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px;
+    }
+    .sc-meta-row.success { color: var(--success); font-weight: 600; }
+
+    /* 维度网格 */
+    .dim-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .dim-cell {
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border-radius: var(--radius-md);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .dim-name {
+      font-size: 12px; color: var(--muted-foreground); font-weight: 500;
+    }
+    .dim-bottom { display: flex; align-items: baseline; gap: 6px; }
+    .dim-num { font-size: 22px; font-weight: 700; color: var(--ink); }
+    .dim-weight { font-size: 11px; color: var(--muted-foreground); }
+    .dim-bar {
+      height: 4px; background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .dim-bar > div {
+      height: 100%; border-radius: var(--radius-pill);
+    }
+    .dim-bar.high > div { background: var(--success); }
+    .dim-bar.mid > div { background: var(--primary); }
+    .dim-bar.low > div { background: var(--accent); }
+
+    /* 教师评语 */
+    .cmt-card { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    .cmt-h { display: flex; align-items: center; gap: 10px; }
+    .teacher-avatar {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-pill);
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: grid; place-items: center;
+      font-weight: 600; font-size: 13px;
+    }
+    .teacher-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .teacher-tag {
+      padding: 2px 8px; font-size: 10px; font-weight: 600;
+      background: var(--primary-soft); color: var(--primary);
+      border-radius: var(--radius-pill);
+    }
+    .cmt-body {
+      font-size: 13px; line-height: 1.85;
+      color: var(--foreground);
+    }
+
+    /* AI 智能反馈 */
+    .iss-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .iss-list { display: flex; flex-direction: column; }
+    .iss-row {
+      display: flex; gap: 12px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .iss-row:last-child { border-bottom: 0; }
+    .iss-icon-wrap {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .iss-icon-wrap.warn { background: var(--warning-soft); color: var(--warning); }
+    .iss-icon-wrap.info { background: var(--info-soft); color: var(--info); }
+    .iss-icon-wrap.danger { background: var(--danger-soft); color: var(--danger); }
+    .iss-info { flex: 1; }
+    .iss-title {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .iss-desc {
+      font-size: 12px; color: var(--muted-foreground);
+      margin-top: 4px; line-height: 1.7;
+    }
+    .iss-meta {
+      font-size: 11px; color: var(--subtle-foreground);
+      margin-top: 6px; font-family: var(--font-mono);
+    }
+
+    /* 右侧 AI 聊天 */
+    .chat-card {
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      height: 720px;
+    }
+    .chat-h {
+      padding: 16px 20px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .chat-h-l { display: flex; align-items: center; gap: 10px; }
+    .ai-avatar-sm {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      color: #fff; font-size: 14px;
+    }
+    .chat-body {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    .msg { display: flex; gap: 10px; }
+    .msg-bubble {
+      max-width: 85%;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .msg.user { justify-content: flex-end; }
+    .msg.user .msg-bubble {
+      background: var(--primary);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+    .msg.ai .msg-bubble {
+      background: var(--surface-2);
+      color: var(--foreground);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 2px;
+    }
+    .msg-time {
+      font-size: 10px;
+      color: var(--subtle-foreground);
+      margin-top: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .tool-call {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      background: var(--info-soft);
+      color: var(--info);
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .quick-suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .qs-chip {
+      padding: 4px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      color: var(--primary);
+      cursor: pointer;
+    }
+    .qs-chip:hover { background: var(--primary-soft); }
+
+    .chat-ft {
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .chat-input-wrap {
+      display: flex; gap: 8px; align-items: flex-end;
+      padding: 10px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+    }
+    .chat-input {
+      flex: 1; border: 0; outline: 0;
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+      min-height: 20px;
+      max-height: 80px;
+    }
+    .chat-send-btn {
+      width: 32px; height: 32px;
+      background: var(--primary);
+      color: #fff;
+      border: 0;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .chat-send-btn:hover { background: var(--primary-strong); }
+    .chat-meta-row {
+      display: flex; justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar" style="background: var(--accent-soft); color: var(--accent);">李</span><span class="user-name">李文清  同学</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link active">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">我的任务</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">软件工程实践 · 第三次实训</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">评价结果</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>评价结果</h1>
+        <p>软件工程实践 · 第三次实训 · 王伟 老师批改于 2026-05-13 09:24</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">导出 PDF 报告</button>
+        <button class="btn btn-primary"><i class="icon icon-sparkles"></i><span>问问 AI 助手</span></button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT -->
+      <div class="flex-col gap-5">
+        <!-- score card -->
+        <section class="card score-card">
+          <div class="sc-top">
+            <div>
+              <div class="text-xs" style="color: var(--muted-foreground); font-weight: 500;">综合得分</div>
+              <div class="sc-num">86.8 <span class="of">/ 100</span></div>
+            </div>
+            <div class="sc-meta">
+              <div class="sc-meta-row success">
+                <i class="icon icon-trending-up"></i>
+                <span>较班级平均 +5.4</span>
+              </div>
+              <span class="text-xs" style="color: var(--muted-foreground);">客观 88 · 主观 85 · 比例 60/40</span>
+            </div>
+          </div>
+          <div class="divider-h"></div>
+          <div class="dim-grid">
+            <div class="dim-cell">
+              <div class="dim-name">代码规范性</div>
+              <div class="dim-bottom">
+                <span class="dim-num">86</span>
+                <span class="dim-weight">/ 100  权重 30%</span>
+              </div>
+              <div class="dim-bar high"><div style="width: 86%;"></div></div>
+            </div>
+            <div class="dim-cell">
+              <div class="dim-name">功能完整性</div>
+              <div class="dim-bottom">
+                <span class="dim-num">92</span>
+                <span class="dim-weight">/ 100  权重 35%</span>
+              </div>
+              <div class="dim-bar high"><div style="width: 92%;"></div></div>
+            </div>
+            <div class="dim-cell">
+              <div class="dim-name">测试与质量</div>
+              <div class="dim-bottom">
+                <span class="dim-num">82</span>
+                <span class="dim-weight">/ 100  权重 20%</span>
+              </div>
+              <div class="dim-bar mid"><div style="width: 82%;"></div></div>
+            </div>
+            <div class="dim-cell">
+              <div class="dim-name">实验报告</div>
+              <div class="dim-bottom">
+                <span class="dim-num">82</span>
+                <span class="dim-weight">/ 100  权重 15%</span>
+              </div>
+              <div class="dim-bar mid"><div style="width: 82%;"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 教师评语 -->
+        <section class="card cmt-card">
+          <div class="cmt-h">
+            <span class="teacher-avatar">王</span>
+            <span class="teacher-name">王伟 老师</span>
+            <span class="teacher-tag">教师评语</span>
+          </div>
+          <div class="cmt-body">整体完成度高，能够正确实现生产者—消费者模型。建议下一步：1) 补充 ReentrantLock + Condition 实现以与报告一致；2) 增加对极端容量与中断场景的边界测试；3) 在性能分析中加入 GC 日志。</div>
+        </section>
+
+        <!-- AI 反馈 -->
+        <section class="card">
+          <header class="iss-h">
+            <div class="flex items-center gap-2">
+              <i class="icon icon-sparkles" style="color: var(--accent);"></i>
+              <span class="card-title">AI 智能反馈</span>
+            </div>
+            <a href="#" class="card-link">查看完整解析 ›</a>
+          </header>
+          <div class="iss-list">
+            <div class="iss-row">
+              <div class="iss-icon-wrap warn"><i class="icon icon-alert-triangle"></i></div>
+              <div class="iss-info">
+                <div class="iss-title">
+                  <span>同步原语：报告与代码不一致</span>
+                  <span class="label label-warning">中</span>
+                </div>
+                <div class="iss-desc">报告声明使用 wait/notify 实现同步，但代码中 ProducerConsumer.java 实际使用 ReentrantLock + Condition</div>
+                <div class="iss-meta">影响维度：代码规范性 -4 分</div>
+              </div>
+            </div>
+            <div class="iss-row">
+              <div class="iss-icon-wrap info"><i class="icon icon-info"></i></div>
+              <div class="iss-info">
+                <div class="iss-title">
+                  <span>建议补充：ReentrantLock + Condition 实现</span>
+                </div>
+                <div class="iss-desc">为与报告陈述一致，建议增加另一种同步原语的版本，便于体现两种方案的对比与权衡</div>
+                <div class="iss-meta">不影响当前评分，仅作改进建议</div>
+              </div>
+            </div>
+            <div class="iss-row">
+              <div class="iss-icon-wrap danger"><i class="icon icon-x-circle"></i></div>
+              <div class="iss-info">
+                <div class="iss-title">
+                  <span>测试覆盖率不足</span>
+                  <span class="label label-danger">高</span>
+                </div>
+                <div class="iss-desc">未覆盖空队列、中断场景的边界测试。当前覆盖率 78%，建议提升至 90% 以上</div>
+                <div class="iss-meta">影响维度：测试与质量 -8 分</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT: AI Chat -->
+      <aside>
+        <section class="card chat-card">
+          <header class="chat-h">
+            <div class="chat-h-l">
+              <span class="ai-avatar-sm"><i class="icon icon-sparkles"></i></span>
+              <div>
+                <div class="text-sm font-semibold" style="color: var(--ink);">AI 学习助手</div>
+                <div class="text-xs" style="color: var(--muted-foreground);">基于本次评价上下文为你解答</div>
+              </div>
+            </div>
+            <button class="icon-btn"><i class="icon icon-rotate-ccw"></i></button>
+          </header>
+
+          <div class="chat-body">
+            <!-- AI welcome -->
+            <div class="msg ai">
+              <div class="msg-bubble">
+                你好，李文清同学 👋 关于本次实训我可以帮你深入解释 AI 智能反馈、对比相似实现、查看班级数据等。试试以下问题：
+                <div class="quick-suggestions">
+                  <span class="qs-chip">为什么我的同步原语会扣分？</span>
+                  <span class="qs-chip">如何补足测试覆盖率？</span>
+                  <span class="qs-chip">班级平均分是多少？</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- user -->
+            <div class="msg user">
+              <div>
+                <div class="msg-bubble">为什么我的代码扣分了？我的报告里写得很清楚啊。</div>
+                <div class="msg-time text-right">14:22</div>
+              </div>
+            </div>
+
+            <!-- AI with tool -->
+            <div class="msg ai">
+              <div class="msg-bubble">
+                <div class="tool-call">
+                  <i class="icon icon-database"></i>
+                  <span>查询维度评分：代码规范性</span>
+                </div>
+                根据 5.2 节 AI 解析结果，扣分主要来自 <strong>ReentrantLock + Condition</strong> 与代码中 ProducerConsumer.java 实际使用 synchronized + wait/notify 的写法不一致。这两种方法都是合法的同步实现，但报告与代码描述应保持一致。
+                <br /><br />
+                建议：1) 直接将代码统一为 synchronized 风格，或 2) 在报告中改为"为对比 synchronized 与 ReentrantLock 两种方案"。
+                <div class="quick-suggestions">
+                  <span class="qs-chip">两种方案的优缺点是什么？</span>
+                  <span class="qs-chip">补一段 Condition 的示例</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <footer class="chat-ft">
+            <div class="chat-input-wrap">
+              <textarea class="chat-input" placeholder="向 AI 提问关于本次评价的问题..." rows="1"></textarea>
+              <button class="chat-send-btn"><i class="icon icon-send" style="font-size: 14px;"></i></button>
+            </div>
+            <div class="chat-meta-row">
+              <span>今日剩余 42 / 50 次</span>
+              <span>单次提问 ≤ 500 字</span>
+            </div>
+          </footer>
+        </section>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

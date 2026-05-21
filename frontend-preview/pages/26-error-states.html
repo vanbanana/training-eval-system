@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>异常状态合集 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    body { padding: 40px 32px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .stack { display: flex; flex-direction: column; gap: 32px; }
+
+    /* error card */
+    .err-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 48px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 18px;
+      text-align: center;
+    }
+    .err-icon-wrap {
+      width: 80px; height: 80px;
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      font-size: 36px;
+    }
+    .err-icon-wrap.warning { background: var(--accent-soft); color: var(--accent); }
+    .err-icon-wrap.muted { background: var(--muted); color: var(--muted-foreground); }
+    .err-icon-wrap.danger { background: var(--danger-soft); color: var(--danger); }
+    .err-icon-wrap.surface {
+      background: var(--surface-2);
+      color: var(--muted-foreground);
+      border: 1px solid var(--border);
+    }
+    .err-num {
+      font-size: 48px; font-weight: 700;
+      color: var(--ink); letter-spacing: 2px;
+      line-height: 1;
+    }
+    .err-title { font-size: 18px; font-weight: 600; color: var(--ink); }
+    .err-desc {
+      font-size: 13px; line-height: 1.7;
+      color: var(--muted-foreground);
+    }
+    .err-trace {
+      padding: 8px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .err-actions { display: flex; gap: 10px; }
+
+    /* degraded card */
+    .deg-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .deg-h {
+      background: var(--warning-soft);
+      padding: 18px 24px;
+      display: flex; gap: 14px; align-items: center;
+      border-bottom: 1px solid var(--accent);
+    }
+    .deg-icon {
+      width: 40px; height: 40px;
+      background: var(--surface);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      color: var(--accent);
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .deg-h-title {
+      color: var(--accent-strong);
+      font-size: 14px; font-weight: 700;
+    }
+    .deg-h-desc {
+      color: var(--accent-strong);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .deg-body {
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .deg-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .deg-row .icon { font-size: 14px; flex-shrink: 0; }
+    .deg-row .icon-check { color: var(--success); }
+    .deg-row .icon-x { color: var(--danger); }
+
+    .deg-f {
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .deg-f-actions { display: flex; gap: 10px; }
+  </style>
+</head>
+<body>
+  <div class="stack">
+    <div>
+      <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 700; color: var(--ink);">异常状态合集</h1>
+      <p style="margin: 0; font-size: 13px; color: var(--muted-foreground);">403 / 404 / 500 / 服务降级 / 空状态  ·  统一视觉语言</p>
+    </div>
+
+    <!-- Row 1: 403 / 404 / 500 -->
+    <div class="grid-3">
+      <!-- 403 -->
+      <div class="err-card">
+        <div class="err-icon-wrap warning"><i class="icon icon-lock"></i></div>
+        <div class="err-num">403</div>
+        <div class="err-title">权限不足</div>
+        <div class="err-desc">你没有访问该页面的权限。请联系学院管理员申请相应角色，或返回工作台。</div>
+        <div class="err-actions">
+          <button class="btn btn-secondary">申请权限</button>
+          <button class="btn btn-primary">返回工作台</button>
+        </div>
+      </div>
+
+      <!-- 404 -->
+      <div class="err-card">
+        <div class="err-icon-wrap muted"><i class="icon icon-compass"></i></div>
+        <div class="err-num">404</div>
+        <div class="err-title">页面未找到</div>
+        <div class="err-desc">抱歉，你访问的页面不存在或已被移除。可能是链接失效，或资源已被归档。</div>
+        <div class="err-actions">
+          <button class="btn btn-secondary">上一页</button>
+          <button class="btn btn-primary">回到首页</button>
+        </div>
+      </div>
+
+      <!-- 500 -->
+      <div class="err-card">
+        <div class="err-icon-wrap danger"><i class="icon icon-server-crash"></i></div>
+        <div class="err-num">500</div>
+        <div class="err-title">服务暂时不可用</div>
+        <div class="err-desc">系统遇到了未预期的错误。我们已自动记录日志，运维同事将尽快处理。</div>
+        <div class="err-trace">trace_id  cf8a-2031-9b8e-4d72</div>
+        <div class="err-actions">
+          <button class="btn btn-secondary">复制错误码</button>
+          <button class="btn btn-primary">刷新重试</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: degraded + empty -->
+    <div class="grid-2">
+      <!-- degraded LLM -->
+      <div class="deg-card">
+        <div class="deg-h">
+          <div class="deg-icon"><i class="icon icon-plug-zap"></i></div>
+          <div>
+            <div class="deg-h-title">LLM 服务暂时不可用</div>
+            <div class="deg-h-desc">已连续 3 次调用失败，已触发熔断保护 30 秒。系统已切换至降级模式：可手动评分。</div>
+          </div>
+        </div>
+        <div class="deg-body">
+          <div class="text-sm font-semibold" style="color: var(--ink);">当前可用功能</div>
+          <div class="deg-row">
+            <i class="icon icon-check"></i>
+            <span>教师手动评分  ·  评分依据可手动填写</span>
+          </div>
+          <div class="deg-row">
+            <i class="icon icon-check"></i>
+            <span>文档解析（已完成的提交）</span>
+          </div>
+          <div class="deg-row">
+            <i class="icon icon-x"></i>
+            <span>AI 客观评分  ·  AI 智能核查  ·  AI 学习助手</span>
+          </div>
+          <div class="deg-row">
+            <i class="icon icon-x"></i>
+            <span>语义相似度检测（仅文本指纹可用）</span>
+          </div>
+        </div>
+        <div class="deg-f">
+          <span class="text-xs" style="color: var(--muted-foreground);">预计恢复时间：30 秒后自动重试连接</span>
+          <div class="deg-f-actions">
+            <button class="btn btn-secondary btn-sm">立即重连</button>
+            <button class="btn btn-primary btn-sm">切换至手动模式</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- empty state -->
+      <div class="err-card">
+        <div class="err-icon-wrap surface"><i class="icon icon-inbox"></i></div>
+        <div class="err-title">暂无数据</div>
+        <div class="err-desc">还没有任何评价记录。提交至少 3 次实训后，系统将自动生成你的薄弱点画像。</div>
+        <div class="err-actions">
+          <button class="btn btn-secondary">了解评价体系</button>
+          <button class="btn btn-primary">查看可提交任务</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

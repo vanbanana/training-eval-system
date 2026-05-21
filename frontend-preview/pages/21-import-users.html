@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>批量导入用户 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 380px; gap: 18px; }
+
+    /* steps */
+    .steps {
+      padding: 24px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 0;
+    }
+    .step { display: flex; align-items: center; gap: 10px; }
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 13px;
+      flex-shrink: 0;
+    }
+    .step-num.done { background: var(--primary); color: #fff; }
+    .step-num.active { background: var(--primary); color: #fff; }
+    .step-num.todo { background: var(--surface-2); color: var(--muted-foreground); border: 1px solid var(--border); }
+
+    .step-text { display: flex; flex-direction: column; gap: 1px; }
+    .step-title { font-size: 12px; font-weight: 600; color: var(--ink); }
+    .step-meta { font-size: 11px; color: var(--muted-foreground); }
+    .step-meta.done { color: var(--success); }
+    .step-meta.active { color: var(--primary); }
+    .step-todo .step-title { color: var(--muted-foreground); font-weight: 500; }
+    .step-line {
+      width: 80px; height: 1px;
+      background: var(--border);
+    }
+    .step-line.done { background: var(--primary); }
+
+    /* upload zone */
+    .up-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .up-body {
+      background: var(--surface-2);
+      border: 2px dashed var(--primary);
+      padding: 28px 24px;
+      min-height: 200px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px;
+      margin: 0;
+    }
+    .up-icon {
+      width: 56px; height: 56px;
+      background: var(--primary-soft);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      color: var(--primary);
+      font-size: 24px;
+    }
+
+    /* preview table */
+    .prev-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .pr-cols {
+      display: grid;
+      grid-template-columns: 60px 100px 80px 1fr 100px 1fr;
+      align-items: center;
+    }
+    .pr-head {
+      background: var(--surface-2);
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pr-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .pr-row {
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .pr-row.danger { background: var(--danger-soft); }
+    .pr-row.warn { background: var(--warning-soft); }
+    .pr-row .row-num {
+      font-family: var(--font-mono);
+      color: var(--muted-foreground);
+    }
+    .pr-pf {
+      background: var(--surface-2);
+      padding: 14px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* right summary */
+    .sum-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px;
+    }
+    .sum-row-l { color: var(--muted-foreground); }
+    .sum-row-r {
+      font-weight: 700; color: var(--ink);
+      font-family: var(--font-mono);
+    }
+    .sum-row-r.success { color: var(--success); }
+    .sum-row-r.warn { color: var(--warning); }
+    .sum-row-r.danger { color: var(--danger); }
+
+    /* tip card */
+    .tip-card {
+      background: var(--info-soft);
+      border: 1px solid var(--info);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .tip-card-h {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600; color: var(--info);
+    }
+    .tip-card-content { font-size: 12px; line-height: 1.7; color: var(--info); }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-shield"></i><span>管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">管</span><span class="user-name">管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">系统总览</a>
+      <a href="#" class="nav-link active">用户与权限</a>
+      <a href="#" class="nav-link">课程管理</a>
+      <a href="#" class="nav-link">系统配置</a>
+      <a href="#" class="nav-link">审计日志</a>
+      <a href="#" class="nav-link">教学画像</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">管理控制台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">用户与权限</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">批量导入</span>
+    </div>
+
+    <div>
+      <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 700; color: var(--ink);">批量导入用户</h1>
+      <p style="margin: 0; font-size: 13px; color: var(--muted-foreground);">通过 Excel 模板批量创建账号  ·  单次最多 500 条</p>
+    </div>
+
+    <!-- steps -->
+    <div class="card steps">
+      <div class="step">
+        <span class="step-num done"><i class="icon icon-check" style="font-size: 14px;"></i></span>
+        <div class="step-text">
+          <span class="step-title">01  下载模板</span>
+          <span class="step-meta done">已完成</span>
+        </div>
+      </div>
+      <div class="step-line done"></div>
+      <div class="step">
+        <span class="step-num active">2</span>
+        <div class="step-text">
+          <span class="step-title">02  上传 Excel</span>
+          <span class="step-meta active">当前步骤</span>
+        </div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step step-todo">
+        <span class="step-num todo">3</span>
+        <div class="step-text">
+          <span class="step-title">03  数据校验</span>
+          <span class="step-meta">待执行</span>
+        </div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step step-todo">
+        <span class="step-num todo">4</span>
+        <div class="step-text">
+          <span class="step-title">04  完成导入</span>
+          <span class="step-meta">待执行</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT -->
+      <div class="flex-col gap-5">
+        <!-- upload card -->
+        <section class="card" style="overflow: hidden;">
+          <header class="up-h">
+            <span class="text-sm font-semibold" style="color: var(--ink);">上传 Excel 文件</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">仅支持 .xlsx · 最大 5M</span>
+          </header>
+          <div class="up-body">
+            <div class="up-icon"><i class="icon icon-cloud-upload"></i></div>
+            <div class="text-sm font-semibold" style="color: var(--ink);">将 Excel 文件拖到此处</div>
+            <div class="text-xs" style="color: var(--muted-foreground);">或点击选择文件  ·  使用文件大小 5MB</div>
+          </div>
+        </section>
+
+        <!-- preview card -->
+        <section class="card" style="overflow: hidden;">
+          <header class="prev-h">
+            <div class="flex items-center gap-2">
+              <i class="icon icon-sheet" style="color: var(--success);"></i>
+              <span class="text-sm font-semibold" style="color: var(--ink);">users_2026spring.xlsx</span>
+              <span class="text-xs" style="color: var(--muted-foreground);">218 行  ·  2.1 MB</span>
+            </div>
+            <span class="text-xs" style="color: var(--primary); font-weight: 500; cursor: pointer;">重新上传</span>
+          </header>
+
+          <div class="pr-cols pr-head">
+            <div>行</div>
+            <div>用户名</div>
+            <div>角色</div>
+            <div>姓名</div>
+            <div>学院</div>
+            <div>邮箱</div>
+          </div>
+
+          <div class="pr-cols pr-row">
+            <span class="row-num">1</span>
+            <span class="font-mono-tes">22300118</span>
+            <span><span class="label label-muted">学生</span></span>
+            <span>赵宇豪</span>
+            <span>软件学院</span>
+            <span class="font-mono-tes">22300118@univ.edu  <span class="label label-success" style="margin-left: 4px;">通过</span></span>
+          </div>
+
+          <div class="pr-cols pr-row danger">
+            <span class="row-num">2</span>
+            <span class="font-mono-tes">22300119</span>
+            <span><span class="label label-muted">学生</span></span>
+            <span>李子涵</span>
+            <span>软件学院</span>
+            <span class="font-mono-tes">a@b   <span class="label label-danger" style="margin-left: 4px;">邮箱格式错误</span></span>
+          </div>
+
+          <div class="pr-cols pr-row">
+            <span class="row-num">3</span>
+            <span class="font-mono-tes">22300137</span>
+            <span><span class="label label-muted">学生</span></span>
+            <span>陈雨晴</span>
+            <span>软件学院</span>
+            <span class="font-mono-tes">22300137@univ.edu  <span class="label label-success" style="margin-left: 4px;">通过</span></span>
+          </div>
+
+          <div class="pr-cols pr-row warn">
+            <span class="row-num">4</span>
+            <span class="font-mono-tes">22300148</span>
+            <span><span class="label label-muted">学生</span></span>
+            <span>周其轩</span>
+            <span>软件学院</span>
+            <span class="font-mono-tes">已存在  <span class="label label-warning" style="margin-left: 4px;">重复跳过</span></span>
+          </div>
+
+          <div class="pr-pf">
+            <span class="text-xs" style="color: var(--muted-foreground);">仅显示前 4 行  ·  含 4 条非法行</span>
+            <button class="btn btn-ghost btn-sm">下载失败明细</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex-col gap-5">
+        <section class="card card-padded" style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="card-title-sm" style="font-weight: 600; color: var(--ink);">校验摘要</div>
+          <div class="sum-row"><span class="sum-row-l">总行数</span><span class="sum-row-r">218</span></div>
+          <div class="sum-row"><span class="sum-row-l">合法可导入</span><span class="sum-row-r success">213</span></div>
+          <div class="sum-row"><span class="sum-row-l">非法格式</span><span class="sum-row-r danger">4</span></div>
+          <div class="sum-row"><span class="sum-row-l">重复跳过</span><span class="sum-row-r warn">2</span></div>
+          <div class="sum-row"><span class="sum-row-l">字段警告</span><span class="sum-row-r warn">10</span></div>
+          <div class="divider-h"></div>
+          <button class="btn btn-primary" style="width: 100%; height: 42px;">开始导入  213 条</button>
+          <span class="text-xs text-center" style="color: var(--muted-foreground);">事务执行  ·  失败行不影响成功行</span>
+        </section>
+
+        <section class="tip-card">
+          <div class="tip-card-h">
+            <i class="icon icon-info"></i>
+            <span>导入说明</span>
+          </div>
+          <div class="tip-card-content">导入操作可追溯，记录到审计日志。失败明细可下载 Excel，修正后重新上传。</div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

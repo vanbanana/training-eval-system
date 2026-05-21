@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>账号设置 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 240px 1fr; gap: 18px; }
+
+    /* sidebar */
+    .side-list {
+      padding: 14px;
+      display: flex; flex-direction: column;
+    }
+    .side-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--ink);
+    }
+    .side-item:hover { background: var(--surface-2); }
+    .side-item.active {
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .side-item .icon { font-size: 14px; color: var(--muted-foreground); }
+    .side-item.active .icon { color: var(--primary); }
+
+    /* section card */
+    .sec-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sec-h-title {
+      font-size: 14px; font-weight: 600; color: var(--ink);
+    }
+
+    /* profile body */
+    .pr-body {
+      padding: 24px;
+      display: flex; gap: 24px;
+    }
+    .avatar-block {
+      display: flex; flex-direction: column; gap: 10px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .pr-avatar {
+      width: 84px; height: 84px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      font-weight: 700; font-size: 32px;
+    }
+    .upload-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .avatar-tip {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      text-align: center;
+      max-width: 120px;
+    }
+
+    .pr-form {
+      flex: 1;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .pr-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .pr-field {
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .pr-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px; font-weight: 500; color: var(--ink);
+    }
+    .pr-label .lock { font-size: 11px; color: var(--muted-foreground); font-weight: 400; }
+
+    .pr-input {
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--foreground);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .pr-input.locked {
+      background: var(--surface-2);
+      color: var(--muted-foreground);
+    }
+    .pr-input:focus { outline: none; border-color: var(--primary); }
+
+    .pr-actions {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding-top: 8px;
+    }
+
+    /* notification preferences */
+    .nf-list { display: flex; flex-direction: column; }
+    .nf-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .nf-row:last-child { border-bottom: 0; }
+    .nf-info { flex: 1; }
+    .nf-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .nf-desc { font-size: 11px; color: var(--muted-foreground); margin-top: 4px; }
+
+    /* switch */
+    .switch {
+      width: 36px; height: 20px;
+      background: var(--border-strong);
+      border-radius: var(--radius-pill);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .switch::after {
+      content: '';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: var(--radius-pill);
+      transition: left 0.2s;
+    }
+    .switch.on { background: var(--primary); }
+    .switch.on::after { left: 18px; }
+
+    /* theme picker */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .theme-card {
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .theme-card:hover { border-color: var(--primary); }
+    .theme-card.active { border-color: var(--primary); }
+
+    .theme-preview {
+      height: 80px;
+      display: flex; flex-direction: column;
+    }
+    .theme-preview .top { height: 18px; }
+    .theme-preview .body { flex: 1; padding: 8px; display: flex; gap: 4px; align-items: flex-end; }
+    .theme-preview .bar { background: rgba(255,255,255,0.7); border-radius: 2px; flex: 1; }
+
+    .theme-light .top { background: var(--primary); }
+    .theme-light .body { background: var(--background); }
+    .theme-light .bar { background: var(--primary-soft); }
+
+    .theme-dark .top { background: #0a1422; }
+    .theme-dark .body { background: #14213d; }
+    .theme-dark .bar { background: #2a3a5c; }
+
+    .theme-auto .top { background: var(--surface); border-bottom: 1px solid var(--border); }
+    .theme-auto .body { background: var(--surface-2); }
+
+    .theme-foot {
+      padding: 10px 14px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: center; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 500;
+      color: var(--ink);
+    }
+    .theme-card.active .theme-foot { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link active">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">我的</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">个人中心</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">账号设置</span>
+    </div>
+
+    <div>
+      <h1 style="margin: 0 0 6px; font-size: 24px; font-weight: 700; color: var(--ink);">账号设置</h1>
+      <p style="margin: 0; font-size: 13px; color: var(--muted-foreground);">维护个人资料、修改密码、配置通知偏好</p>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT: settings nav -->
+      <aside class="card" style="overflow: hidden;">
+        <div class="side-list">
+          <div class="side-item active"><i class="icon icon-user"></i><span>个人资料</span></div>
+          <div class="side-item"><i class="icon icon-lock"></i><span>安全密码</span></div>
+          <div class="side-item"><i class="icon icon-bell"></i><span>通知偏好</span></div>
+          <div class="side-item"><i class="icon icon-paintbrush"></i><span>外观主题</span></div>
+          <div class="side-item"><i class="icon icon-key-round"></i><span>登录管理</span></div>
+          <div class="side-item"><i class="icon icon-sparkles"></i><span>AI 问答历史</span></div>
+        </div>
+      </aside>
+
+      <!-- RIGHT: settings content -->
+      <div class="flex-col gap-5">
+        <!-- 个人资料 -->
+        <section class="card">
+          <header class="sec-h">
+            <span class="sec-h-title">个人资料</span>
+            <span class="text-xs" style="color: var(--success);">所有变更已自动保存</span>
+          </header>
+          <div class="pr-body">
+            <div class="avatar-block">
+              <div class="pr-avatar">王</div>
+              <button class="upload-btn"><i class="icon icon-upload"></i><span>更换头像</span></button>
+              <div class="avatar-tip">支持 JPG / PNG · 不超过 2 MB</div>
+            </div>
+
+            <div class="pr-form">
+              <div class="pr-row">
+                <div class="pr-field">
+                  <label class="pr-label">
+                    <span>姓名</span>
+                  </label>
+                  <input class="pr-input" value="王伟" />
+                </div>
+                <div class="pr-field">
+                  <label class="pr-label">
+                    <span>工号</span>
+                    <span class="lock">不可修改</span>
+                  </label>
+                  <input class="pr-input locked" value="wangwei2" readonly />
+                </div>
+              </div>
+
+              <div class="pr-row">
+                <div class="pr-field">
+                  <label class="pr-label"><span>邮箱</span></label>
+                  <input class="pr-input" value="wangwei@univ.edu" />
+                </div>
+                <div class="pr-field">
+                  <label class="pr-label"><span>手机</span></label>
+                  <input class="pr-input" value="+86 138 ****-2547" />
+                </div>
+              </div>
+
+              <div class="pr-row">
+                <div class="pr-field">
+                  <label class="pr-label"><span>所属学院</span></label>
+                  <select class="tes-select" style="height: 38px;">
+                    <option>软件学院</option>
+                  </select>
+                </div>
+                <div class="pr-field">
+                  <label class="pr-label"><span>角色</span></label>
+                  <input class="pr-input locked" value="教师 · 仅管理员可调整" readonly />
+                </div>
+              </div>
+
+              <div class="pr-actions">
+                <button class="btn btn-secondary">取消修改</button>
+                <button class="btn btn-primary">保存</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 通知偏好 -->
+        <section class="card" style="overflow: hidden;">
+          <header class="sec-h">
+            <span class="sec-h-title">通知偏好</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">说明设定将通知所有渠道</span>
+          </header>
+          <div class="nf-list">
+            <div class="nf-row">
+              <div class="nf-info">
+                <div class="nf-title">任务提醒</div>
+                <div class="nf-desc">新任务发布、临近截止、需提醒</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="nf-row">
+              <div class="nf-info">
+                <div class="nf-title">评价完成</div>
+                <div class="nf-desc">AI 评分完成、教师确认评分、被打回</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="nf-row">
+              <div class="nf-info">
+                <div class="nf-title">画像更新</div>
+                <div class="nf-desc">薄弱点分析更新、能力雷达图变更</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+            <div class="nf-row">
+              <div class="nf-info">
+                <div class="nf-title">系统通知</div>
+                <div class="nf-desc">版本更新、维护提醒、安全告警</div>
+              </div>
+              <div class="switch on"></div>
+            </div>
+            <div class="nf-row">
+              <div class="nf-info">
+                <div class="nf-title">邮件抄送</div>
+                <div class="nf-desc">重要事件抄送至邮箱</div>
+              </div>
+              <div class="switch"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 外观主题 -->
+        <section class="card" style="overflow: hidden;">
+          <header class="sec-h">
+            <span class="sec-h-title">外观主题</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">选项设置后将自动同步</span>
+          </header>
+          <div style="padding: 24px;">
+            <div class="theme-grid">
+              <div class="theme-card active">
+                <div class="theme-preview theme-light">
+                  <div class="top"></div>
+                  <div class="body">
+                    <div class="bar" style="height: 60%;"></div>
+                    <div class="bar" style="height: 80%;"></div>
+                    <div class="bar" style="height: 50%;"></div>
+                  </div>
+                </div>
+                <div class="theme-foot"><i class="icon icon-check" style="font-size: 13px;"></i><span>浅色（当前）</span></div>
+              </div>
+
+              <div class="theme-card">
+                <div class="theme-preview theme-dark">
+                  <div class="top"></div>
+                  <div class="body">
+                    <div class="bar" style="height: 60%;"></div>
+                    <div class="bar" style="height: 80%;"></div>
+                    <div class="bar" style="height: 50%;"></div>
+                  </div>
+                </div>
+                <div class="theme-foot"><i class="icon icon-moon" style="font-size: 13px;"></i><span>深色</span></div>
+              </div>
+
+              <div class="theme-card">
+                <div class="theme-preview theme-auto">
+                  <div class="top"></div>
+                  <div class="body"></div>
+                </div>
+                <div class="theme-foot"><i class="icon icon-monitor" style="font-size: 13px;"></i><span>跟随系统</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

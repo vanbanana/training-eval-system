@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>用户与权限 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+
+    .filt-tabs {
+      display: flex; align-items: flex-end; gap: 0;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .filt-tab {
+      padding: 14px 16px;
+      font-size: 13px; font-weight: 500;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .filt-tab.active {
+      color: var(--primary);
+      font-weight: 600;
+      border-bottom-color: var(--primary);
+    }
+    .filt-tabs .spacer { flex: 1; }
+
+    .toolbar-row {
+      background: var(--surface-2);
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 12px; align-items: center;
+    }
+
+    /* table grid */
+    .ut-cols {
+      display: grid;
+      grid-template-columns: 36px 260px 140px 200px 160px 120px 1fr;
+      align-items: center;
+    }
+    .ut-head {
+      background: var(--surface-2);
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ut-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .ut-row {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ut-row:hover { background: var(--surface-2); }
+    .ut-row:last-child { border-bottom: 0; }
+    .ut-row.locked { background: var(--danger-soft); }
+    .ut-row.disabled { opacity: 0.55; }
+
+    .pf-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 24px;
+      background: var(--surface-2);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-shield"></i><span>管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">管</span><span class="user-name">管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">系统总览</a>
+      <a href="#" class="nav-link active">用户与权限</a>
+      <a href="#" class="nav-link">课程管理</a>
+      <a href="#" class="nav-link">系统配置</a>
+      <a href="#" class="nav-link">审计日志</a>
+      <a href="#" class="nav-link">教学画像</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">管理控制台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">组织</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">用户与权限</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>用户与权限</h1>
+        <p>管理学院教师、学生与管理员账号  ·  支持批量导入与角色调整</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">下载导入模板</button>
+        <button class="btn btn-secondary">批量导入</button>
+        <button class="btn btn-primary">+ 新建用户</button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">系统总用户数</span>
+          <i class="icon icon-users stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">1,284</div>
+        <div class="stat-card-trend up"><i class="icon icon-trending-up"></i><span>较上月 +47</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">教师</span>
+          <i class="icon icon-graduation-cap stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">86</div>
+        <div class="stat-card-trend up"><i class="icon icon-trending-up"></i><span>活跃 78</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">学生</span>
+          <i class="icon icon-book-open stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">1,194</div>
+        <div class="stat-card-trend up"><i class="icon icon-trending-up"></i><span>本月活跃 1,032</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">被锁定账号</span>
+          <i class="icon icon-lock stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">4</div>
+        <div class="stat-card-trend" style="color: var(--accent);">
+          <i class="icon icon-shield-alert"></i><span>含 3 个登录失败锁定</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- table card -->
+    <section class="card" style="overflow: hidden;">
+      <!-- tabs -->
+      <div class="filt-tabs">
+        <span class="filt-tab active">全部 1,284</span>
+        <span class="filt-tab">教师 86</span>
+        <span class="filt-tab">学生 1,194</span>
+        <span class="filt-tab">管理员 4</span>
+        <span class="spacer"></span>
+        <span class="filt-tab">已禁用 8</span>
+      </div>
+
+      <!-- toolbar -->
+      <div class="toolbar-row">
+        <div class="searchbox" style="width: 300px;">
+          <i class="icon icon-search"></i>
+          <input placeholder="搜索用户名 / 姓名 / 邮箱" />
+        </div>
+        <select class="tes-select"><option>全部学院</option><option>软件学院</option><option>计算机学院</option></select>
+        <select class="tes-select"><option>全部状态</option><option>启用</option><option>已禁用</option><option>已锁定</option></select>
+        <div class="flex-1"></div>
+        <span class="text-xs" style="color: var(--muted-foreground);">已选 0 项</span>
+        <button class="btn btn-secondary btn-sm">批量操作</button>
+      </div>
+
+      <!-- table head -->
+      <div class="ut-cols ut-head">
+        <div><span class="checkbox-empty"></span></div>
+        <div>用户</div>
+        <div>角色</div>
+        <div>所属学院</div>
+        <div>上次登录</div>
+        <div>状态</div>
+        <div style="text-align: right;">操作</div>
+      </div>
+
+      <!-- Row 1 王伟 教师 -->
+      <div class="ut-cols ut-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">王</span>
+          <span class="user-info">
+            <span class="user-name">王伟</span>
+            <span class="user-meta">wangwei@university.edu</span>
+          </span>
+        </div>
+        <div><span class="label label-info">教师</span></div>
+        <div class="text-sm">软件学院</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">今天 14:32</div>
+        <div><span class="label label-success">启用</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">编辑</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">重置密码</button>
+          <button class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-ellipsis"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 2 林教务长 管理员 -->
+      <div class="ut-cols ut-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">林</span>
+          <span class="user-info">
+            <span class="user-name">林教务长</span>
+            <span class="user-meta">lin@edu.cn</span>
+          </span>
+        </div>
+        <div><span class="label label-danger">管理员</span></div>
+        <div class="text-sm">教务处</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">今天 16:42</div>
+        <div><span class="label label-success">启用</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">编辑</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">重置密码</button>
+          <button class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-ellipsis"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 3 李文清 学生 -->
+      <div class="ut-cols ut-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar" style="background: var(--accent-soft); color: var(--accent);">李</span>
+          <span class="user-info">
+            <span class="user-name">李文清</span>
+            <span class="user-meta">21100124@university.edu</span>
+          </span>
+        </div>
+        <div><span class="label label-muted">学生</span></div>
+        <div class="text-sm">软件学院  ·  软工 21-3</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">今天 09:14</div>
+        <div><span class="label label-success">启用</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">编辑</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">重置密码</button>
+          <button class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-ellipsis"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 4 陈嘉迅 已锁定 -->
+      <div class="ut-cols ut-row locked">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar" style="background: var(--danger-soft); color: var(--danger);">陈</span>
+          <span class="user-info">
+            <span class="user-name">陈嘉迅 <i class="icon icon-shield-alert" style="color: var(--danger); font-size: 12px;"></i></span>
+            <span class="user-meta">21100087@university.edu</span>
+          </span>
+        </div>
+        <div><span class="label label-muted">学生</span></div>
+        <div class="text-sm">软件学院  ·  软工 21-3</div>
+        <div class="font-mono-tes text-xs" style="color: var(--danger);">今天 17:42</div>
+        <div><span class="label label-danger">已锁定</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn danger">立即解锁</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">重置密码</button>
+          <button class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-ellipsis"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 5 已禁用 -->
+      <div class="ut-cols ut-row disabled">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">刘</span>
+          <span class="user-info">
+            <span class="user-name">刘子奇</span>
+            <span class="user-meta">20120063@university.edu</span>
+          </span>
+        </div>
+        <div><span class="label label-muted">学生</span></div>
+        <div class="text-sm">软件学院  ·  软工 20-1</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2025-06-30</div>
+        <div><span class="label label-muted">已禁用</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">启用</button>
+          <button class="icon-action-sm" style="display:inline-grid;"><i class="icon icon-ellipsis"></i></button>
+        </div>
+      </div>
+
+      <div class="pf-row">
+        <span class="text-xs" style="color: var(--muted-foreground);">显示 1 - 5 共 1,284 条</span>
+        <div class="text-xs" style="color: var(--ink);">上一页 1 / 257 下一页</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>课程管理 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .seg-tabs {
+      display: inline-flex; padding: 3px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .seg-tab {
+      padding: 6px 12px;
+      font-size: 12px; font-weight: 500;
+      color: var(--muted-foreground);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .seg-tab.active {
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 600;
+      border: 1px solid var(--border);
+    }
+
+    .course-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .course-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .course-card:hover {
+      border-color: var(--primary);
+    }
+    .course-card.archived { opacity: 0.6; }
+
+    .ch {
+      padding: 20px 22px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .ch-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ch-icon {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+    }
+    .ch-icon.cs { background: var(--primary-soft); color: var(--primary); }
+    .ch-icon.algo { background: var(--success-soft); color: var(--success); }
+    .ch-icon.net { background: var(--info-soft); color: var(--info); }
+    .ch-icon.db { background: var(--accent-soft); color: var(--accent); }
+    .ch-icon.os { background: var(--gold-soft); color: var(--gold); }
+    .ch-name { font-size: 18px; font-weight: 700; color: var(--ink); }
+    .ch-code { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+    .ch-desc { font-size: 12px; line-height: 1.7; color: var(--muted-foreground); }
+
+    .cb {
+      background: var(--surface-2);
+      padding: 14px 22px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-around;
+    }
+    .cb-cell { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+    .cb-num { font-size: 18px; font-weight: 700; color: var(--ink); }
+    .cb-lbl { font-size: 11px; color: var(--muted-foreground); }
+
+    .cf {
+      padding: 14px 22px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cf-meta { font-size: 11px; color: var(--muted-foreground); }
+    .cf-ops {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 12px;
+    }
+    .cf-op { color: var(--primary); font-weight: 500; cursor: pointer; }
+    .cf-op.muted { color: var(--muted-foreground); }
+
+    .new-card {
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; min-height: 280px;
+      cursor: pointer;
+    }
+    .new-card:hover { border-color: var(--primary); background: var(--primary-soft); }
+    .new-circle {
+      width: 48px; height: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      color: var(--primary); font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link active">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">组织</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">课程管理</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>课程管理</h1>
+        <p>维护课程信息，关联班级与实训任务</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">导出</button>
+        <button class="btn btn-primary">+ 新建课程</button>
+      </div>
+    </div>
+
+    <!-- toolbar -->
+    <div class="card" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+      <div class="seg-tabs">
+        <span class="seg-tab active">全部 18</span>
+        <span class="seg-tab">开课中 14</span>
+        <span class="seg-tab">已归档 4</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="searchbox" style="width: 280px;">
+          <i class="icon icon-search"></i>
+          <input placeholder="按课程名 / 编号搜索" />
+        </div>
+        <select class="tes-select"><option>全部学院</option></select>
+      </div>
+    </div>
+
+    <!-- Row 1 -->
+    <div class="course-grid">
+      <article class="course-card">
+        <div class="ch">
+          <div class="ch-top">
+            <div class="ch-icon cs"><i class="icon icon-code-2"></i></div>
+            <span class="label label-success">开课中</span>
+          </div>
+          <div class="ch-name">软件工程</div>
+          <div class="ch-code">CS3024  ·  软件学院</div>
+          <div class="ch-desc">覆盖软件开发全流程：需求分析、设计、实现、测试与项目管理。</div>
+        </div>
+        <div class="cb">
+          <div class="cb-cell"><span class="cb-num">4</span><span class="cb-lbl">班级</span></div>
+          <div class="cb-cell"><span class="cb-num">218</span><span class="cb-lbl">学生</span></div>
+          <div class="cb-cell"><span class="cb-num">16</span><span class="cb-lbl">实训任务</span></div>
+        </div>
+        <div class="cf">
+          <span class="cf-meta">班主任：王伟、张教授、林老师</span>
+          <div class="cf-ops">
+            <span class="cf-op">查看</span>
+            <span class="cf-op muted">归档</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="course-card">
+        <div class="ch">
+          <div class="ch-top">
+            <div class="ch-icon algo"><i class="icon icon-network"></i></div>
+            <span class="label label-success">开课中</span>
+          </div>
+          <div class="ch-name">数据结构与算法</div>
+          <div class="ch-code">CS2018  ·  软件学院</div>
+          <div class="ch-desc">经典数据结构与算法分析，配套大量编程实训。</div>
+        </div>
+        <div class="cb">
+          <div class="cb-cell"><span class="cb-num">3</span><span class="cb-lbl">班级</span></div>
+          <div class="cb-cell"><span class="cb-num">168</span><span class="cb-lbl">学生</span></div>
+          <div class="cb-cell"><span class="cb-num">12</span><span class="cb-lbl">实训任务</span></div>
+        </div>
+        <div class="cf">
+          <span class="cf-meta">班主任：周教授、孙老师</span>
+          <div class="cf-ops">
+            <span class="cf-op">查看</span>
+            <span class="cf-op muted">归档</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="course-card">
+        <div class="ch">
+          <div class="ch-top">
+            <div class="ch-icon net"><i class="icon icon-globe"></i></div>
+            <span class="label label-success">开课中</span>
+          </div>
+          <div class="ch-name">计算机网络</div>
+          <div class="ch-code">CS3019  ·  网络与通信学院</div>
+          <div class="ch-desc">TCP/IP 协议栈与网络编程实训，含抓包分析与流量实验。</div>
+        </div>
+        <div class="cb">
+          <div class="cb-cell"><span class="cb-num">2</span><span class="cb-lbl">班级</span></div>
+          <div class="cb-cell"><span class="cb-num">96</span><span class="cb-lbl">学生</span></div>
+          <div class="cb-cell"><span class="cb-num">8</span><span class="cb-lbl">实训任务</span></div>
+        </div>
+        <div class="cf">
+          <span class="cf-meta">班主任：张教授</span>
+          <div class="cf-ops">
+            <span class="cf-op">查看</span>
+            <span class="cf-op muted">归档</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="course-grid">
+      <article class="course-card">
+        <div class="ch">
+          <div class="ch-top">
+            <div class="ch-icon db"><i class="icon icon-database"></i></div>
+            <span class="label label-success">开课中</span>
+          </div>
+          <div class="ch-name">数据库系统原理</div>
+          <div class="ch-code">CS3015  ·  软件学院</div>
+          <div class="ch-desc">关系型数据库设计、SQL 查询优化、事务与并发控制。</div>
+        </div>
+        <div class="cb">
+          <div class="cb-cell"><span class="cb-num">2</span><span class="cb-lbl">班级</span></div>
+          <div class="cb-cell"><span class="cb-num">108</span><span class="cb-lbl">学生</span></div>
+          <div class="cb-cell"><span class="cb-num">6</span><span class="cb-lbl">实训任务</span></div>
+        </div>
+        <div class="cf">
+          <span class="cf-meta">班主任：刘老师</span>
+          <div class="cf-ops">
+            <span class="cf-op">查看</span>
+            <span class="cf-op muted">归档</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="course-card archived">
+        <div class="ch">
+          <div class="ch-top">
+            <div class="ch-icon os"><i class="icon icon-cpu"></i></div>
+            <span class="label label-muted">已归档</span>
+          </div>
+          <div class="ch-name">操作系统  ·  2025 春季</div>
+          <div class="ch-code">CS3010  ·  软件学院</div>
+          <div class="ch-desc">操作系统原理与实践，本学期已归档但保留历史数据。</div>
+        </div>
+        <div class="cb">
+          <div class="cb-cell"><span class="cb-num">3</span><span class="cb-lbl">班级</span></div>
+          <div class="cb-cell"><span class="cb-num">154</span><span class="cb-lbl">学生</span></div>
+          <div class="cb-cell"><span class="cb-num">10</span><span class="cb-lbl">实训任务</span></div>
+        </div>
+        <div class="cf">
+          <span class="cf-meta">归档于 2025-07-15</span>
+          <div class="cf-ops">
+            <span class="cf-op">查看</span>
+            <span class="cf-op muted">恢复</span>
+          </div>
+        </div>
+      </article>
+
+      <div class="new-card">
+        <div class="new-circle"><i class="icon icon-plus"></i></div>
+        <div class="text-sm font-semibold" style="color: var(--ink);">新建课程</div>
+        <div class="text-xs" style="color: var(--muted-foreground);">创建新课程并关联班级</div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

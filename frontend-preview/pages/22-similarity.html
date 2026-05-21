@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>相似度对比 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    /* summary danger card */
+    .sum-card {
+      background: var(--surface);
+      border: 2px solid var(--danger);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; align-items: center; gap: 24px;
+    }
+    .sum-icon {
+      width: 64px; height: 64px;
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+    .sum-text { flex: 1; }
+    .sum-title {
+      color: var(--danger);
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .sum-desc {
+      color: var(--foreground);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .sum-stats { display: flex; gap: 18px; }
+    .sum-stat {
+      padding: 14px 18px;
+      background: var(--danger-soft);
+      border-radius: var(--radius-md);
+      display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+    }
+    .sum-stat-lbl { font-size: 11px; color: var(--muted-foreground); }
+    .sum-stat-val { font-size: 22px; font-weight: 700; color: var(--danger); }
+
+    /* compare header */
+    .cmp-hd {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    }
+    .cmp-hd-card {
+      padding: 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .cmp-hd-info { flex: 1; }
+    .cmp-hd-name {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; font-weight: 600; color: var(--ink);
+    }
+    .cmp-hd-meta {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      margin-top: 4px;
+    }
+    .cmp-hd-score {
+      font-size: 14px; font-weight: 700;
+      color: var(--danger);
+    }
+
+    /* compare body */
+    .cmp-body {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    }
+    .cmp-card { display: flex; flex-direction: column; }
+    .cmp-card-h {
+      background: var(--surface-2);
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cmp-card-name {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .cmp-card-mark {
+      font-size: 11px;
+      color: var(--danger);
+    }
+    .cmp-card-body {
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+
+    /* highlighted text section */
+    .hl-section { display: flex; flex-direction: column; gap: 6px; }
+    .hl-h {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px; font-weight: 600;
+      color: var(--ink);
+    }
+    .hl-h .num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      font-weight: 400;
+    }
+    .hl-text {
+      background: rgba(185, 28, 28, 0.10);
+      border-left: 3px solid var(--danger);
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--foreground);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+
+    /* code block */
+    .code-block {
+      background: var(--ink);
+      color: #e5e9f0;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.6;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .code-kw { color: #94c0e3; }
+    .code-fn { color: #f4c46c; }
+
+    .hl-meta {
+      font-size: 10px;
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+    }
+
+    .btn-danger-outline {
+      background: var(--surface);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .btn-danger-outline:hover { background: var(--danger-soft); }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link active">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body" style="padding: 24px 32px;">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">批改详情</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">相似度对比</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1 style="margin:0;">相似度对比</h1>
+          <span class="label label-danger">疑似抄袭</span>
+        </div>
+        <p style="margin-top:6px;">数据结构 · 二叉树遍历实验  ·  系统在同一任务范围内自动检测</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">忽略本次警告</button>
+        <button class="btn btn-danger-outline btn-sm" style="height: 36px;">两份均打回</button>
+        <button class="btn btn-primary">确认抄袭</button>
+      </div>
+    </div>
+
+    <!-- summary -->
+    <div class="sum-card">
+      <div class="sum-icon"><i class="icon icon-shield-alert"></i></div>
+      <div class="sum-text">
+        <div class="sum-title">综合相似度  87%</div>
+        <div class="sum-desc">双引擎一致判定。文本指纹 SimHash 84%（汉明距 2）  ·  语义余弦 0.91。建议进入并排对比并人工复核。</div>
+      </div>
+      <div class="sum-stats">
+        <div class="sum-stat">
+          <span class="sum-stat-lbl">文本指纹</span>
+          <span class="sum-stat-val">84%</span>
+        </div>
+        <div class="sum-stat">
+          <span class="sum-stat-lbl">语义相似度</span>
+          <span class="sum-stat-val">91%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- compare header -->
+    <div class="cmp-hd">
+      <section class="card cmp-hd-card">
+        <span class="user-avatar">陈</span>
+        <div class="cmp-hd-info">
+          <div class="cmp-hd-name">
+            <span>陈嘉迅</span>
+            <span class="text-xs font-mono-tes" style="color: var(--muted-foreground);">21100087</span>
+          </div>
+          <div class="cmp-hd-meta">提交于 2026-05-12 09:14  ·  软工 21-3 班</div>
+        </div>
+        <div class="cmp-hd-score">得分 75</div>
+      </section>
+      <section class="card cmp-hd-card">
+        <span class="user-avatar">张</span>
+        <div class="cmp-hd-info">
+          <div class="cmp-hd-name">
+            <span>张文卓</span>
+            <span class="text-xs font-mono-tes" style="color: var(--muted-foreground);">21100135</span>
+          </div>
+          <div class="cmp-hd-meta">提交于 2026-05-12 09:42  ·  软工 21-3 班</div>
+        </div>
+        <div class="cmp-hd-score">得分 78</div>
+      </section>
+    </div>
+
+    <!-- compare body -->
+    <div class="cmp-body">
+      <!-- LEFT -->
+      <article class="card cmp-card">
+        <header class="cmp-card-h">
+          <span class="cmp-card-name">陈嘉迅 - 实验报告.pdf</span>
+          <span class="cmp-card-mark">3 处高亮</span>
+        </header>
+        <div class="cmp-card-body">
+          <div class="hl-section">
+            <div class="hl-h"><span>二、设计思路（5.2.1）</span><span class="num">P3 段 4</span></div>
+            <div class="hl-text">使用一个固定容量的 ArrayBlockingQueue 作为缓冲，生产者按指数分布间隔产生订单 push 至队列，消费者拉取队列后按平均处理时间消费。</div>
+          </div>
+
+          <div class="hl-section">
+            <div class="hl-h"><span>三、关键代码（5.3.1）</span><span class="num">P5 段 1</span></div>
+            <div class="code-block"><span class="code-kw">public</span> <span class="code-kw">synchronized</span> <span class="code-kw">void</span> <span class="code-fn">produce</span>(<span class="code-kw">int</span> item) {
+    <span class="code-kw">while</span> (queue.size() == capacity) {
+        <span class="code-fn">wait</span>();
+    }
+    queue.add(item);
+    <span class="code-fn">notifyAll</span>();
+}</div>
+            <div class="hl-meta">片段长度 124 字符  ·  完全一致</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- RIGHT -->
+      <article class="card cmp-card">
+        <header class="cmp-card-h">
+          <span class="cmp-card-name">张文卓 - 实验报告.pdf</span>
+          <span class="cmp-card-mark">3 处高亮</span>
+        </header>
+        <div class="cmp-card-body">
+          <div class="hl-section">
+            <div class="hl-h"><span>二、设计思路（5.2.1）</span><span class="num">P3 段 4</span></div>
+            <div class="hl-text">使用一个固定容量的 ArrayBlockingQueue 作为缓冲，生产者按指数分布间隔产生订单 push 至队列，消费者拉取队列后按平均处理时间消费。</div>
+          </div>
+
+          <div class="hl-section">
+            <div class="hl-h"><span>三、关键代码（5.3.1）</span><span class="num">P5 段 1</span></div>
+            <div class="code-block"><span class="code-kw">public</span> <span class="code-kw">synchronized</span> <span class="code-kw">void</span> <span class="code-fn">produce</span>(<span class="code-kw">int</span> item) {
+    <span class="code-kw">while</span> (queue.size() == capacity) {
+        <span class="code-fn">wait</span>();
+    }
+    queue.add(item);
+    <span class="code-fn">notifyAll</span>();
+}</div>
+            <div class="hl-meta">片段长度 124 字符  ·  完全一致</div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </main>
+</body>
+</html>

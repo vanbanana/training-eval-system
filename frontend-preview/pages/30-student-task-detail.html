@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>实训任务详情 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 18px;
+      align-items: start;
+    }
+    .col-stack { display: flex; flex-direction: column; gap: 18px; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .panel-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .panel-h-l {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .panel-h-l .icon { color: var(--primary); font-size: 15px; }
+    .panel-h-l .ttl {
+      font-size: 14px; font-weight: 600; color: var(--ink);
+    }
+    .panel-h-l .meta {
+      font-size: 11px; color: var(--muted-foreground);
+    }
+    .panel-h-r {
+      font-size: 12px; color: var(--primary); font-weight: 500;
+      cursor: pointer;
+    }
+    .panel-body { padding: 24px; }
+
+    /* description */
+    .ds-block + .ds-block { margin-top: 18px; }
+    .ds-block-h {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .ds-block-h .icon { color: var(--muted-foreground); font-size: 13px; }
+    .ds-text {
+      font-size: 13px; line-height: 1.85; color: var(--foreground);
+    }
+    .ds-line + .ds-line { margin-top: 4px; }
+
+    .ds-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .ds-cell {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .ds-cell-name {
+      font-size: 11px; color: var(--muted-foreground);
+    }
+    .ds-cell-val {
+      font-size: 18px; font-weight: 700; color: var(--ink);
+    }
+
+    /* submission file row */
+    .sf-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sf-row:last-child { border-bottom: 0; }
+    .sf-icon {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+    .sf-icon.pdf { background: var(--danger-soft); color: var(--danger); }
+    .sf-icon.zip { background: var(--info-soft); color: var(--info); }
+    .sf-icon.img { background: var(--success-soft); color: var(--success); }
+    .sf-meta { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .sf-name {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .sf-info {
+      font-size: 11px; color: var(--muted-foreground);
+    }
+    .sf-action {
+      font-size: 12px; color: var(--primary);
+      font-weight: 500; cursor: pointer;
+    }
+
+    /* history (timeline) */
+    .ts-list { padding: 8px 24px 16px; }
+    .ts-item {
+      display: flex; gap: 14px;
+      padding: 12px 0;
+      position: relative;
+    }
+    .ts-item::before {
+      content: '';
+      position: absolute;
+      left: 11px; top: 28px; bottom: -12px;
+      width: 1px;
+      background: var(--border);
+    }
+    .ts-item:last-child::before { display: none; }
+    .ts-dot-wrap {
+      width: 24px;
+      flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px;
+      padding-top: 2px;
+    }
+    .ts-dot {
+      width: 10px; height: 10px;
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      border: 2px solid var(--primary);
+      flex-shrink: 0;
+    }
+    .ts-dot.muted { border-color: var(--border-strong); }
+    .ts-content { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .ts-row1 {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .ts-tag {
+      display: inline-flex; align-items: center;
+      padding: 1px 8px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .ts-tag.muted { background: var(--surface-2); color: var(--muted-foreground); }
+    .ts-tag.success { background: var(--success-soft); color: var(--success); }
+    .ts-time {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .ts-msg { font-size: 12px; color: var(--ink); }
+    .ts-sub { font-size: 11px; color: var(--muted-foreground); }
+
+    /* right column: countdown */
+    .cd-card {
+      background: var(--primary);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+      color: #fff;
+    }
+    .cd-label {
+      color: #B8C5D6;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1.5px;
+    }
+    .cd-num {
+      display: flex; align-items: flex-end; gap: 14px;
+    }
+    .cd-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .cd-cell-v { font-size: 36px; font-weight: 700; line-height: 1; }
+    .cd-cell-l { font-size: 11px; color: #B8C5D6; }
+    .cd-sep { font-size: 24px; font-weight: 700; padding-bottom: 12px; }
+    .cd-divider {
+      width: 100%; height: 1px;
+      background: #22344F;
+    }
+    .cd-deadline {
+      font-family: var(--font-mono);
+      font-size: 11px; color: #B8C5D6;
+    }
+
+    /* class progress */
+    .progress-bar {
+      height: 8px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: var(--radius-pill);
+    }
+
+    /* materials */
+    .mat-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mat-row:last-child { border-bottom: 0; }
+    .mat-row .icon-leading {
+      font-size: 14px; flex-shrink: 0;
+    }
+    .mat-row .icon-leading.pdf { color: var(--danger); }
+    .mat-row .icon-leading.doc { color: var(--info); }
+    .mat-row .icon-leading.link { color: var(--success); }
+    .mat-c { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+    .mat-c-name { font-size: 12px; font-weight: 500; color: var(--ink); }
+    .mat-c-meta { font-size: 10px; color: var(--muted-foreground); }
+    .mat-action {
+      color: var(--muted-foreground); font-size: 13px; cursor: pointer;
+    }
+
+    /* tip */
+    .tip-box {
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .tip-h {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--accent-strong);
+      font-size: 12px; font-weight: 600;
+    }
+    .tip-d {
+      color: var(--accent-strong);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill">
+          <i class="icon icon-building-2"></i>
+          <span>软件学院</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search">
+          <i class="icon icon-search"></i>
+          <span class="placeholder">全局搜索任务、学生、班级</span>
+          <kbd class="kbd">⌘K</kbd>
+        </div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative">
+          <i class="icon icon-bell"></i>
+          <span class="ndot"></span>
+        </button>
+        <button class="user-pill">
+          <span class="avatar" style="background: var(--accent-soft); color: var(--accent);">学</span>
+          <span class="user-name">李同学</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link active">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <div class="page-body">
+    <!-- breadcrumb -->
+    <nav class="breadcrumb">
+      <span>工作台</span>
+      <i class="icon icon-chevron-right sep"></i>
+      <span>我的任务</span>
+      <i class="icon icon-chevron-right sep"></i>
+      <span class="current">软件工程实践 · 第三次实训</span>
+    </nav>
+
+    <!-- page header -->
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1>软件工程实践 · 第三次实训</h1>
+          <span class="label label-danger"><span style="display:inline-block; width:6px; height:6px; background: var(--danger); border-radius: 50%;"></span>3 天后截止</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-muted" style="margin-top: 10px;">
+          <span>软件工程  ·  王伟 老师</span>
+          <span style="display:inline-block; width:3px; height:3px; background: var(--subtle-foreground); border-radius: 50%;"></span>
+          <span style="color: var(--accent); font-family: var(--font-mono);">截止 2026-05-22 23:59</span>
+          <span style="display:inline-block; width:3px; height:3px; background: var(--subtle-foreground); border-radius: 50%;"></span>
+          <span>软工 21-3 班</span>
+        </div>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">分享给同学</button>
+        <button class="btn btn-primary">提交成果</button>
+      </div>
+    </div>
+
+    <!-- two col -->
+    <div class="two-col">
+      <!-- left -->
+      <div class="col-stack">
+        <!-- task description -->
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-h-l">
+              <i class="icon icon-file-text"></i>
+              <span class="ttl">任务说明</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="ds-block">
+              <div class="ds-block-h">
+                <i class="icon icon-info"></i>
+                <span>任务概述</span>
+              </div>
+              <div class="ds-text">基于课程第三章并发与同步内容，要求学生使用 Java 实现一个简化版生产者—消费者模型，并完成测试用例与实验报告。</div>
+            </div>
+            <div class="ds-block">
+              <div class="ds-block-h">
+                <i class="icon icon-list-checks"></i>
+                <span>实训要求</span>
+              </div>
+              <div class="ds-text">
+                <div class="ds-line">1. 需包含完整的源代码、可运行的测试与实验报告（PDF 或 Word）；</div>
+                <div class="ds-line">2. 实验报告应清晰说明设计思路、关键代码片段、性能分析；</div>
+                <div class="ds-line">3. 提交格式：源码以 zip 打包；报告单独提交；总大小 ≤ 50MB；</div>
+                <div class="ds-line">4. 严禁抄袭，系统将自动检测相似度。</div>
+              </div>
+            </div>
+            <div class="ds-block">
+              <div class="ds-block-h">
+                <i class="icon icon-pie-chart"></i>
+                <span>评分指标</span>
+              </div>
+              <div class="ds-grid-4">
+                <div class="ds-cell">
+                  <span class="ds-cell-name">代码规范</span>
+                  <span class="ds-cell-val">30%</span>
+                </div>
+                <div class="ds-cell">
+                  <span class="ds-cell-name">功能实现</span>
+                  <span class="ds-cell-val">35%</span>
+                </div>
+                <div class="ds-cell">
+                  <span class="ds-cell-name">测试验证</span>
+                  <span class="ds-cell-val">20%</span>
+                </div>
+                <div class="ds-cell">
+                  <span class="ds-cell-name">文档规范</span>
+                  <span class="ds-cell-val">15%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- my submission -->
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-h-l">
+              <i class="icon icon-upload"></i>
+              <span class="ttl">我的提交</span>
+              <span class="label label-info">已提交 ✓</span>
+            </div>
+            <span class="panel-h-r">补充提交  ·  替换文件</span>
+          </div>
+          <div>
+            <div class="sf-row">
+              <div class="sf-icon pdf"><i class="icon icon-file-text"></i></div>
+              <div class="sf-meta">
+                <div class="sf-name">实验报告.pdf <span class="label label-success" style="font-size: 9px;">已提交</span></div>
+                <div class="sf-info">4.2 MB  ·  2026-05-21 14:28</div>
+              </div>
+              <span class="sf-action">预览</span>
+            </div>
+            <div class="sf-row">
+              <div class="sf-icon zip"><i class="icon icon-archive"></i></div>
+              <div class="sf-meta">
+                <div class="sf-name">src.zip <span class="label label-success" style="font-size: 9px;">已提交</span></div>
+                <div class="sf-info">24.2 KB  ·  2026-05-21 14:25</div>
+              </div>
+              <span class="sf-action">预览</span>
+            </div>
+            <div class="sf-row">
+              <div class="sf-icon img"><i class="icon icon-image"></i></div>
+              <div class="sf-meta">
+                <div class="sf-name">设计图_主流程.png <span class="label label-info" style="font-size: 9px;">OCR 完成</span></div>
+                <div class="sf-info">1.8 MB  ·  2026-05-21 14:30</div>
+              </div>
+              <span class="sf-action">预览</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- submission history -->
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-h-l">
+              <i class="icon icon-history" style="color: var(--muted-foreground);"></i>
+              <span class="ttl">提交历史</span>
+              <span class="meta">截止前可继续替换</span>
+            </div>
+          </div>
+          <div class="ts-list">
+            <div class="ts-item">
+              <div class="ts-dot-wrap"><div class="ts-dot"></div></div>
+              <div class="ts-content">
+                <div class="ts-row1">
+                  <span class="font-semibold text-sm" style="color: var(--ink);">v3 · 当前版本</span>
+                  <span class="ts-tag success">已提交</span>
+                  <span class="ts-time">2026-05-21 14:30</span>
+                </div>
+                <div class="ts-msg">补充设计图后重传</div>
+                <div class="ts-sub">3 个文件  ·  共 24.2 KB</div>
+              </div>
+            </div>
+            <div class="ts-item">
+              <div class="ts-dot-wrap"><div class="ts-dot muted"></div></div>
+              <div class="ts-content">
+                <div class="ts-row1">
+                  <span class="font-semibold text-sm" style="color: var(--ink);">v2</span>
+                  <span class="ts-tag muted">已替换</span>
+                  <span class="ts-time">2026-05-20 22:14</span>
+                </div>
+                <div class="ts-msg">补充测试用例后重传</div>
+                <div class="ts-sub">2 个文件  ·  共 4.5 MB</div>
+              </div>
+            </div>
+            <div class="ts-item">
+              <div class="ts-dot-wrap"><div class="ts-dot muted"></div></div>
+              <div class="ts-content">
+                <div class="ts-row1">
+                  <span class="font-semibold text-sm" style="color: var(--ink);">v1 · 首次提交</span>
+                  <span class="ts-tag muted">已替换</span>
+                  <span class="ts-time">2026-05-19 21:48</span>
+                </div>
+                <div class="ts-sub">2 个文件  ·  含报告 / 源码 zip</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- right column -->
+      <div class="col-stack">
+        <!-- countdown -->
+        <div class="cd-card">
+          <span class="cd-label">距离截止还剩</span>
+          <div class="cd-num">
+            <div class="cd-cell">
+              <span class="cd-cell-v">03</span>
+              <span class="cd-cell-l">天</span>
+            </div>
+            <span class="cd-sep">:</span>
+            <div class="cd-cell">
+              <span class="cd-cell-v">08</span>
+              <span class="cd-cell-l">小时</span>
+            </div>
+            <span class="cd-sep">:</span>
+            <div class="cd-cell">
+              <span class="cd-cell-v">42</span>
+              <span class="cd-cell-l">分钟</span>
+            </div>
+          </div>
+          <div class="cd-divider"></div>
+          <span class="cd-deadline">截止时间 2026-05-22 23:59</span>
+        </div>
+
+        <!-- class progress -->
+        <div class="panel">
+          <div class="panel-h" style="padding: 16px 20px;">
+            <span class="font-semibold text-sm" style="color: var(--ink);">班级提交进度</span>
+            <span class="text-xs font-semibold" style="color: var(--primary);">42 / 56</span>
+          </div>
+          <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 8px;">
+            <div class="progress-bar">
+              <div class="progress-bar-fill" style="width: 75%;"></div>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-xs text-muted">已提交 42  ·  待提交 14</span>
+              <span class="text-xs font-semibold font-mono-tes" style="color: var(--ink);">75%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- materials -->
+        <div class="panel">
+          <div class="panel-h" style="padding: 16px 20px;">
+            <span class="font-semibold text-sm" style="color: var(--ink);">参考资料</span>
+          </div>
+          <div>
+            <div class="mat-row">
+              <i class="icon icon-file-text icon-leading pdf"></i>
+              <div class="mat-c">
+                <span class="mat-c-name">实训指导手册.pdf</span>
+                <span class="mat-c-meta">2.1 MB</span>
+              </div>
+              <i class="icon icon-download mat-action"></i>
+            </div>
+            <div class="mat-row">
+              <i class="icon icon-file-text icon-leading doc"></i>
+              <div class="mat-c">
+                <span class="mat-c-name">实训报告模板.docx</span>
+                <span class="mat-c-meta">86 KB</span>
+              </div>
+              <i class="icon icon-download mat-action"></i>
+            </div>
+            <div class="mat-row">
+              <i class="icon icon-link icon-leading link"></i>
+              <div class="mat-c">
+                <span class="mat-c-name">Java 并发模型课程页</span>
+                <span class="mat-c-meta">外部链接</span>
+              </div>
+              <i class="icon icon-external-link mat-action"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- tip -->
+        <div class="tip-box">
+          <div class="tip-h">
+            <i class="icon icon-lightbulb"></i>
+            <span>提交建议</span>
+          </div>
+          <div class="tip-d">截止前 24 小时系统会自动给未提交学生发送提醒。建议预留 1 天缓冲，避免压线提交。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

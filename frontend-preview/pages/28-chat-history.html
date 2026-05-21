@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 问答历史 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .quota-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: var(--radius-pill);
+      font-size: 11px; font-weight: 600;
+    }
+    .quota-pill .icon { font-size: 12px; }
+
+    .chat-shell {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    /* ====== left list ====== */
+    .chat-list {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      align-self: stretch;
+    }
+    .chat-list-h {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .session-search {
+      display: flex; align-items: center; gap: 10px;
+      height: 40px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+    }
+    .session-search .icon { color: var(--muted-foreground); font-size: 15px; }
+    .session-search input {
+      flex: 1;
+      border: 0; outline: 0; background: transparent;
+      font-size: 13px; font-family: inherit; color: var(--ink);
+    }
+    .session-search input::placeholder { color: var(--subtle-foreground); }
+
+    .chat-list-body {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .session-item {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      position: relative;
+    }
+    .session-item:last-child { border-bottom: 0; }
+    .session-item:hover { background: var(--surface-2); }
+    .session-item.active {
+      background: var(--primary-soft);
+      border-left: 3px solid var(--primary);
+      padding-left: 13px;
+    }
+
+    .session-h {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px;
+    }
+    .session-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--ink);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      flex: 1;
+    }
+    .session-time {
+      font-size: 11px; color: var(--muted-foreground);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    .session-meta {
+      font-size: 11px; color: var(--muted-foreground);
+    }
+    .session-tags {
+      display: flex; gap: 6px; margin-top: 2px;
+    }
+    .session-tag {
+      display: inline-flex; align-items: center;
+      padding: 1px 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      color: var(--muted-foreground);
+    }
+    .session-item.active .session-tag {
+      background: rgba(255,255,255,0.6);
+    }
+
+    /* ====== right detail ====== */
+    .chat-detail {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .detail-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .detail-h-l { display: flex; flex-direction: column; gap: 4px; }
+    .detail-h-title {
+      font-size: 15px; font-weight: 700; color: var(--ink);
+    }
+    .detail-h-sub {
+      font-size: 11px; color: var(--muted-foreground);
+    }
+    .detail-h-r { display: flex; gap: 8px; }
+    .detail-h-r button {
+      width: 32px; height: 32px;
+      background: transparent; border: 0;
+      border-radius: var(--radius-md);
+      color: var(--muted-foreground);
+      cursor: pointer; display: grid; place-items: center;
+      font-family: inherit;
+    }
+    .detail-h-r button:hover { background: var(--surface-2); color: var(--ink); }
+    .detail-h-r .icon { font-size: 14px; }
+
+    /* context bar */
+    .ctx-bar {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 24px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .ctx-bar .icon-link { color: var(--muted-foreground); font-size: 13px; }
+    .ctx-label {
+      color: var(--muted-foreground);
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 1px;
+    }
+    .ctx-id {
+      color: var(--primary);
+      font-size: 11px; font-weight: 600;
+      font-family: var(--font-mono);
+    }
+    .ctx-link {
+      margin-left: auto;
+      color: var(--primary);
+      font-size: 11px; font-weight: 500;
+      text-decoration: none;
+    }
+
+    /* messages */
+    .ch-body {
+      flex: 1;
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+      overflow-y: auto;
+      max-height: 540px;
+    }
+    .msg {
+      display: flex; gap: 10px;
+      width: 100%;
+    }
+    .msg.right { justify-content: flex-end; }
+    .msg-avatar {
+      width: 28px; height: 28px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .msg-avatar.ai {
+      background: var(--primary);
+      color: #fff;
+    }
+    .msg.right .msg-avatar {
+      width: 32px; height: 32px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 13px;
+    }
+    .msg-bubble {
+      max-width: 580px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .msg.right .msg-bubble { align-items: flex-end; }
+    .msg-content {
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--ink);
+    }
+    .msg-content.ai {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+    }
+    .msg-content.user {
+      background: var(--primary);
+      color: #fff;
+      border-top-right-radius: 4px;
+    }
+    .msg-meta {
+      font-size: 10px; color: var(--muted-foreground);
+      padding: 0 4px;
+    }
+    .msg-meta.user { text-align: right; }
+
+    /* code block in AI msg */
+    pre.code-block {
+      margin: 10px 0 0;
+      padding: 12px 14px;
+      background: var(--ink);
+      color: #d4dae6;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+    .code-kw { color: #c2eaff; }
+    .code-cmt { color: #6c7e96; font-style: italic; }
+    .code-str { color: #ffc89e; }
+
+    /* footer input */
+    .ch-ft {
+      padding: 14px 24px;
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+    }
+    .ch-input-wrap {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+    }
+    .ch-input-wrap input {
+      flex: 1;
+      border: 0; outline: 0; background: transparent;
+      font-size: 13px; font-family: inherit; color: var(--ink);
+    }
+    .ch-input-wrap input::placeholder { color: var(--subtle-foreground); }
+    .ch-send {
+      width: 28px; height: 28px;
+      background: var(--primary);
+      color: #fff;
+      border: 0;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+
+    /* follow-up suggestions */
+    .followup {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .followup-chip {
+      padding: 5px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .followup-chip:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+  </style>
+</head>
+<body>
+  <!-- Top Nav (student role) -->
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill">
+          <i class="icon icon-building-2"></i>
+          <span>软件学院</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search">
+          <i class="icon icon-search"></i>
+          <span class="placeholder">全局搜索任务、学生、班级</span>
+          <kbd class="kbd">⌘K</kbd>
+        </div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative">
+          <i class="icon icon-bell"></i>
+          <span class="ndot"></span>
+        </button>
+        <button class="user-pill">
+          <span class="avatar">王</span>
+          <span class="user-name">王伟  老师</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link active">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <div class="page-body">
+    <!-- breadcrumb -->
+    <nav class="breadcrumb">
+      <span>我的</span>
+      <i class="icon icon-chevron-right sep"></i>
+      <span>个人中心</span>
+      <i class="icon icon-chevron-right sep"></i>
+      <span class="current">AI 问答历史</span>
+    </nav>
+
+    <!-- page header -->
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1>AI 问答历史</h1>
+          <span class="quota-pill"><i class="icon icon-sparkles"></i>今日剩余 42 / 50 次</span>
+        </div>
+        <p>共 12 次会话  ·  最近 30 天累计 184 轮问答</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">清空历史</button>
+        <button class="btn btn-primary">+ 新建对话</button>
+      </div>
+    </div>
+
+    <!-- chat shell -->
+    <div class="chat-shell">
+      <!-- left list -->
+      <aside class="chat-list">
+        <div class="chat-list-h">
+          <div class="session-search">
+            <i class="icon icon-search"></i>
+            <input type="text" placeholder="搜索会话内容" />
+          </div>
+        </div>
+        <div class="chat-list-body">
+          <!-- active session -->
+          <div class="session-item active">
+            <div class="session-h">
+              <span class="session-title">为什么我的报告会被扣分？</span>
+              <span class="session-time">12 分钟前</span>
+            </div>
+            <div class="session-meta">软件工程实践 · 第三次实训  ·  6 轮对话</div>
+            <div class="session-tags">
+              <span class="session-tag"># 文档规范性</span>
+              <span class="session-tag"># 评分依据</span>
+            </div>
+          </div>
+          <div class="session-item">
+            <div class="session-h">
+              <span class="session-title">IO 流是否必须用 try-with-resources？</span>
+              <span class="session-time">02:31</span>
+            </div>
+            <div class="session-meta">软件工程实践 · 第三次实训  ·  4 轮对话</div>
+          </div>
+          <div class="session-item">
+            <div class="session-h">
+              <span class="session-title">ReentrantLock 与 synchronized 区别？</span>
+              <span class="session-time">昨天</span>
+            </div>
+            <div class="session-meta">软件工程实践 · 第三次实训  ·  3 轮对话</div>
+          </div>
+          <div class="session-item">
+            <div class="session-h">
+              <span class="session-title">二叉树前序遍历的非递归怎么写？</span>
+              <span class="session-time">3 天前</span>
+            </div>
+            <div class="session-meta">数据结构 · 二叉树遍历实验  ·  8 轮对话</div>
+          </div>
+          <div class="session-item">
+            <div class="session-h">
+              <span class="session-title">SQL JOIN 性能优化要点</span>
+              <span class="session-time">5 天前</span>
+            </div>
+            <div class="session-meta">数据库系统 · 查询优化  ·  12 轮对话</div>
+          </div>
+          <div class="session-item">
+            <div class="session-h">
+              <span class="session-title">如何分析 TCP 三次握手？</span>
+              <span class="session-time">7 天前</span>
+            </div>
+            <div class="session-meta">计算机网络 · 抓包分析  ·  5 轮对话</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- right detail -->
+      <section class="chat-detail">
+        <div class="detail-h">
+          <div class="detail-h-l">
+            <span class="detail-h-title">为什么我的报告会被扣分？</span>
+            <span class="detail-h-sub">软件工程实践 · 第三次实训  ·  6 轮  ·  最后回复 12 分钟前</span>
+          </div>
+          <div class="detail-h-r">
+            <button title="分享"><i class="icon icon-share-2"></i></button>
+            <button title="删除"><i class="icon icon-trash-2"></i></button>
+          </div>
+        </div>
+
+        <div class="ctx-bar">
+          <i class="icon icon-link icon-link"></i>
+          <span class="ctx-label">对话上下文</span>
+          <span class="ctx-id">评价 #2026-05-13-08742</span>
+          <a href="09-student-evaluation.html" class="ctx-link">查看评价 →</a>
+        </div>
+
+        <div class="ch-body">
+          <!-- AI message 1 -->
+          <div class="msg">
+            <div class="msg-avatar ai"><i class="icon icon-sparkles"></i></div>
+            <div class="msg-bubble">
+              <div class="msg-content ai">
+                您在《报告查重》项失分 6 分，主要因为相似度（52）和「实验目的」中表述与示例代码一致过高，建议您改写实验目的并重新引用文献。
+              </div>
+              <span class="msg-meta">AI 助教  ·  12 分钟前</span>
+            </div>
+          </div>
+
+          <!-- User message -->
+          <div class="msg right">
+            <div class="msg-bubble">
+              <div class="msg-content user">那从代码角度还会扣分吗？需要怎样来改进我的代码？</div>
+              <span class="msg-meta user">你 · 11 分钟前</span>
+            </div>
+            <div class="msg-avatar">学</div>
+          </div>
+
+          <!-- AI message 2 with code -->
+          <div class="msg">
+            <div class="msg-avatar ai"><i class="icon icon-sparkles"></i></div>
+            <div class="msg-bubble">
+              <div class="msg-content ai">
+                主要有两个问题：(1) 你的 5.2.3 使用裸 ReentrantLock + Condition 实现的 ProducerConsumer.java 类只用 synchronized + wait/notify。(2) 部分代码缺少对锁的释放，可能造成死锁；建议使用 try-finally 或换成 BlockingQueue。
+              </div>
+              <span class="msg-meta">AI 助教  ·  10 分钟前</span>
+            </div>
+          </div>
+
+          <!-- User -->
+          <div class="msg right">
+            <div class="msg-bubble">
+              <div class="msg-content user">那我应该怎么改？给我一个具体的示例</div>
+              <span class="msg-meta user">你 · 9 分钟前</span>
+            </div>
+            <div class="msg-avatar">学</div>
+          </div>
+
+          <!-- AI message 3 with code -->
+          <div class="msg">
+            <div class="msg-avatar ai"><i class="icon icon-sparkles"></i></div>
+            <div class="msg-bubble">
+              <div class="msg-content ai">
+                建议这样写 ProducerConsumer.java 中字段与 Condition 的部分：
+                <pre class="code-block"><span class="code-kw">private final</span> ReentrantLock lock = <span class="code-kw">new</span> ReentrantLock();
+<span class="code-kw">private final</span> Condition notFull = lock.newCondition();
+<span class="code-kw">public void</span> produce(<span class="code-kw">int</span> item) <span class="code-kw">throws</span> InterruptedException {
+    lock.lock();
+    <span class="code-kw">try</span> {
+        <span class="code-kw">while</span> (full) notFull.await(); <span class="code-cmt">// ...</span>
+    } <span class="code-kw">finally</span> { lock.unlock(); }
+}</pre>
+                这样确保即便子线程 synchronized 抛错时，与原版 Condition 用法、与目标语义一致。
+                <div class="followup">
+                  <span class="followup-chip">如何实现公平锁？</span>
+                  <span class="followup-chip">线程池如何使用？</span>
+                </div>
+              </div>
+              <span class="msg-meta">AI 助教  ·  12 分钟前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="ch-ft">
+          <div class="ch-input-wrap">
+            <input type="text" placeholder="继续追问..." />
+            <button class="ch-send" title="发送"><i class="icon icon-send" style="font-size: 13px;"></i></button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

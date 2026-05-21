@@ -1,0 +1,20 @@
+﻿{
+  "style": "default",
+  "typescript": true,
+  "tsConfigPath": "./tsconfig.app.json",
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "slate",
+    "cssVariables": true
+  },
+  "framework": "vite",
+  "aliases": {
+    "components": "@/components",
+    "composables": "@/composables",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib"
+  },
+  "iconLibrary": "lucide"
+}

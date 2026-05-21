@@ -1,0 +1,118 @@
+/* 设计 token，从 designs/training-evaluation2.pen 提炼 */
+/* 已修正瑕疵：弃用 sidebar 系列 / 字体仅保留 sans+mono */
+
+:root {
+  /* 中性 */
+  --background: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f9fafb;
+  --surface-3: #f2eee3;
+  --border: #e5e7eb;
+  --border-soft: #eeeae0;
+  --border-strong: #cbd0d8;
+  --ink: #0f1b2d;
+  --foreground: #1f2937;
+  --muted: #eef1f4;
+  --muted-foreground: #5b6473;
+  --subtle-foreground: #8e96a4;
+
+  /* 主色：学院深蓝 */
+  --primary: #1e3a5f;
+  --primary-strong: #172b47;
+  --primary-soft: #e5ecf4;
+  --primary-foreground: #ffffff;
+
+  /* 强调：暖橙 */
+  --accent: #c2410c;
+  --accent-soft: #fbe5d6;
+  --accent-strong: #92400e;
+
+  /* 状态色 */
+  --success: #15803d;
+  --success-soft: #e6f4ec;
+  --warning: #b45309;
+  --warning-soft: #fbe8cf;
+  --danger: #b91c1c;
+  --danger-soft: #fbecec;
+  --info: #1d4ed8;
+  --info-soft: #e5ebf7;
+  --gold: #a47b2a;
+  --gold-soft: #f5edd9;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
+
+  /* 字体 */
+  --font-sans: 'Noto Sans SC', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tailwind 扩展（CDN 配置写在每页 head 内） */
+
+/* 通用工具类 */
+.text-ink { color: var(--ink); }
+.text-fg { color: var(--foreground); }
+.text-muted { color: var(--muted-foreground); }
+.text-subtle { color: var(--subtle-foreground); }
+.text-primary { color: var(--primary); }
+.text-accent { color: var(--accent); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-danger { color: var(--danger); }
+.text-info { color: var(--info); }
+.text-gold { color: var(--gold); }
+.text-primary-foreground { color: var(--primary-foreground); }
+.text-accent-strong { color: var(--accent-strong); }
+
+.bg-background { background-color: var(--background); }
+.bg-surface { background-color: var(--surface); }
+.bg-surface-2 { background-color: var(--surface-2); }
+.bg-surface-3 { background-color: var(--surface-3); }
+.bg-primary { background-color: var(--primary); }
+.bg-primary-soft { background-color: var(--primary-soft); }
+.bg-accent { background-color: var(--accent); }
+.bg-accent-soft { background-color: var(--accent-soft); }
+.bg-success { background-color: var(--success); }
+.bg-success-soft { background-color: var(--success-soft); }
+.bg-warning { background-color: var(--warning); }
+.bg-warning-soft { background-color: var(--warning-soft); }
+.bg-danger { background-color: var(--danger); }
+.bg-danger-soft { background-color: var(--danger-soft); }
+.bg-info { background-color: var(--info); }
+.bg-info-soft { background-color: var(--info-soft); }
+.bg-gold { background-color: var(--gold); }
+.bg-gold-soft { background-color: var(--gold-soft); }
+.bg-muted { background-color: var(--muted); }
+
+.border-default { border-color: var(--border); }
+.border-soft { border-color: var(--border-soft); }
+.border-strong { border-color: var(--border-strong); }
+
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-pill { border-radius: var(--radius-pill); }
+
+.font-mono-tes { font-family: var(--font-mono); }
+
+/* 滚动条美化（与设计稿气质一致） */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }

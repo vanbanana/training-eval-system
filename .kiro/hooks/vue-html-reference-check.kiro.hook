@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Vue 文件保存后核对 HTML 参考",
+  "description": "保存 Vue 视图文件时，自动检查是否对照 HTML 参考、是否使用 shadcn-vue + Tailwind。",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "frontend/src/views/**/*.vue",
+      "frontend/src/components/**/*.vue"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "刚保存了一个 Vue 文件。请快速核对：\n\n1. 在 `docs/design/02-html-references.md` 找到对应的 HTML 参考文件路径\n2. 检查刚保存的 Vue 文件：\n   - 是否使用 shadcn-vue 组件 + Tailwind class（不是裸 div + 内联 style）\n   - 是否硬编码了颜色 hex（应该用 Tailwind class 如 `bg-primary` `text-muted-foreground`）\n   - lucide 图标名是否与 HTML 参考一致\n\n如果发现违规，立刻修正。如果没有问题，**只回复一行**：\"Vue 文件 X 核对通过\"。不要做额外解释。"
+  }
+}

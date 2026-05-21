@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>批改工作台 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    /* 页头标签 */
+    .hd-tag {
+      padding: 3px 10px;
+      background: var(--muted);
+      color: var(--muted-foreground);
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* progress bar 横排 */
+    .progress-bar {
+      display: flex; align-items: stretch; gap: 24px;
+      padding: 20px;
+    }
+    .pb-cell { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .pb-divider { width: 1px; background: var(--border); align-self: stretch; }
+    .pb-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--muted-foreground);
+      letter-spacing: 1px;
+    }
+    .pb-value {
+      display: flex; align-items: flex-end; gap: 8px;
+    }
+    .pb-value-num { font-size: 24px; font-weight: 700; color: var(--ink); line-height: 1; }
+    .pb-value-num.success { color: var(--success); }
+    .pb-value-num.danger { color: var(--danger); }
+    .pb-value-suffix { font-size: 13px; color: var(--muted-foreground); }
+    .pb-bar {
+      height: 6px; background: var(--muted);
+      border-radius: var(--radius-pill); overflow: hidden;
+      margin-top: 4px;
+    }
+    .pb-bar > div { height: 100%; background: var(--primary); border-radius: var(--radius-pill); }
+    .pb-meta { font-size: 11px; color: var(--muted-foreground); }
+    .pb-meta.info { color: var(--info); }
+    .pb-meta.danger { color: var(--danger); }
+
+    /* filter tabs */
+    .filt-tabs {
+      display: flex; align-items: flex-end; gap: 0;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .filt-tab {
+      padding: 14px 16px;
+      font-size: 13px; font-weight: 500;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .filt-tab.active {
+      color: var(--primary);
+      font-weight: 600;
+      border-bottom-color: var(--primary);
+    }
+    .filt-tabs .spacer { flex: 1; }
+
+    /* table grid */
+    .gt-cols {
+      display: grid;
+      grid-template-columns: 36px 240px 160px 120px 120px 120px 140px 1fr;
+      align-items: center;
+    }
+    .gt-head {
+      background: var(--surface-2);
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .gt-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .gt-row {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .gt-row:hover { background: var(--surface-2); }
+    .gt-row.danger-row { background: var(--danger-soft); }
+    .gt-row.danger-row:hover { background: #f9d8d8; }
+    .gt-row:last-child { border-bottom: 0; }
+
+    .checkbox-empty {
+      width: 14px; height: 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+    .checkbox-checked {
+      width: 14px; height: 14px;
+      background: var(--primary);
+      border-radius: var(--radius-sm);
+      display: grid; place-items: center;
+      color: #fff; font-size: 10px;
+    }
+
+    /* user cell */
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-avatar {
+      width: 30px; height: 30px;
+      border-radius: var(--radius-pill);
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: grid; place-items: center;
+      font-weight: 600; font-size: 13px;
+      flex-shrink: 0;
+    }
+    .user-info { display: flex; flex-direction: column; gap: 2px; }
+    .user-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .user-meta { font-size: 11px; color: var(--muted-foreground); }
+
+    /* score chip */
+    .score-chip {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+    .score-chip.success { background: var(--success-soft); color: var(--success); }
+    .score-chip.warning { background: var(--warning-soft); color: var(--warning); }
+
+    /* row actions */
+    .row-actions {
+      display: flex; align-items: center; gap: 8px;
+      justify-content: flex-end;
+    }
+    .row-action-btn {
+      font-size: 12px; font-weight: 500;
+      cursor: pointer; background: transparent; border: 0;
+      padding: 0; font-family: inherit;
+    }
+    .row-action-btn.primary { color: var(--primary); }
+    .row-action-btn.muted { color: var(--muted-foreground); }
+    .row-action-btn.danger { color: var(--danger); font-weight: 600; }
+    .row-action-vsep { width: 1px; height: 14px; background: var(--border); }
+
+    /* loader icon spin */
+    .icon-spin {
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索任务、学生、班级</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link active">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">软件工程实践 · 第三次实训</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">批改工作台</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1 style="margin:0;">批改工作台</h1>
+          <span class="hd-tag">软件工程实践 · 第三次实训</span>
+        </div>
+        <p style="margin-top:6px;">软工 21-3 班 · 56 名学生 · 截止 2026-05-22 23:59</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">批量打回</button>
+        <button class="btn btn-primary">一键确认所选 (12)</button>
+      </div>
+    </div>
+
+    <!-- progress bar -->
+    <section class="card">
+      <div class="progress-bar">
+        <div class="pb-cell">
+          <span class="pb-label">批改进度</span>
+          <div class="pb-value">
+            <span class="pb-value-num">42</span>
+            <span class="pb-value-suffix">/ 56  已提交</span>
+          </div>
+          <div class="pb-bar"><div style="width: 75%;"></div></div>
+        </div>
+        <div class="pb-divider"></div>
+        <div class="pb-cell">
+          <span class="pb-label">已自动评分</span>
+          <div class="pb-value">
+            <span class="pb-value-num">38</span>
+            <span class="pb-value-suffix">/ 42</span>
+          </div>
+          <span class="pb-meta info">另有 4 份待解析</span>
+        </div>
+        <div class="pb-divider"></div>
+        <div class="pb-cell">
+          <span class="pb-label">教师已确认</span>
+          <div class="pb-value">
+            <span class="pb-value-num success">24</span>
+            <span class="pb-value-suffix">/ 38  已确认</span>
+          </div>
+          <span class="pb-meta">确认率 63%</span>
+        </div>
+        <div class="pb-divider"></div>
+        <div class="pb-cell">
+          <span class="pb-label">疑似抄袭警告</span>
+          <div class="pb-value">
+            <span class="pb-value-num danger">3</span>
+            <span class="pb-value-suffix">组</span>
+          </div>
+          <span class="pb-meta danger">建议人工复核</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- filter + toolbar + table -->
+    <section class="card" style="overflow: hidden;">
+      <!-- tabs -->
+      <div class="filt-tabs">
+        <span class="filt-tab active">全部 56</span>
+        <span class="filt-tab">待批改 18</span>
+        <span class="filt-tab">已自动评分 38</span>
+        <span class="filt-tab">已确认 24</span>
+        <span class="filt-tab">待重提 2</span>
+        <span class="spacer"></span>
+        <span class="filt-tab" style="color: var(--danger);">⚠ 疑似相似 3</span>
+      </div>
+
+      <!-- toolbar -->
+      <div style="background: var(--surface-2); padding: 14px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px;">
+        <div class="searchbox" style="width: 280px;">
+          <i class="icon icon-search"></i>
+          <input placeholder="按学号 / 姓名搜索" />
+        </div>
+        <select class="tes-select">
+          <option>得分 70-100</option>
+          <option>得分 60-90</option>
+          <option>得分 0-60</option>
+        </select>
+        <select class="tes-select">
+          <option>按提交时间</option>
+          <option>按得分</option>
+        </select>
+        <div class="flex-1"></div>
+        <span class="text-xs" style="color: var(--muted-foreground); font-weight: 500;">已选 12 项</span>
+        <button class="btn btn-secondary btn-sm">批量下载</button>
+      </div>
+
+      <!-- table head -->
+      <div class="gt-cols gt-head">
+        <div><span class="checkbox-empty"></span></div>
+        <div>学生</div>
+        <div>提交时间</div>
+        <div>AI 客观分</div>
+        <div>教师主观分</div>
+        <div>综合得分</div>
+        <div>状态</div>
+        <div style="text-align: right;">操作</div>
+      </div>
+
+      <!-- Row 1 - 李文涛 已确认 -->
+      <div class="gt-cols gt-row">
+        <div><span class="checkbox-checked"><i class="icon icon-check"></i></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">李</span>
+          <span class="user-info">
+            <span class="user-name">李文涛</span>
+            <span class="user-meta">21100124</span>
+          </span>
+        </div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">05-12 14:32</div>
+        <div><span class="text-base font-semibold" style="color: var(--ink);">88</span></div>
+        <div><span class="text-base font-semibold" style="color: var(--ink);">85</span></div>
+        <div>
+          <span class="font-bold" style="color: var(--success); font-size: 15px;">86.8</span>
+          <span class="score-chip success">已确认</span>
+        </div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">详情</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">打回</button>
+        </div>
+      </div>
+
+      <!-- Row 2 - 陈嘉迅 疑似相似 危险高亮 -->
+      <div class="gt-cols gt-row danger-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar" style="background: var(--danger-soft); color: var(--danger);">陈</span>
+          <span class="user-info">
+            <span class="user-name">陈嘉迅</span>
+            <span class="user-meta">21100087 · 与 李文涛 相似度 87%</span>
+          </span>
+        </div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">05-12 09:14</div>
+        <div><span class="text-base font-semibold" style="color: var(--ink);">75</span></div>
+        <div><span class="font-mono-tes text-sm" style="color: var(--subtle-foreground);">——</span></div>
+        <div><span class="font-bold text-md" style="color: var(--ink);">75.0</span></div>
+        <div><span class="label label-danger">疑似相似</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn danger">复核</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">对比</button>
+        </div>
+      </div>
+
+      <!-- Row 3 - 赵雨晴 已确认（高分） -->
+      <div class="gt-cols gt-row">
+        <div><span class="checkbox-checked"><i class="icon icon-check"></i></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">赵</span>
+          <span class="user-info">
+            <span class="user-name">赵雨晴</span>
+            <span class="user-meta">21100156</span>
+          </span>
+        </div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">05-11 22:08</div>
+        <div><span class="text-base font-semibold" style="color: var(--ink);">94</span></div>
+        <div><span class="text-base font-semibold" style="color: var(--ink);">96</span></div>
+        <div>
+          <span class="font-bold" style="color: var(--success); font-size: 15px;">94.8</span>
+          <span class="score-chip success">已确认</span>
+        </div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">详情</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">打回</button>
+        </div>
+      </div>
+
+      <!-- Row 4 - 周晨阳 评分中 -->
+      <div class="gt-cols gt-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">周</span>
+          <span class="user-info">
+            <span class="user-name">周晨阳</span>
+            <span class="user-meta">21100201</span>
+          </span>
+        </div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">05-12 23:01</div>
+        <div class="flex items-center gap-2" style="color: var(--info);">
+          <i class="icon icon-loader icon-spin" style="font-size: 13px;"></i>
+          <span class="text-xs font-medium">评分中</span>
+        </div>
+        <div><span class="font-mono-tes text-sm" style="color: var(--subtle-foreground);">——</span></div>
+        <div><span class="font-mono-tes text-sm" style="color: var(--subtle-foreground);">——</span></div>
+        <div><span class="label label-info">AI 评分中</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn muted">查看</button>
+        </div>
+      </div>
+
+      <!-- Row 5 - 刘子琪 待批改（低分警告） -->
+      <div class="gt-cols gt-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">刘</span>
+          <span class="user-info">
+            <span class="user-name">刘子琪</span>
+            <span class="user-meta">21100199</span>
+          </span>
+        </div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">05-11 16:42</div>
+        <div><span class="text-base font-semibold" style="color: var(--accent);">68</span></div>
+        <div><span class="font-mono-tes text-sm" style="color: var(--subtle-foreground);">——</span></div>
+        <div>
+          <span class="font-bold" style="color: var(--accent); font-size: 15px;">68.0</span>
+          <span class="score-chip warning">需关注</span>
+        </div>
+        <div><span class="label label-warning">待批改</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">批改</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">打回</button>
+        </div>
+      </div>
+
+      <!-- Row 6 - 孙浩然 待批改 -->
+      <div class="gt-cols gt-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div class="user-cell">
+          <span class="user-avatar">孙</span>
+          <span class="user-info">
+            <span class="user-name">孙浩然</span>
+            <span class="user-meta">21100173</span>
+          </span>
+        </div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">05-13 02:18</div>
+        <div><span class="text-base font-semibold" style="color: var(--ink);">82</span></div>
+        <div><span class="font-mono-tes text-sm" style="color: var(--subtle-foreground);">——</span></div>
+        <div><span class="font-bold text-md" style="color: var(--ink);">82.0</span></div>
+        <div><span class="label label-warning">待批改</span></div>
+        <div class="row-actions">
+          <button class="row-action-btn primary">批改</button>
+          <span class="row-action-vsep"></span>
+          <button class="row-action-btn muted">打回</button>
+        </div>
+      </div>
+
+      <!-- pagination footer -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: var(--surface-2);">
+        <div class="text-xs" style="color: var(--muted-foreground);">显示 1 - 6 共 56 条</div>
+        <div class="text-xs" style="color: var(--subtle-foreground);">使用 ← / → 键可在批改页之间快速切换</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

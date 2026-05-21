@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>大模型配置 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 380px; gap: 18px; }
+
+    /* status pill in header */
+    .st-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: var(--success-soft);
+      border-radius: var(--radius-pill);
+      font-size: 12px; font-weight: 600;
+      color: var(--success);
+    }
+    .st-dot {
+      width: 8px; height: 8px;
+      background: var(--success);
+      border-radius: var(--radius-pill);
+    }
+
+    /* config card */
+    .cfg-h {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .prov-bar {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .prov-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      color: var(--ink);
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .prov-chip:hover { border-color: var(--primary); }
+    .prov-chip.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .prov-chip .icon { font-size: 14px; color: var(--muted-foreground); }
+    .prov-chip.active .icon { color: #fff; }
+
+    /* form */
+    .cfg-form { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-row-h { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-label {
+      font-size: 13px; font-weight: 500; color: var(--ink);
+    }
+    .form-help {
+      font-size: 11px; color: var(--muted-foreground);
+    }
+    .input-wrap {
+      display: flex; align-items: center; gap: 8px;
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+    .input-wrap:focus-within { border-color: var(--primary); }
+    .input-wrap input,
+    .input-wrap select {
+      flex: 1;
+      border: 0; outline: 0;
+      background: transparent;
+      font-size: 13px; color: var(--foreground);
+      font-family: inherit;
+    }
+    .input-wrap .icon { color: var(--muted-foreground); font-size: 14px; }
+    .input-wrap.locked {
+      background: var(--surface-2);
+    }
+    .input-wrap input.mono { font-family: var(--font-mono); font-size: 12px; }
+
+    .key-info {
+      display: flex; justify-content: space-between; font-size: 11px;
+    }
+    .key-info-l { color: var(--muted-foreground); }
+    .key-info-r { color: var(--primary); font-weight: 500; cursor: pointer; }
+
+    /* footer */
+    .cfg-ftr {
+      padding: 16px 24px;
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* status card right */
+    .st-h {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .st-list { display: flex; flex-direction: column; }
+    .st-row {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .st-row:last-child { border-bottom: 0; }
+    .st-row-l { font-size: 12px; color: var(--muted-foreground); }
+    .st-row-r {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+      font-family: var(--font-mono);
+    }
+    .st-row-r.success { color: var(--success); }
+    .st-row-r.warn { color: var(--warning); }
+
+    /* usage */
+    .usage-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .usage-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .usage-cell {
+      padding: 12px;
+      background: var(--surface-2);
+      border-radius: var(--radius-md);
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .usage-lbl { font-size: 11px; color: var(--muted-foreground); }
+    .usage-val { font-size: 18px; font-weight: 700; color: var(--ink); }
+    .usage-val.danger { color: var(--accent); }
+    .usage-val.success { color: var(--success); }
+
+    /* tip */
+    .tip-card {
+      background: var(--info-soft);
+      border: 1px solid var(--info);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .tip-card-h {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600;
+      color: var(--info);
+    }
+    .tip-card-content {
+      font-size: 12px; line-height: 1.7;
+      color: var(--info);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-shield"></i><span>管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">管</span><span class="user-name">管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">系统总览</a>
+      <a href="#" class="nav-link">用户与权限</a>
+      <a href="#" class="nav-link">课程管理</a>
+      <a href="#" class="nav-link active">系统配置</a>
+      <a href="#" class="nav-link">审计日志</a>
+      <a href="#" class="nav-link">教学画像</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">管理控制台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">系统配置</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">大模型服务</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>大模型服务配置</h1>
+        <p>通过 OpenAI 兼容协议接入云端供应商，支持运行时热切换</p>
+      </div>
+      <div class="page-hd-r">
+        <span class="st-pill"><span class="st-dot"></span><span>服务正常 · 阿里通义千问</span></span>
+        <button class="btn btn-secondary">调用日志</button>
+        <button class="btn btn-primary">保存配置</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT: form card -->
+      <div class="flex-col gap-5">
+        <section class="card" style="overflow: hidden;">
+          <header class="cfg-h">
+            <div>
+              <div class="card-title">供应商选择</div>
+              <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">支持热切换，无需重启服务</div>
+            </div>
+            <div class="text-xs" style="color: var(--muted-foreground);">所有供应商通过 OpenAI 兼容协议接入</div>
+          </header>
+
+          <!-- provider tabs -->
+          <div class="prov-bar">
+            <div class="prov-chip active"><i class="icon icon-check"></i><span>通义千问</span></div>
+            <div class="prov-chip"><i class="icon icon-cpu"></i><span>DeepSeek</span></div>
+            <div class="prov-chip"><i class="icon icon-cpu"></i><span>智谱 GLM</span></div>
+            <div class="prov-chip"><i class="icon icon-cpu"></i><span>Moonshot</span></div>
+            <div class="prov-chip"><i class="icon icon-plus"></i><span>自定义</span></div>
+          </div>
+
+          <!-- form -->
+          <div class="cfg-form">
+            <div class="form-row">
+              <label class="form-label">API 基础地址</label>
+              <div class="input-wrap">
+                <i class="icon icon-link"></i>
+                <input class="mono" value="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+                <i class="icon icon-copy" style="cursor: pointer;"></i>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <label class="form-label">API 密钥</label>
+              <div class="input-wrap locked">
+                <i class="icon icon-key-round"></i>
+                <input class="mono" type="text" value="sk-***...***mz4f" readonly />
+                <i class="icon icon-eye" style="cursor: pointer;"></i>
+              </div>
+              <div class="key-info">
+                <span class="key-info-l">AES-256 加密存储 · 主密钥从环境变量加载</span>
+                <span class="key-info-r">替换密钥</span>
+              </div>
+            </div>
+
+            <div class="form-row-h">
+              <div class="form-row">
+                <label class="form-label">Chat 模型</label>
+                <div class="input-wrap">
+                  <select>
+                    <option>qwen2.5-72b-instruct</option>
+                    <option>qwen2.5-32b-instruct</option>
+                    <option>qwen-max</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Embedding 模型</label>
+                <div class="input-wrap">
+                  <select>
+                    <option>text-embedding-v3</option>
+                    <option>text-embedding-v2</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row-h">
+              <div class="form-row">
+                <label class="form-label">温度  Temperature</label>
+                <div class="input-wrap">
+                  <input value="0.2" />
+                </div>
+                <span class="form-help">推荐评分场景使用 0.2</span>
+              </div>
+              <div class="form-row">
+                <label class="form-label">超时 Timeout（秒）</label>
+                <div class="input-wrap">
+                  <input value="60" />
+                </div>
+                <span class="form-help">超过将自动重试 3 次</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- footer -->
+          <footer class="cfg-ftr">
+            <span class="text-xs" style="color: var(--muted-foreground);">上次保存于 2026-05-13 15:42</span>
+            <button class="btn btn-secondary"><i class="icon icon-zap"></i><span>连通性测试</span></button>
+          </footer>
+        </section>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex-col gap-5">
+        <!-- 服务健康 -->
+        <section class="card" style="overflow: hidden;">
+          <header class="st-h">
+            <div class="card-title-sm" style="font-weight: 600; color: var(--ink);">服务健康</div>
+            <span class="st-dot"></span>
+          </header>
+          <div class="st-list">
+            <div class="st-row">
+              <span class="st-row-l">当前状态</span>
+              <span class="st-row-r success">● 正常</span>
+            </div>
+            <div class="st-row">
+              <span class="st-row-l">上次连通性测试</span>
+              <span class="st-row-r">5 分钟前 · 187 ms</span>
+            </div>
+            <div class="st-row">
+              <span class="st-row-l">熔断状态</span>
+              <span class="st-row-r success">关闭</span>
+            </div>
+            <div class="st-row">
+              <span class="st-row-l">近 1 小时错误率</span>
+              <span class="st-row-r">0.45 (2 / 240)</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 今日调用 -->
+        <section class="card" style="padding: 20px;">
+          <div class="usage-h" style="margin-bottom: 14px;">
+            <div class="card-title-sm" style="font-weight: 600; color: var(--ink);">今日调用</div>
+            <a href="#" class="card-link">详情 ›</a>
+          </div>
+          <div class="usage-grid">
+            <div class="usage-cell">
+              <span class="usage-lbl">总请求数</span>
+              <span class="usage-val">3,847</span>
+            </div>
+            <div class="usage-cell">
+              <span class="usage-lbl">平均延迟</span>
+              <span class="usage-val">1.42 s</span>
+            </div>
+            <div class="usage-cell">
+              <span class="usage-lbl">总 tokens</span>
+              <span class="usage-val">1.2M</span>
+            </div>
+            <div class="usage-cell">
+              <span class="usage-lbl">失败次数</span>
+              <span class="usage-val danger">15</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- tip -->
+        <section class="tip-card">
+          <div class="tip-card-h">
+            <i class="icon icon-info"></i>
+            <span>热切换说明</span>
+          </div>
+          <div class="tip-card-content">修改配置后系统将立即使用新参数处理后续请求。建议在低峰时段切换供应商以避免影响用户体验。</div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

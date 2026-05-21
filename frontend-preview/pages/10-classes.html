@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>班级管理 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
+
+    /* class list left */
+    .cl-h {
+      padding: 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .cl-list { display: flex; flex-direction: column; }
+    .cl-item {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 4px;
+      cursor: pointer;
+    }
+    .cl-item:hover { background: var(--surface-2); }
+    .cl-item.active {
+      background: var(--primary-soft);
+      border-left: 3px solid var(--primary);
+      padding-left: 15px;
+    }
+    .cl-item.archived { opacity: 0.5; }
+    .cl-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .cl-item.active .cl-name { color: var(--primary); }
+    .cl-meta { font-size: 11px; color: var(--muted-foreground); }
+
+    /* right detail */
+    .rh {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .rh-l-title {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .rh-l-title h2 {
+      margin: 0; font-size: 18px; font-weight: 700;
+      color: var(--ink);
+    }
+
+    /* stats row */
+    .stats-row {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 24px;
+      display: flex; gap: 24px;
+    }
+    .stat-cell { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .stat-cell-lbl { font-size: 11px; color: var(--muted-foreground); }
+    .stat-cell-val { font-size: 22px; font-weight: 700; color: var(--ink); }
+    .stat-cell-val.success { color: var(--success); }
+    .stat-cell-val.warn { color: var(--warning); }
+
+    /* toolbar */
+    .toolbar-row {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px;
+    }
+
+    /* student table */
+    .st-cols {
+      display: grid;
+      grid-template-columns: 36px 240px 140px 160px 140px 120px 1fr;
+      align-items: center;
+    }
+    .st-head {
+      background: var(--surface-2);
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .st-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .st-row {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .st-row:hover { background: var(--surface-2); }
+    .st-row:last-child { border-bottom: 0; }
+
+    /* score bar */
+    .score-bar-cell { display: flex; flex-direction: column; gap: 5px; }
+    .score-num-row {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .score-bar {
+      height: 5px; background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .score-bar > div {
+      height: 100%;
+      border-radius: var(--radius-pill);
+    }
+    .score-bar.high > div { background: var(--success); }
+    .score-bar.mid > div { background: var(--primary); }
+    .score-bar.low > div { background: var(--accent); }
+
+    .pf-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 24px;
+      background: var(--surface-2);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link active">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">组织</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">班级管理</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>班级管理</h1>
+        <p>按学年学期管理课程下的班级与学生名单</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary"><i class="icon icon-upload"></i><span>导入学生</span></button>
+        <button class="btn btn-primary">+ 新建班级</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT: class list -->
+      <aside class="card" style="overflow: hidden;">
+        <div class="cl-h">
+          <div class="card-title-sm">班级列表</div>
+          <div class="searchbox" style="width: 100%;">
+            <i class="icon icon-search"></i>
+            <input placeholder="搜索班级" />
+          </div>
+        </div>
+        <div class="cl-list">
+          <div class="cl-item active">
+            <div class="cl-name">软工 21-3 班</div>
+            <div class="cl-meta">软件工程 · 56 人 · 8 次实训</div>
+          </div>
+          <div class="cl-item">
+            <div class="cl-name">软工 21-2 班</div>
+            <div class="cl-meta">软件工程 · 54 人 · 8 次实训</div>
+          </div>
+          <div class="cl-item">
+            <div class="cl-name">软工 22-1 班</div>
+            <div class="cl-meta">软件工程 · 60 人 · 6 次实训</div>
+          </div>
+          <div class="cl-item">
+            <div class="cl-name">网络 21-2 班</div>
+            <div class="cl-meta">计算机网络 · 48 人 · 5 次实训</div>
+          </div>
+          <div class="cl-item">
+            <div class="cl-name">AI 22-1 班</div>
+            <div class="cl-meta">人工智能基础 · 38 人 · 4 次实训</div>
+          </div>
+          <div class="cl-item archived">
+            <div class="cl-name">软工 18-1 班</div>
+            <div class="cl-meta">软件工程 · 已归档</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT: detail -->
+      <section class="card" style="overflow: hidden;">
+        <div class="rh">
+          <div>
+            <div class="rh-l-title">
+              <h2>软工 21-3 班</h2>
+              <span class="label label-info">2026 春季</span>
+            </div>
+            <div class="text-xs" style="color: var(--muted-foreground); margin-top: 6px;">软件工程 · 王伟 老师</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="icon-btn"><i class="icon icon-pencil"></i></button>
+            <button class="icon-btn"><i class="icon icon-archive"></i></button>
+          </div>
+        </div>
+
+        <!-- stats -->
+        <div class="stats-row">
+          <div class="stat-cell">
+            <span class="stat-cell-lbl">应实训次数</span>
+            <span class="stat-cell-val">4</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-cell-lbl">班级平均分</span>
+            <span class="stat-cell-val">81.4</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-cell-lbl">按期完成率</span>
+            <span class="stat-cell-val success">94%</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-cell-lbl">需关注学生</span>
+            <span class="stat-cell-val warn">3</span>
+          </div>
+        </div>
+
+        <!-- toolbar -->
+        <div class="toolbar-row">
+          <div class="flex items-center gap-3">
+            <div class="searchbox" style="width: 240px;">
+              <i class="icon icon-search"></i>
+              <input placeholder="按学号 / 姓名搜索" />
+            </div>
+            <select class="tes-select">
+              <option>全部</option>
+              <option>需关注</option>
+              <option>表现优秀</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs" style="color: var(--muted-foreground);">已选 0 项</span>
+            <button class="btn btn-secondary btn-sm">导出名单</button>
+            <button class="btn btn-primary btn-sm">+ 添加学生</button>
+          </div>
+        </div>
+
+        <!-- table head -->
+        <div class="st-cols st-head">
+          <div><span class="checkbox-empty"></span></div>
+          <div>学生</div>
+          <div>学号</div>
+          <div>已提交 / 应交</div>
+          <div>平均得分</div>
+          <div>加入时间</div>
+          <div style="text-align: right;">操作</div>
+        </div>
+
+        <!-- rows -->
+        <div class="st-cols st-row">
+          <div><span class="checkbox-empty"></span></div>
+          <div class="user-cell">
+            <span class="user-avatar">李</span>
+            <span class="user-info">
+              <span class="user-name">李文清</span>
+              <span class="user-meta">软工 21-3 班</span>
+            </span>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">21100124</div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">4 / 4</div>
+          <div class="score-bar-cell">
+            <div class="score-num-row">86.5</div>
+            <div class="score-bar high"><div style="width: 86%;"></div></div>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-02-15</div>
+          <div class="row-actions">
+            <button class="row-action-btn primary">画像</button>
+            <span class="row-action-vsep"></span>
+            <button class="row-action-btn muted">移除</button>
+          </div>
+        </div>
+
+        <div class="st-cols st-row">
+          <div><span class="checkbox-empty"></span></div>
+          <div class="user-cell">
+            <span class="user-avatar">赵</span>
+            <span class="user-info">
+              <span class="user-name">赵雨晴</span>
+              <span class="user-meta">软工 21-3 班</span>
+            </span>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">21100156</div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">4 / 4</div>
+          <div class="score-bar-cell">
+            <div class="score-num-row" style="color: var(--success);">94.2</div>
+            <div class="score-bar high"><div style="width: 94%;"></div></div>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-02-15</div>
+          <div class="row-actions">
+            <button class="row-action-btn primary">画像</button>
+            <span class="row-action-vsep"></span>
+            <button class="row-action-btn muted">移除</button>
+          </div>
+        </div>
+
+        <div class="st-cols st-row">
+          <div><span class="checkbox-empty"></span></div>
+          <div class="user-cell">
+            <span class="user-avatar">刘</span>
+            <span class="user-info">
+              <span class="user-name">刘子琪 <i class="icon icon-flag" style="color: var(--accent); font-size: 12px;"></i></span>
+              <span class="user-meta">软工 21-3 班</span>
+            </span>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">21100199</div>
+          <div class="text-sm font-semibold" style="color: var(--accent);">3 / 4</div>
+          <div class="score-bar-cell">
+            <div class="score-num-row" style="color: var(--accent);">71.4</div>
+            <div class="score-bar low"><div style="width: 71%;"></div></div>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-02-15</div>
+          <div class="row-actions">
+            <button class="row-action-btn primary">画像</button>
+            <span class="row-action-vsep"></span>
+            <button class="row-action-btn muted">移除</button>
+          </div>
+        </div>
+
+        <div class="st-cols st-row">
+          <div><span class="checkbox-empty"></span></div>
+          <div class="user-cell">
+            <span class="user-avatar">周</span>
+            <span class="user-info">
+              <span class="user-name">周晨阳</span>
+              <span class="user-meta">软工 21-3 班</span>
+            </span>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">21100201</div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">4 / 4</div>
+          <div class="score-bar-cell">
+            <div class="score-num-row">83.7</div>
+            <div class="score-bar high"><div style="width: 83%;"></div></div>
+          </div>
+          <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-02-15</div>
+          <div class="row-actions">
+            <button class="row-action-btn primary">画像</button>
+            <span class="row-action-vsep"></span>
+            <button class="row-action-btn muted">移除</button>
+          </div>
+        </div>
+
+        <div class="pf-row">
+          <span class="text-xs" style="color: var(--muted-foreground);">显示 1 - 4 共 56 名学生</span>
+          <div class="text-xs" style="color: var(--ink);">上一页 1 / 14 下一页</div>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>全校教学质量画像 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .page-hd-meta {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .scope-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      background: var(--info-soft);
+      color: var(--info);
+      border-radius: var(--radius-pill);
+      font-size: 12px; font-weight: 600;
+    }
+    .scope-pill .dot {
+      width: 6px; height: 6px;
+      background: var(--info);
+      border-radius: var(--radius-pill);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 440px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    /* college comparison card */
+    .cc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 18px;
+    }
+    .cc-h {
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .cc-h-l { display: flex; flex-direction: column; gap: 4px; }
+    .cc-h-l .ttl { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .cc-h-l .desc { font-size: 11px; color: var(--muted-foreground); }
+    .cc-h-r { color: var(--muted-foreground); cursor: pointer; }
+    .cc-h-r .icon { font-size: 14px; }
+
+    .cc-rows { display: flex; flex-direction: column; gap: 14px; }
+    .cc-row { display: flex; align-items: center; gap: 14px; }
+    .cc-row-name {
+      width: 140px; flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .cc-row-name .n {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .cc-row-name .m { font-size: 10px; color: var(--muted-foreground); }
+    .cc-row-bar-wrap {
+      flex: 1;
+      height: 22px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      position: relative;
+      overflow: hidden;
+    }
+    .cc-row-bar {
+      height: 100%;
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: flex-end;
+      padding-right: 10px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .cc-row-bar.green { background: var(--success); }
+    .cc-row-bar.dark { background: var(--ink); }
+    .cc-row-bar.blue { background: var(--primary); }
+    .cc-row-bar.orange { background: var(--accent); }
+
+    /* Top courses card */
+    .topc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .topc-h {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .topc-h .ttl { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .topc-h .sub { font-size: 11px; color: var(--muted-foreground); }
+    .topc-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .topc-row:last-child { border-bottom: 0; }
+    .topc-rank {
+      width: 24px; height: 24px;
+      background: var(--surface-2);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      font-size: 11px; font-weight: 700;
+      color: var(--muted-foreground);
+      flex-shrink: 0;
+    }
+    .topc-rank.gold { background: var(--gold-soft); color: var(--gold); }
+    .topc-name {
+      flex: 1;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .topc-score {
+      font-family: var(--font-mono);
+      color: var(--success);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    /* ability bars */
+    .ability-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .ability-card-ttl {
+      font-size: 14px; font-weight: 600; color: var(--ink);
+    }
+    .ability-row {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .ability-row .nm {
+      width: 70px; flex-shrink: 0;
+      font-size: 12px; color: var(--ink);
+    }
+    .ability-row .bar-bg {
+      flex: 1;
+      height: 8px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .ability-row .bar-fill {
+      height: 100%;
+      border-radius: var(--radius-pill);
+      background: var(--primary);
+    }
+    .ability-row .bar-fill.warn { background: var(--accent); }
+    .ability-row .vl {
+      width: 36px;
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink);
+      flex-shrink: 0;
+    }
+    .ability-row .vl.warn { color: var(--accent); }
+
+    /* admin notice */
+    .admin-notice {
+      background: var(--info-soft);
+      border: 1px solid var(--info);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .admin-notice-h {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--info);
+      font-size: 13px; font-weight: 600;
+    }
+    .admin-notice-h .icon { font-size: 14px; }
+    .admin-notice-d {
+      color: var(--info);
+      font-size: 12px; line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill">
+          <i class="icon icon-building-2"></i>
+          <span>软件学院</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search">
+          <i class="icon icon-search"></i>
+          <span class="placeholder">全局搜索任务、学生、班级</span>
+          <kbd class="kbd">⌘K</kbd>
+        </div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative">
+          <i class="icon icon-bell"></i>
+          <span class="ndot"></span>
+        </button>
+        <button class="user-pill">
+          <span class="avatar">王</span>
+          <span class="user-name">王伟  老师</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link active">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <div class="page-body">
+    <!-- breadcrumb -->
+    <nav class="breadcrumb">
+      <span>管理控制台</span>
+      <i class="icon icon-chevron-right sep"></i>
+      <span>教学画像</span>
+      <i class="icon icon-chevron-right sep"></i>
+      <span class="current">学校级画像</span>
+    </nav>
+
+    <!-- page header -->
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="page-hd-meta">
+          <h1>全校教学质量画像</h1>
+          <span class="scope-pill"><span class="dot"></span>2026 春季</span>
+        </div>
+        <p>覆盖 18 门课程  ·  76 个班级  ·  1,194 名学生  ·  4,287 次实训  ·  匿名汇总数据</p>
+      </div>
+      <div class="page-hd-r">
+        <select class="tes-select" style="width: 200px; height: 40px;">
+          <option>近 6 个月</option>
+          <option>近 1 个月</option>
+          <option>近 3 个月</option>
+          <option>本学期</option>
+        </select>
+        <button class="btn btn-secondary">导出 PDF</button>
+        <button class="btn btn-primary">分享报告</button>
+      </div>
+    </div>
+
+    <!-- stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">全校平均分</span>
+          <i class="icon icon-award stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">79.6</div>
+        <div class="stat-card-trend up">
+          <i class="icon icon-trending-up"></i>较上学期 +2.1
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">实训完成率</span>
+          <i class="icon icon-check-check stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">92.4%</div>
+        <div class="stat-card-trend up">
+          <i class="icon icon-trending-up"></i>较上学期 +5.6%
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">按时提交率</span>
+          <i class="icon icon-clock-3 stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">94.1%</div>
+        <div class="stat-card-trend neutral">
+          <i class="icon icon-clock"></i>延迟 5.4%
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">教师采纳率</span>
+          <i class="icon icon-sparkles stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">87%</div>
+        <div class="stat-card-trend up">
+          <i class="icon icon-trending-up"></i>AI 评分被直接确认
+        </div>
+      </div>
+    </div>
+
+    <!-- two col -->
+    <div class="two-col">
+      <!-- left: college comparison -->
+      <div class="cc-card">
+        <div class="cc-h">
+          <div class="cc-h-l">
+            <span class="ttl">学院综合表现</span>
+            <span class="desc">按学院分组 · 数据 6 月份汇总 (匿名)</span>
+          </div>
+          <div class="cc-h-r"><i class="icon icon-more-horizontal"></i></div>
+        </div>
+        <div class="cc-rows">
+          <div class="cc-row">
+            <div class="cc-row-name">
+              <span class="n">软件学院</span>
+              <span class="m">18 门 · 1,194 人</span>
+            </div>
+            <div class="cc-row-bar-wrap"><div class="cc-row-bar green" style="width: 82%;">82.4</div></div>
+          </div>
+          <div class="cc-row">
+            <div class="cc-row-name">
+              <span class="n">网络与通信学院</span>
+              <span class="m">12 门 · 836 人</span>
+            </div>
+            <div class="cc-row-bar-wrap"><div class="cc-row-bar dark" style="width: 80%;">80.1</div></div>
+          </div>
+          <div class="cc-row">
+            <div class="cc-row-name">
+              <span class="n">人工智能学院</span>
+              <span class="m">10 门 · 612 人</span>
+            </div>
+            <div class="cc-row-bar-wrap"><div class="cc-row-bar dark" style="width: 79%;">79.4</div></div>
+          </div>
+          <div class="cc-row">
+            <div class="cc-row-name">
+              <span class="n">信息工程学院</span>
+              <span class="m">14 门 · 921 人</span>
+            </div>
+            <div class="cc-row-bar-wrap"><div class="cc-row-bar dark" style="width: 78%;">77.8</div></div>
+          </div>
+          <div class="cc-row">
+            <div class="cc-row-name">
+              <span class="n">数据科学学院</span>
+              <span class="m">8 门 · 423 人</span>
+            </div>
+            <div class="cc-row-bar-wrap"><div class="cc-row-bar orange" style="width: 75%;">75.3</div></div>
+          </div>
+          <div class="cc-row">
+            <div class="cc-row-name">
+              <span class="n">自动化学院</span>
+              <span class="m">9 门 · 567 人</span>
+            </div>
+            <div class="cc-row-bar-wrap"><div class="cc-row-bar orange" style="width: 73%;">73.6</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- right column -->
+      <div class="flex flex-col gap-4" style="gap: 18px;">
+        <!-- top courses -->
+        <div class="topc-card">
+          <div class="topc-h">
+            <span class="ttl">全校 TOP 5 课程</span>
+            <span class="sub">按平均分</span>
+          </div>
+          <div class="topc-row">
+            <div class="topc-rank gold">1</div>
+            <span class="topc-name">数据结构与算法</span>
+            <span class="topc-score">86.2</span>
+          </div>
+          <div class="topc-row">
+            <div class="topc-rank">2</div>
+            <span class="topc-name">软件工程</span>
+            <span class="topc-score">83.4</span>
+          </div>
+          <div class="topc-row">
+            <div class="topc-rank">3</div>
+            <span class="topc-name">操作系统</span>
+            <span class="topc-score">80.7</span>
+          </div>
+          <div class="topc-row">
+            <div class="topc-rank">4</div>
+            <span class="topc-name">计算机网络</span>
+            <span class="topc-score">79.3</span>
+          </div>
+          <div class="topc-row">
+            <div class="topc-rank">5</div>
+            <span class="topc-name">数据库系统原理</span>
+            <span class="topc-score">76.9</span>
+          </div>
+        </div>
+
+        <!-- ability -->
+        <div class="ability-card">
+          <span class="ability-card-ttl">全校五维能力分布</span>
+          <div class="ability-row">
+            <span class="nm">代码规范</span>
+            <div class="bar-bg"><div class="bar-fill" style="width: 83%;"></div></div>
+            <span class="vl">83.2</span>
+          </div>
+          <div class="ability-row">
+            <span class="nm">功能实现</span>
+            <div class="bar-bg"><div class="bar-fill" style="width: 81%;"></div></div>
+            <span class="vl">81.4</span>
+          </div>
+          <div class="ability-row">
+            <span class="nm">测试验证</span>
+            <div class="bar-bg"><div class="bar-fill warn" style="width: 71%;"></div></div>
+            <span class="vl warn">71.8</span>
+          </div>
+          <div class="ability-row">
+            <span class="nm">实验报告</span>
+            <div class="bar-bg"><div class="bar-fill" style="width: 77%;"></div></div>
+            <span class="vl">77.6</span>
+          </div>
+          <div class="ability-row">
+            <span class="nm">创新表达</span>
+            <div class="bar-bg"><div class="bar-fill warn" style="width: 69%;"></div></div>
+            <span class="vl warn">69.8</span>
+          </div>
+        </div>
+
+        <!-- admin notice -->
+        <div class="admin-notice">
+          <div class="admin-notice-h">
+            <i class="icon icon-shield"></i>
+            <span>数据匿名说明</span>
+          </div>
+          <div class="admin-notice-d">画像中所有统计数据均按班级聚合展示，不会暴露个人姓名。完整数据下钻须额外审批。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

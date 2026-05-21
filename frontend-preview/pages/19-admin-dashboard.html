@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>运行总览 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .res-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .two-col { display: grid; grid-template-columns: 1fr 440px; gap: 18px; }
+
+    /* uptime pill */
+    .up-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      background: var(--success-soft);
+      border-radius: var(--radius-pill);
+    }
+    .up-dot {
+      width: 8px; height: 8px;
+      background: var(--success);
+      border-radius: var(--radius-pill);
+    }
+    .up-text {
+      font-family: var(--font-mono);
+      font-size: 12px; font-weight: 600;
+      color: var(--success);
+    }
+
+    /* resource card */
+    .res-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .res-label {
+      font-size: 13px; color: var(--muted-foreground); font-weight: 500;
+    }
+    .res-num {
+      font-size: 32px; font-weight: 700; color: var(--ink);
+      line-height: 1;
+    }
+    .res-bar {
+      height: 8px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .res-bar > div {
+      height: 100%;
+      border-radius: var(--radius-pill);
+    }
+    .res-bar.success > div { background: var(--success); }
+    .res-bar.warning > div { background: var(--accent); }
+    .res-bar.info > div { background: var(--info); }
+    .res-foot {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--muted-foreground);
+    }
+
+    /* QPS chart */
+    .qps-chart {
+      height: 140px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 4px;
+    }
+    .qps-col {
+      flex: 1;
+      display: flex; flex-direction: column-reverse;
+      gap: 2px;
+      height: 120px;
+      max-width: 60px;
+    }
+    .qps-stack {
+      width: 100%;
+      border-radius: 0;
+    }
+    .qps-stack.http { background: var(--primary); }
+    .qps-stack.llm { background: var(--accent); }
+    .qps-stack.first {
+      border-top-left-radius: 3px;
+      border-top-right-radius: 3px;
+    }
+
+    .qps-legend {
+      display: flex; gap: 14px;
+      font-size: 11px;
+    }
+    .qps-legend > div { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); }
+    .qps-legend .swatch { width: 10px; height: 10px; border-radius: 2px; }
+
+    /* log card */
+    .log-h {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .log-list { display: flex; flex-direction: column; }
+    .log-row {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .log-row:last-child { border-bottom: 0; }
+    .log-meta {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--muted-foreground);
+    }
+    .log-level {
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 10px;
+    }
+    .log-level.info { background: var(--info-soft); color: var(--info); }
+    .log-level.warn { background: var(--warning-soft); color: var(--warning); }
+    .log-level.error { background: var(--danger-soft); color: var(--danger); }
+    .log-level.debug { background: var(--muted); color: var(--muted-foreground); }
+    .log-msg {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--foreground);
+      line-height: 1.6;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-shield"></i><span>管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">管</span><span class="user-name">管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link active">系统总览</a>
+      <a href="#" class="nav-link">用户与权限</a>
+      <a href="#" class="nav-link">课程管理</a>
+      <a href="#" class="nav-link">系统配置</a>
+      <a href="#" class="nav-link">审计日志</a>
+      <a href="#" class="nav-link">教学画像</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>运行总览  ·  系统健康度</h1>
+        <p>实时监测系统资源、用户活跃与 LLM 服务调用</p>
+      </div>
+      <div class="page-hd-r">
+        <span class="up-pill">
+          <span class="up-dot"></span>
+          <span class="up-text">在线 27 天 14h 03m</span>
+        </span>
+        <button class="btn btn-secondary">系统设置</button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">在线用户</span>
+          <i class="icon icon-users stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">428</div>
+        <div class="stat-card-trend up"><i class="icon icon-trending-up"></i><span>较 1 小时前 +24</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">今日提交</span>
+          <i class="icon icon-upload stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">1,247</div>
+        <div class="stat-card-trend neutral"><i class="icon icon-check"></i><span>解析完成 1,189</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">LLM 调用</span>
+          <i class="icon icon-sparkles stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">3,847</div>
+        <div class="stat-card-trend up"><i class="icon icon-trending-up"></i><span>成功率 99.6%</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">今日错误</span>
+          <i class="icon icon-circle-alert stat-card-icon" style="color: var(--accent);"></i>
+        </div>
+        <div class="stat-card-value">3</div>
+        <div class="stat-card-trend up"><i class="icon icon-trending-down"></i><span>较昨日 -8</span></div>
+      </div>
+    </div>
+
+    <!-- resources -->
+    <div class="res-grid">
+      <div class="res-card">
+        <span class="res-label">CPU 使用率</span>
+        <span class="res-num">38%</span>
+        <div class="res-bar success"><div style="width: 38%;"></div></div>
+        <div class="res-foot">
+          <span>4 核 LoongArch</span>
+          <span>峰值 72%</span>
+        </div>
+      </div>
+      <div class="res-card">
+        <span class="res-label">内存使用</span>
+        <span class="res-num">4.6 / 8 GB</span>
+        <div class="res-bar warning"><div style="width: 58%;"></div></div>
+        <div class="res-foot">
+          <span>58% 已使用</span>
+          <span>余量 3.4 GB</span>
+        </div>
+      </div>
+      <div class="res-card">
+        <span class="res-label">磁盘使用</span>
+        <span class="res-num">82 / 256 GB</span>
+        <div class="res-bar success"><div style="width: 32%;"></div></div>
+        <div class="res-foot">
+          <span>32% 已使用</span>
+          <span>备份 24 GB</span>
+        </div>
+      </div>
+      <div class="res-card">
+        <span class="res-label">队列长度</span>
+        <span class="res-num">12</span>
+        <div class="res-bar info"><div style="width: 25%;"></div></div>
+        <div class="res-foot">
+          <span>Celery 4 worker</span>
+          <span>平均处理 1.4s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- chart + log -->
+    <div class="two-col">
+      <!-- QPS chart -->
+      <section class="card card-padded">
+        <div class="flex justify-between items-center" style="margin-bottom: 18px;">
+          <div>
+            <div class="card-title">实时请求 QPS</div>
+            <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">近 10 分钟，每分钟一次采样</div>
+          </div>
+          <div class="qps-legend">
+            <div><span class="swatch" style="background: var(--primary);"></span><span>HTTP</span></div>
+            <div><span class="swatch" style="background: var(--accent);"></span><span>LLM</span></div>
+          </div>
+        </div>
+        <div class="qps-chart">
+          <div class="qps-col"><div class="qps-stack llm" style="height: 16px;"></div><div class="qps-stack http first" style="height: 38px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 24px;"></div><div class="qps-stack http first" style="height: 52px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 30px;"></div><div class="qps-stack http first" style="height: 60px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 36px;"></div><div class="qps-stack http first" style="height: 65px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 28px;"></div><div class="qps-stack http first" style="height: 70px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 32px;"></div><div class="qps-stack http first" style="height: 78px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 42px;"></div><div class="qps-stack http first" style="height: 64px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 38px;"></div><div class="qps-stack http first" style="height: 68px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 30px;"></div><div class="qps-stack http first" style="height: 72px;"></div></div>
+          <div class="qps-col"><div class="qps-stack llm" style="height: 26px;"></div><div class="qps-stack http first" style="height: 60px;"></div></div>
+        </div>
+      </section>
+
+      <!-- log -->
+      <section class="card" style="overflow: hidden;">
+        <header class="log-h">
+          <span class="text-sm font-semibold" style="color: var(--ink);">系统日志</span>
+          <a href="#" class="card-link">实时 →</a>
+        </header>
+        <div class="log-list">
+          <div class="log-row">
+            <div class="log-meta">
+              <span class="log-level info">INFO</span>
+              <span>17:42:11</span>
+            </div>
+            <div class="log-msg">upload.create.success upload_id=a/0_0742 duration=413ms</div>
+          </div>
+          <div class="log-row">
+            <div class="log-meta">
+              <span class="log-level info">INFO</span>
+              <span>17:42:08</span>
+            </div>
+            <div class="log-msg">llm.chat.success model=qwen2.5-72b tokens=1280 duration=1.2s</div>
+          </div>
+          <div class="log-row">
+            <div class="log-meta">
+              <span class="log-level warn">WARN</span>
+              <span>17:42:01</span>
+            </div>
+            <div class="log-msg">login_failure user=admin@university.edu ip=124.117.4.18 attempt=12</div>
+          </div>
+          <div class="log-row">
+            <div class="log-meta">
+              <span class="log-level info">INFO</span>
+              <span>17:41:59</span>
+            </div>
+            <div class="log-msg">parse.completed task_id=503 page=8 ms=2840</div>
+          </div>
+          <div class="log-row">
+            <div class="log-meta">
+              <span class="log-level error">ERROR</span>
+              <span>17:41:48</span>
+            </div>
+            <div class="log-msg">llm.timeout endpoint=embedded retry=2 fallback=local</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

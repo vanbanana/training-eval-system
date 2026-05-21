@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>批改详情 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    /* 顶部导航条扩展（含返回按钮、文件名、上下页） */
+    .gd-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .gd-top-l { display: flex; align-items: center; gap: 14px; }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-size: 12px; font-weight: 500;
+      color: var(--ink); cursor: pointer;
+      font-family: inherit;
+    }
+    .back-btn .icon { font-size: 13px; }
+
+    .student-info { display: flex; flex-direction: column; gap: 2px; }
+    .student-info-l1 { display: flex; align-items: center; gap: 8px; }
+    .student-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .student-meta { font-size: 11px; color: var(--muted-foreground); }
+
+    .gd-top-r { display: flex; align-items: center; gap: 10px; }
+
+    /* 上一份/下一份分段按钮 */
+    .nav-segment {
+      display: inline-flex;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .nav-segment > div, .nav-segment > button {
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--ink);
+      display: flex; align-items: center; gap: 6px;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .nav-segment > .vsep { border-right: 1px solid var(--border); padding: 0; cursor: default; }
+    .nav-segment > .meta { color: var(--muted-foreground); cursor: default; }
+
+    .btn-danger-outline {
+      background: var(--surface);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .btn-danger-outline:hover { background: var(--danger-soft); }
+
+    /* main grid */
+    .gd-grid { display: grid; grid-template-columns: 1fr 520px; gap: 18px; }
+
+    /* LEFT: parsed content */
+    .lp-hd {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .lp-hd-l { display: flex; align-items: center; gap: 10px; }
+    .lp-hd-r { display: flex; align-items: center; gap: 8px; }
+
+    /* 文件 tabs */
+    .file-tabs {
+      background: var(--surface-2);
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 8px;
+    }
+    .file-tab {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .file-tab.active { border-color: var(--primary); }
+    .file-tab .icon { font-size: 13px; color: var(--muted-foreground); }
+    .file-tab.active .icon { color: var(--primary); }
+
+    /* parsed content */
+    .lp-content { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+    .sec-h {
+      font-size: 14px; font-weight: 600; color: var(--ink);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sec-h .num {
+      width: 18px; height: 18px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-radius: var(--radius-sm);
+      display: grid; place-items: center;
+      font-size: 11px; font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .sec-body p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--foreground);
+    }
+    .sec-body ol {
+      margin: 0;
+      padding-left: 22px;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--foreground);
+    }
+
+    /* AI comment alert */
+    .ai-alert {
+      padding: 12px 14px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-md);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .ai-alert-h {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600;
+      color: var(--accent-strong);
+    }
+    .ai-alert-body {
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--accent-strong);
+    }
+
+    /* code block */
+    .code-block {
+      background: var(--ink);
+      color: #e5e9f0;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .code-block .kw { color: #94c0e3; }
+    .code-block .fn { color: #f4c46c; }
+    .code-block .str { color: #9bd494; }
+    .code-block .cm { color: #6f7d8c; }
+
+    /* RIGHT panels */
+    .rp { display: flex; flex-direction: column; gap: 18px; }
+
+    /* total score card */
+    .total-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .total-row {
+      display: flex; justify-content: space-between; align-items: flex-end;
+    }
+    .total-l { display: flex; flex-direction: column; gap: 2px; }
+    .total-label { font-size: 12px; color: var(--muted-foreground); font-weight: 500; }
+    .total-num {
+      font-size: 56px; font-weight: 700; color: var(--ink);
+      line-height: 1;
+      font-feature-settings: 'tnum';
+    }
+    .total-num .of { font-size: 14px; color: var(--muted-foreground); font-weight: 400; }
+    .total-r { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+    .total-meta-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    .delta-up { color: var(--success); font-weight: 600; }
+    .delta-down { color: var(--danger); font-weight: 600; }
+
+    /* ratio bar (mini) */
+    .ratio-row {
+      height: 36px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      background: var(--muted);
+    }
+    .ratio-row .obj { background: var(--primary); color: #fff; }
+    .ratio-row .subj { background: var(--accent); color: #fff; }
+    .ratio-row > div {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+    }
+    .ratio-lbl-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-foreground); }
+
+    /* dimensions list */
+    .d-hd {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .d-row {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .d-row:last-child { border-bottom: 0; }
+    .d-row-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .d-name { display: flex; align-items: center; gap: 6px; }
+    .d-name-text { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .d-weight { font-size: 11px; color: var(--muted-foreground); margin-left: 4px; }
+    .d-rationale { font-size: 12px; color: var(--muted-foreground); line-height: 1.7; }
+
+    .d-scores { display: flex; align-items: center; gap: 10px; }
+    .d-score-cell {
+      display: flex; align-items: center; gap: 4px;
+      padding: 4px 10px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+    }
+    .d-score-cell .lbl { color: var(--muted-foreground); }
+    .d-score-cell .val { font-weight: 700; color: var(--ink); font-size: 13px; }
+    .d-score-cell.success .val { color: var(--success); }
+    .d-edit {
+      width: 26px; height: 26px;
+      display: grid; place-items: center;
+      border-radius: var(--radius-sm);
+      color: var(--muted-foreground);
+      cursor: pointer;
+    }
+    .d-edit:hover { background: var(--surface-2); color: var(--ink); }
+
+    /* comment */
+    .cmt-card {
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .cmt-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cmt-textarea {
+      width: 100%;
+      height: 120px;
+      padding: 14px 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      font-family: inherit; font-size: 13px;
+      line-height: 1.7;
+      resize: none;
+      box-sizing: border-box;
+    }
+    .cmt-textarea:focus { outline: none; border-color: var(--primary); }
+
+    /* similarity status (success / no plagiarism) */
+    .sim-card {
+      background: var(--success-soft);
+      border: 1px solid var(--success);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .sim-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .sim-row {
+      display: flex; gap: 12px;
+    }
+    .sim-stat {
+      flex: 1; text-align: center;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: var(--radius-md);
+    }
+    .sim-stat-num { font-size: 18px; font-weight: 700; color: var(--success); }
+    .sim-stat-num.warn { color: var(--warning); }
+    .sim-stat-lbl { font-size: 10px; color: var(--muted-foreground); margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索任务、学生、班级</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link active">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <!-- top bar -->
+    <div class="gd-top">
+      <div class="gd-top-l">
+        <button class="back-btn"><i class="icon icon-arrow-left"></i><span>返回列表</span></button>
+        <span class="divider-v" style="height: 24px;"></span>
+        <span class="user-avatar" style="width: 32px; height: 32px;">李</span>
+        <div class="student-info">
+          <div class="student-info-l1">
+            <span class="student-name">李文涛</span>
+            <span class="text-xs font-mono-tes" style="color: var(--muted-foreground);">21100124</span>
+            <span class="label label-success">已确认</span>
+          </div>
+          <span class="student-meta">软件工程实践 · 第三次实训 · 提交于 2026-05-12 14:32</span>
+        </div>
+      </div>
+
+      <div class="gd-top-r">
+        <div class="nav-segment">
+          <button><i class="icon icon-chevron-left"></i><span>上一份</span></button>
+          <span class="vsep"></span>
+          <span class="meta">7 / 18</span>
+          <span class="vsep"></span>
+          <button><span>下一份</span><i class="icon icon-chevron-right"></i></button>
+        </div>
+        <button class="btn btn-danger-outline btn-sm">打回重做</button>
+        <button class="btn btn-secondary">保存草稿</button>
+        <button class="btn btn-primary">确认评分</button>
+      </div>
+    </div>
+
+    <!-- main grid -->
+    <div class="gd-grid">
+      <!-- LEFT: parsed content -->
+      <section class="card" style="overflow: hidden;">
+        <header class="lp-hd">
+          <div class="lp-hd-l">
+            <span class="text-md font-semibold" style="color: var(--ink);">学生提交内容</span>
+            <span class="label label-success">已解析</span>
+          </div>
+          <div class="lp-hd-r">
+            <button class="btn btn-ghost btn-sm"><i class="icon icon-eye"></i><span>原文档</span></button>
+            <button class="btn btn-ghost btn-sm"><i class="icon icon-download"></i><span>下载</span></button>
+          </div>
+        </header>
+        <div class="file-tabs">
+          <span class="file-tab active"><i class="icon icon-file-text"></i><span>实训报告.pdf</span></span>
+          <span class="file-tab"><i class="icon icon-file-code"></i><span>src.zip</span></span>
+          <span class="file-tab"><i class="icon icon-image"></i><span>测试截图  3 张</span></span>
+        </div>
+
+        <div class="lp-content">
+          <!-- 1. 实验目的 -->
+          <div>
+            <div class="sec-h"><span class="num">1</span><span>实验目的</span></div>
+            <div class="sec-body" style="margin-top: 8px;">
+              <p>通过实现一个基于阻塞队列的生产者-消费者模型，加深对 Java 多线程并发原语（synchronized、wait/notify）的理解，并掌握使用 ReentrantLock 与 Condition 重构同步代码的方法，理解 signal、await 在条件变量上的语义。</p>
+            </div>
+          </div>
+
+          <!-- 2. 设计思路与关键代码 -->
+          <div>
+            <div class="sec-h"><span class="num">2</span><span>设计思路与关键代码</span></div>
+            <div class="sec-body" style="margin-top: 8px;">
+              <p>使用一个固定容量的 ArrayBlockingQueue 作为缓冲，生产者按指数分布间隔产生订单 push 至队列，消费者拉取队列后按平均处理时间消费。</p>
+            </div>
+          </div>
+
+          <!-- AI alert -->
+          <div class="ai-alert">
+            <div class="ai-alert-h">
+              <i class="icon icon-sparkles"></i>
+              <span>AI 核查发现关键逻辑点</span>
+            </div>
+            <div class="ai-alert-body">报告中通篇使用了 ReentrantLock + Condition 实现同步原语，但部分代码片段中 ProducerConsumer.java 仍有 synchronized + wait/notify，建议在课堂中明确两者关系。</div>
+          </div>
+
+          <!-- code -->
+          <div class="code-block"><span class="kw">public</span> <span class="kw">synchronized</span> <span class="kw">void</span> <span class="fn">produce</span>(<span class="kw">int</span> item) {
+    <span class="kw">while</span> (queue.size() == capacity) {
+        <span class="fn">wait</span>();
+    }
+    queue.add(item);
+    <span class="fn">notifyAll</span>();
+}</div>
+
+          <!-- 3. 性能测量与分析 -->
+          <div>
+            <div class="sec-h"><span class="num">3</span><span>性能测量与分析</span></div>
+            <div class="sec-body" style="margin-top: 8px;">
+              <p>在 4 生产者 + 4 消费者场景下，缓冲容量从默认的 8000 ops/s 左右，至加倍后曾试过为 9870 ops/s，经过性能瓶颈在 wait/notify 的唤醒/挂起 1230 次。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: scoring panel -->
+      <aside class="rp">
+        <!-- total score -->
+        <div class="total-card">
+          <div class="total-row">
+            <div class="total-l">
+              <span class="total-label">综合得分</span>
+              <div class="total-num">86.8 <span class="of">/ 100</span></div>
+            </div>
+            <div class="total-r">
+              <div class="total-meta-row">
+                <i class="icon icon-trending-up" style="color: var(--success); font-size: 12px;"></i>
+                <span>较班级平均 +5.4</span>
+              </div>
+              <span class="text-xs" style="color: var(--muted-foreground);">客观 88 · 主观 85 · 比例 60/40</span>
+            </div>
+          </div>
+          <div class="divider-h"></div>
+          <div>
+            <div class="text-xs font-semibold" style="color: var(--muted-foreground); margin-bottom: 8px;">AI 客观分 88.0</div>
+            <div class="ratio-row">
+              <div class="obj" style="flex: 0 0 60%;">客观 88</div>
+              <div class="subj" style="flex: 0 0 40%;">主观 85</div>
+            </div>
+            <div class="ratio-lbl-row" style="margin-top: 6px;">
+              <span>客观 60%</span>
+              <span>主观 40%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- dimensions -->
+        <section class="card">
+          <header class="d-hd">
+            <span class="text-md font-semibold" style="color: var(--ink);">维度评分</span>
+            <a href="#" class="card-link">配置 ›</a>
+          </header>
+
+          <div class="d-row">
+            <div class="d-row-h">
+              <div class="d-name">
+                <span class="d-name-text">代码规范性</span>
+                <span class="d-weight">权重 30%</span>
+              </div>
+              <div class="d-scores">
+                <div class="d-score-cell"><span class="lbl">客观</span><span class="val">86</span></div>
+                <div class="d-score-cell success"><span class="lbl">主观</span><span class="val">85</span></div>
+                <span class="d-edit"><i class="icon icon-pencil"></i></span>
+              </div>
+            </div>
+            <div class="d-rationale">命名、注释、复用性等满足要求；类设计较为清晰，少量函数命名可优化</div>
+          </div>
+
+          <div class="d-row">
+            <div class="d-row-h">
+              <div class="d-name">
+                <span class="d-name-text">功能完整性</span>
+                <span class="d-weight">权重 35%</span>
+              </div>
+              <div class="d-scores">
+                <div class="d-score-cell"><span class="lbl">客观</span><span class="val">92</span></div>
+                <div class="d-score-cell success"><span class="lbl">主观</span><span class="val">90</span></div>
+                <span class="d-edit"><i class="icon icon-pencil"></i></span>
+              </div>
+            </div>
+            <div class="d-rationale">实现两种工厂模式，覆盖测试场景较为完整</div>
+          </div>
+
+          <div class="d-row">
+            <div class="d-row-h">
+              <div class="d-name">
+                <span class="d-name-text">测试与质量</span>
+                <span class="d-weight">权重 20%</span>
+              </div>
+              <div class="d-scores">
+                <div class="d-score-cell"><span class="lbl">客观</span><span class="val">82</span></div>
+                <div class="d-score-cell success"><span class="lbl">主观</span><span class="val">82</span></div>
+                <span class="d-edit"><i class="icon icon-pencil"></i></span>
+              </div>
+            </div>
+            <div class="d-rationale">单元测试覆盖率 78%，对边界条件略有忽略</div>
+          </div>
+
+          <div class="d-row">
+            <div class="d-row-h">
+              <div class="d-name">
+                <span class="d-name-text">实验报告与文档</span>
+                <span class="d-weight">权重 15%</span>
+              </div>
+              <div class="d-scores">
+                <div class="d-score-cell"><span class="lbl">客观</span><span class="val">82</span></div>
+                <div class="d-score-cell success"><span class="lbl">主观</span><span class="val">82</span></div>
+                <span class="d-edit"><i class="icon icon-pencil"></i></span>
+              </div>
+            </div>
+            <div class="d-rationale">报告结构清晰、图表表达到位，有少量数据格式可优化</div>
+          </div>
+        </section>
+
+        <!-- comment -->
+        <section class="card cmt-card">
+          <div class="cmt-h">
+            <span class="text-md font-semibold" style="color: var(--ink);">教师评语</span>
+            <span class="text-xs" style="color: var(--muted-foreground);">142 / 500 字</span>
+          </div>
+          <textarea class="cmt-textarea">整体完成度高，能够区分两种工厂模式的适用场景；建议下一步：将 ReentrantLock 与 Condition 实现迁移到一致的方法，同步原语在并发场景中的使用更加规范，将能让你在期末考核中拿到 5A 评定。</textarea>
+        </section>
+
+        <!-- similarity (clean) -->
+        <section class="sim-card">
+          <div class="sim-h">
+            <div class="flex items-center gap-2">
+              <i class="icon icon-shield-check" style="color: var(--success);"></i>
+              <span class="text-sm font-semibold" style="color: var(--success);">相似度检测：未发现抄袭</span>
+            </div>
+            <a href="#" class="card-link" style="color: var(--success);">查看明细 ›</a>
+          </div>
+          <div class="sim-row">
+            <div class="sim-stat">
+              <div class="sim-stat-num">12%</div>
+              <div class="sim-stat-lbl">最高相似度（同班）</div>
+            </div>
+            <div class="sim-stat">
+              <div class="sim-stat-num warn">19%</div>
+              <div class="sim-stat-lbl">最高相似度（跨班）</div>
+            </div>
+            <div class="sim-stat">
+              <div class="sim-stat-num">94</div>
+              <div class="sim-stat-lbl">完全可信样本数</div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

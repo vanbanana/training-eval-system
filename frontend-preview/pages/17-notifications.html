@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>通知中心 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 240px 1fr; gap: 18px; }
+
+    /* category sidebar */
+    .cat-h {
+      padding: 6px 10px;
+      font-size: 11px; font-weight: 600;
+      color: var(--muted-foreground);
+      letter-spacing: 1px;
+    }
+    .cat-list {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 14px;
+    }
+    .cat-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+    }
+    .cat-item:hover { background: var(--surface-2); }
+    .cat-item.active {
+      background: var(--primary-soft);
+    }
+    .cat-item-l {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .cat-item.active .cat-item-l { color: var(--primary); font-weight: 600; }
+    .cat-item-l .icon { font-size: 14px; color: var(--muted-foreground); }
+    .cat-item.active .cat-item-l .icon { color: var(--primary); }
+    .cat-item-count {
+      font-size: 11px; color: var(--muted-foreground);
+      font-family: var(--font-mono);
+    }
+    .cat-item.active .cat-item-count {
+      color: var(--primary); font-weight: 600;
+    }
+
+    /* right list */
+    .nh-row {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .nh-row-l { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .nh-row-r { display: flex; align-items: center; gap: 10px; }
+
+    .n-list { display: flex; flex-direction: column; }
+    .n-item {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 14px;
+    }
+    .n-item:last-child { border-bottom: 0; }
+    .n-item:hover { background: var(--surface-2); cursor: pointer; }
+    .n-item.unread.primary { background: var(--primary-soft); }
+    .n-item.unread.accent { background: var(--accent-soft); }
+    .n-item.unread.info { background: var(--info-soft); }
+    .n-item.unread.danger { background: var(--danger-soft); }
+
+    .n-icon-wrap {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .n-icon-wrap.primary { background: var(--primary); color: #fff; }
+    .n-icon-wrap.accent { background: var(--accent); color: #fff; }
+    .n-icon-wrap.info { background: var(--info); color: #fff; }
+    .n-icon-wrap.success { background: var(--success); color: #fff; }
+    .n-icon-wrap.warning { background: var(--warning); color: #fff; }
+    .n-icon-wrap.muted { background: var(--muted); color: var(--muted-foreground); }
+    .n-icon-wrap.danger { background: var(--danger); color: #fff; }
+
+    .n-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .n-title-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .n-title {
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .n-desc {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      line-height: 1.6;
+    }
+    .n-actions { display: flex; align-items: center; gap: 12px; }
+    .n-action-btn {
+      font-size: 12px;
+      color: var(--primary);
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .n-time {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link active">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">消息</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">通知中心</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1 style="margin:0;">通知中心</h1>
+          <span class="label label-danger">5 条未读</span>
+        </div>
+        <p style="margin-top:6px;">任务、评价、薄弱点更新等关键事件提醒</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">通知设置</button>
+        <button class="btn btn-primary">全部已读</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT: category sidebar -->
+      <aside class="card" style="overflow: hidden;">
+        <div class="cat-list">
+          <div class="cat-h">分类</div>
+          <div class="cat-item active">
+            <span class="cat-item-l"><i class="icon icon-inbox"></i><span>全部消息</span></span>
+            <span class="cat-item-count">38</span>
+          </div>
+          <div class="cat-item">
+            <span class="cat-item-l"><i class="icon icon-clipboard-list"></i><span>任务相关</span></span>
+            <span class="cat-item-count">12</span>
+          </div>
+          <div class="cat-item">
+            <span class="cat-item-l"><i class="icon icon-award"></i><span>评价结果</span></span>
+            <span class="cat-item-count">8</span>
+          </div>
+          <div class="cat-item">
+            <span class="cat-item-l"><i class="icon icon-sparkles"></i><span>AI 智能洞察</span></span>
+            <span class="cat-item-count">6</span>
+          </div>
+          <div class="cat-item">
+            <span class="cat-item-l"><i class="icon icon-megaphone"></i><span>系统通知</span></span>
+            <span class="cat-item-count">12</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- RIGHT: notifications list -->
+      <section class="card" style="overflow: hidden;">
+        <div class="nh-row">
+          <span class="nh-row-l">全部消息</span>
+          <div class="nh-row-r">
+            <button class="btn btn-ghost btn-sm">全部</button>
+            <button class="btn btn-ghost btn-sm">未读</button>
+            <button class="btn btn-ghost btn-sm">已读</button>
+          </div>
+        </div>
+
+        <div class="n-list">
+          <!-- N1 unread primary -->
+          <div class="n-item unread primary">
+            <div class="n-icon-wrap primary"><i class="icon icon-clipboard-list"></i></div>
+            <div class="n-info">
+              <div class="n-title-row">
+                <span class="n-title">软工 21-3 班 提交高峰已到达</span>
+                <span class="label label-info">任务</span>
+              </div>
+              <div class="n-desc">有 12 名同学已陆续完成第三次实训提交，等待批改的提交合计 42 份待处理。</div>
+              <div class="n-actions">
+                <span class="n-action-btn">前往批改</span>
+                <span class="n-action-btn">标记已读</span>
+              </div>
+            </div>
+            <span class="n-time">3 分钟前</span>
+          </div>
+
+          <!-- N2 unread accent -->
+          <div class="n-item unread accent">
+            <div class="n-icon-wrap accent"><i class="icon icon-shield-alert"></i></div>
+            <div class="n-info">
+              <div class="n-title-row">
+                <span class="n-title">检测到 3 份疑似相似度过高的提交</span>
+                <span class="label label-danger">需关注</span>
+              </div>
+              <div class="n-desc">数据结构 · 二叉树遍历实验，相似度均在 87% 以上，建议人工复核。</div>
+              <div class="n-actions">
+                <span class="n-action-btn">查看相似度对比</span>
+                <span class="n-action-btn">标记已读</span>
+              </div>
+            </div>
+            <span class="n-time">12 分钟前</span>
+          </div>
+
+          <!-- N3 unread info -->
+          <div class="n-item unread info">
+            <div class="n-icon-wrap info"><i class="icon icon-clock"></i></div>
+            <div class="n-info">
+              <div class="n-title-row">
+                <span class="n-title">实训任务即将截止</span>
+                <span class="label label-info">提醒</span>
+              </div>
+              <div class="n-desc">软件工程实践 · 第三次实训，将在 3 天后（5/22 23:59）截止，目前 14 名学生未提交。</div>
+            </div>
+            <span class="n-time">42 分钟前</span>
+          </div>
+
+          <!-- N4 read -->
+          <div class="n-item">
+            <div class="n-icon-wrap success"><i class="icon icon-check-circle-2"></i></div>
+            <div class="n-info">
+              <div class="n-title-row">
+                <span class="n-title">系统已为模型完成 v1.4.2 升级</span>
+              </div>
+              <div class="n-desc">DeepSeek-V3 接入完成，问答场景平均响应时间下降 23%，预计调用成本下降 40%。</div>
+            </div>
+            <span class="n-time">昨天 18:24</span>
+          </div>
+
+          <!-- N5 read -->
+          <div class="n-item">
+            <div class="n-icon-wrap muted"><i class="icon icon-database"></i></div>
+            <div class="n-info">
+              <div class="n-title-row">
+                <span class="n-title">数据库每日自动备份完成</span>
+              </div>
+              <div class="n-desc">软工 22-1 班 · 计算机网络 · 12 份评价结果备份成功，存储路径已写入审计日志。</div>
+            </div>
+            <span class="n-time">昨天 02:08</span>
+          </div>
+
+          <!-- N6 read -->
+          <div class="n-item">
+            <div class="n-icon-wrap warning"><i class="icon icon-rotate-ccw"></i></div>
+            <div class="n-info">
+              <div class="n-title-row">
+                <span class="n-title">学生薄弱点分析已更新</span>
+              </div>
+              <div class="n-desc">软工 21-3 班 56 名学生薄弱点分析已基于最新数据更新，可在班级画像中查看。</div>
+            </div>
+            <span class="n-time">2 天前</span>
+          </div>
+
+          <!-- N7 read -->
+          <div class="n-item">
+            <div class="n-icon-wrap muted"><i class="icon icon-bell-ring"></i></div>
+            <div class="n-info">
+              <div class="n-title-row">
+                <span class="n-title">今日审核任务已完成</span>
+              </div>
+              <div class="n-desc">数据结构 · 二叉树遍历实验 - 60 / 60 份评价已确认归档。</div>
+            </div>
+            <span class="n-time">3 天前</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>实训任务 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .seg-tabs {
+      display: inline-flex; padding: 3px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .seg-tab {
+      padding: 6px 12px;
+      font-size: 12px; font-weight: 500;
+      color: var(--muted-foreground);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .seg-tab.active {
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 600;
+      border: 1px solid var(--border);
+    }
+
+    /* table */
+    .grid-row {
+      display: grid;
+      grid-template-columns: 60px 340px 160px 160px 140px 120px 1fr;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .grid-row:last-child { border-bottom: 0; }
+    .row-head { background: var(--surface-2); padding: 14px 20px; }
+    .row-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .data-row:hover { background: var(--surface-2); }
+    .checkbox-empty {
+      width: 14px; height: 14px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+    }
+
+    .row-actions {
+      display: flex; align-items: center; gap: 6px;
+      justify-content: flex-end;
+    }
+    .row-actions .action-btn {
+      font-size: 12px; font-weight: 500;
+      cursor: pointer;
+      background: transparent; border: 0;
+      padding: 0;
+      font-family: inherit;
+    }
+    .row-actions .action-btn.primary { color: var(--primary); }
+    .row-actions .action-btn.muted { color: var(--muted-foreground); }
+    .row-actions .vsep { width: 1px; height: 14px; background: var(--border); }
+    .row-actions .icon-action {
+      width: 28px; height: 28px;
+      display: grid; place-items: center;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      color: var(--muted-foreground);
+    }
+    .row-actions .icon-action:hover { background: var(--surface-2); color: var(--ink); }
+
+    .progress-mini {
+      width: 100px; height: 5px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden; margin-top: 5px;
+    }
+    .progress-mini > div { height: 100%; background: var(--primary); border-radius: var(--radius-pill); }
+    .progress-mini.success > div { background: var(--success); }
+    .progress-mini.warning > div { background: var(--warning); }
+
+    .pager {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pg-btn {
+      min-width: 30px; height: 30px;
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0 11px;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px; color: var(--foreground);
+      cursor: pointer;
+      gap: 4px;
+      font-family: inherit;
+    }
+    .pg-btn.active {
+      background: var(--primary); color: #fff;
+      border-color: var(--primary); font-weight: 600;
+    }
+    .pg-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <!-- TopNav (复用) -->
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search">
+          <i class="icon icon-search"></i>
+          <span class="placeholder">全局搜索任务、学生、班级</span>
+          <kbd class="kbd">⌘K</kbd>
+        </div>
+        <button class="icon-btn" aria-label="帮助"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative" aria-label="通知"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link active">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <!-- breadcrumb -->
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right" style="font-size:12px;"></i></span>
+      <a href="#">实训任务</a>
+      <span class="sep"><i class="icon icon-chevron-right" style="font-size:12px;"></i></span>
+      <span class="current">管理列表</span>
+    </div>
+
+    <!-- header -->
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>实训任务</h1>
+        <p>创建、发布并跟踪所有实训任务的批改进度</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary"><i class="icon icon-upload"></i><span>导入任务</span></button>
+        <button class="btn btn-primary">+ 创建任务</button>
+      </div>
+    </div>
+
+    <!-- toolbar -->
+    <div class="card" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+      <div class="seg-tabs">
+        <span class="seg-tab active">全部 24</span>
+        <span class="seg-tab">已发布 18</span>
+        <span class="seg-tab">草稿 4</span>
+        <span class="seg-tab">已关闭 2</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="searchbox" style="width: 280px;">
+          <i class="icon icon-search"></i>
+          <input placeholder="搜索任务名称 / 课程" />
+        </div>
+        <select class="tes-select">
+          <option>全部学期</option>
+          <option>2025-2026 春季</option>
+          <option>2025-2026 秋季</option>
+        </select>
+        <select class="tes-select">
+          <option>全部课程</option>
+          <option>软件工程</option>
+          <option>数据结构</option>
+        </select>
+        <button class="btn btn-ghost"><i class="icon icon-sliders-horizontal"></i><span>筛选</span></button>
+      </div>
+    </div>
+
+    <!-- table -->
+    <section class="card" style="overflow: hidden;">
+      <div class="grid-row row-head">
+        <div><span class="checkbox-empty"></span></div>
+        <div>任务名称</div>
+        <div>所属班级</div>
+        <div>截止时间</div>
+        <div>提交 / 总数</div>
+        <div>状态</div>
+        <div style="text-align:right;">操作</div>
+      </div>
+
+      <!-- Row 1: 软件工程实践 -->
+      <div class="grid-row data-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold" style="color: var(--ink);">软件工程实践 · 第三次实训</span>
+            <span class="label label-warning">批改中</span>
+          </div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">软件工程</div>
+        </div>
+        <div>
+          <div class="text-sm">软工 21-3 班</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">56 人</div>
+        </div>
+        <div>
+          <div class="font-mono-tes text-xs" style="color: var(--accent); font-weight: 500; font-size: 12px;">2026-05-22 23:59</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">剩余 3 天</div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">42 / 56</div>
+          <div class="progress-mini"><div style="width: 75%;"></div></div>
+        </div>
+        <div><span class="label label-warning">待批改</span></div>
+        <div class="row-actions">
+          <button class="action-btn primary">批改</button>
+          <span class="vsep"></span>
+          <button class="action-btn muted">详情</button>
+          <button class="icon-action"><i class="icon icon-more-horizontal"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 2: 二叉树遍历 -->
+      <div class="grid-row data-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">数据结构 · 二叉树遍历实验</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">数据结构与算法</div>
+        </div>
+        <div>
+          <div class="text-sm">软工 22-1 班</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">60 人</div>
+        </div>
+        <div>
+          <div class="font-mono-tes" style="color: var(--muted-foreground); font-size: 12px;">2026-05-15 18:00</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">已结束</div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">60 / 60</div>
+          <div class="progress-mini success"><div style="width: 100%;"></div></div>
+        </div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="row-actions">
+          <button class="action-btn primary">查看</button>
+          <span class="vsep"></span>
+          <button class="action-btn muted">报表</button>
+          <button class="icon-action"><i class="icon icon-more-horizontal"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 3: 计算机网络 抓包 -->
+      <div class="grid-row data-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">计算机网络 · 抓包分析</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">计算机网络</div>
+        </div>
+        <div>
+          <div class="text-sm">网络 21-2 班</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">48 人</div>
+        </div>
+        <div>
+          <div class="font-mono-tes" style="font-size: 12px;">2026-05-25 23:59</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">剩余 6 天</div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">23 / 48</div>
+          <div class="progress-mini"><div style="width: 48%;"></div></div>
+        </div>
+        <div><span class="label label-info">解析中</span></div>
+        <div class="row-actions">
+          <button class="action-btn primary">批改</button>
+          <span class="vsep"></span>
+          <button class="action-btn muted">详情</button>
+          <button class="icon-action"><i class="icon icon-more-horizontal"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 4: 操作系统 草稿 -->
+      <div class="grid-row data-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">操作系统 · 进程同步实验</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">操作系统</div>
+        </div>
+        <div>
+          <div class="text-sm">计算机 22-1 班</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">52 人</div>
+        </div>
+        <div>
+          <div class="font-mono-tes" style="color: var(--subtle-foreground); font-size: 12px;">——</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">未发布</div>
+        </div>
+        <div>
+          <div class="font-mono-tes text-sm" style="color: var(--subtle-foreground);">——</div>
+        </div>
+        <div><span class="label label-muted">草稿</span></div>
+        <div class="row-actions">
+          <button class="action-btn primary">编辑</button>
+          <span class="vsep"></span>
+          <button class="action-btn muted">发布</button>
+          <button class="icon-action"><i class="icon icon-more-horizontal"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 5: 数据库 已确认 -->
+      <div class="grid-row data-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">数据库系统 · 复杂查询优化</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">数据库原理</div>
+        </div>
+        <div>
+          <div class="text-sm">软工 21-1 班</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">54 人</div>
+        </div>
+        <div>
+          <div class="font-mono-tes" style="color: var(--muted-foreground); font-size: 12px;">2026-04-30 23:59</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">已结束</div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">54 / 54</div>
+          <div class="progress-mini success"><div style="width: 100%;"></div></div>
+        </div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="row-actions">
+          <button class="action-btn primary">查看</button>
+          <span class="vsep"></span>
+          <button class="action-btn muted">报表</button>
+          <button class="icon-action"><i class="icon icon-more-horizontal"></i></button>
+        </div>
+      </div>
+
+      <!-- Row 6: 机器学习 已发布 -->
+      <div class="grid-row data-row">
+        <div><span class="checkbox-empty"></span></div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">机器学习入门 · K 近邻算法实践</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">人工智能基础</div>
+        </div>
+        <div>
+          <div class="text-sm">AI 22-1 班</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">38 人</div>
+        </div>
+        <div>
+          <div class="font-mono-tes" style="font-size: 12px;">2026-05-30 23:59</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">剩余 11 天</div>
+        </div>
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">6 / 38</div>
+          <div class="progress-mini"><div style="width: 16%;"></div></div>
+        </div>
+        <div><span class="label label-info">已发布</span></div>
+        <div class="row-actions">
+          <button class="action-btn primary">批改</button>
+          <span class="vsep"></span>
+          <button class="action-btn muted">详情</button>
+          <button class="icon-action"><i class="icon icon-more-horizontal"></i></button>
+        </div>
+      </div>
+
+      <!-- pagination footer -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding: 16px 24px; background: var(--surface-2);">
+        <div class="text-xs" style="color: var(--muted-foreground);">显示 1 - 6 共 24 条</div>
+        <div class="pager">
+          <button class="pg-btn"><i class="icon icon-chevron-left"></i><span>上一页</span></button>
+          <button class="pg-btn active">1</button>
+          <button class="pg-btn">2</button>
+          <button class="pg-btn">3</button>
+          <button class="pg-btn">4</button>
+          <button class="pg-btn"><span>下一页</span><i class="icon icon-chevron-right"></i></button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>提交实训成果 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .two-col { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+
+    /* drop zone */
+    .drop-zone {
+      background: var(--surface);
+      border: 2px dashed var(--primary);
+      border-radius: var(--radius-lg);
+      padding: 48px;
+      min-height: 240px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .drop-zone:hover { background: var(--primary-soft); }
+    .drop-icon-wrap {
+      width: 64px; height: 64px;
+      background: var(--primary-soft);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      color: var(--primary);
+      font-size: 28px;
+    }
+    .drop-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+    .drop-sub { font-size: 12px; color: var(--muted-foreground); }
+    .drop-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px;
+      background: var(--primary); color: #fff;
+      border-radius: var(--radius-md);
+      font-size: 13px; font-weight: 600;
+      border: 0; cursor: pointer;
+      font-family: inherit;
+    }
+    .drop-btn:hover { background: var(--primary-strong); }
+
+    /* upload list */
+    .ul-hd {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ul-row {
+      display: grid;
+      grid-template-columns: 40px 1fr 220px 120px 120px;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ul-row:last-child { border-bottom: 0; }
+    .file-icon-wrap {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .file-icon-wrap.pdf { background: #fdecec; color: var(--danger); }
+    .file-icon-wrap.zip { background: var(--info-soft); color: var(--info); }
+    .file-icon-wrap.img { background: var(--success-soft); color: var(--success); }
+    .file-name {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .file-meta {
+      font-size: 11px; color: var(--muted-foreground); margin-top: 4px;
+      font-family: var(--font-mono);
+    }
+    .file-meta .sep { margin: 0 8px; }
+
+    /* progress */
+    .file-progress {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .progress-track {
+      flex: 1; height: 6px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .progress-track > div {
+      height: 100%; background: var(--primary);
+      border-radius: var(--radius-pill);
+    }
+    .progress-track.success > div { background: var(--success); }
+    .progress-text {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+      width: 36px;
+      text-align: right;
+    }
+
+    .file-actions {
+      display: flex; gap: 6px; justify-content: flex-end;
+    }
+    .file-action-btn {
+      width: 30px; height: 30px;
+      display: grid; place-items: center;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 0;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .file-action-btn:hover { background: var(--surface-2); color: var(--ink); }
+    .file-action-btn.danger:hover { color: var(--danger); }
+
+    /* req side */
+    .req-card { padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+    .req-content {
+      font-size: 13px;
+      line-height: 1.85;
+      color: var(--foreground);
+    }
+    .chk-list {
+      background: var(--surface-2);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .chk-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 12px;
+      color: var(--foreground);
+      line-height: 1.6;
+    }
+    .chk-item .dot {
+      width: 14px; height: 14px;
+      border-radius: var(--radius-pill);
+      background: var(--success-soft);
+      color: var(--success);
+      display: grid; place-items: center;
+      flex-shrink: 0; margin-top: 2px;
+      font-size: 9px;
+    }
+    .chk-item.muted .dot { background: var(--muted); color: var(--muted-foreground); }
+
+    /* tip card */
+    .tip-card {
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .tip-card-h {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600;
+      color: var(--accent-strong);
+    }
+    .tip-card-content {
+      font-size: 12px; line-height: 1.7;
+      color: var(--accent-strong);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar" style="background: var(--accent-soft); color: var(--accent);">李</span><span class="user-name">李文清  同学</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link active">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">我的任务</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">软件工程实践 · 第三次实训</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">任务详情</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1 style="margin:0;">软件工程实践 · 第三次实训</h1>
+          <span class="label label-danger">3 天后截止</span>
+        </div>
+        <p style="margin-top:6px;">王伟 老师 · 软件工程 · 截止 2026-05-22 23:59</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">查看任务详情</button>
+        <button class="btn btn-primary">提交成果</button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT: drop + list -->
+      <div class="flex-col gap-5">
+        <!-- drop zone -->
+        <div class="drop-zone">
+          <div class="drop-icon-wrap"><i class="icon icon-cloud-upload"></i></div>
+          <div class="drop-title">将文件拖到此处，或点击选择</div>
+          <div class="drop-sub">支持 .doc / .docx / .pdf / .png / .jpg · 单文件 1KB - 50MB · 单任务最多 20 个文件</div>
+          <button class="drop-btn"><i class="icon icon-folder-open"></i><span>选择文件</span></button>
+        </div>
+
+        <!-- uploaded list -->
+        <section class="card">
+          <header class="ul-hd">
+            <div class="card-title">已上传文件 <span style="color: var(--muted-foreground); font-weight: 400;">3/20</span></div>
+            <a href="#" class="card-link">全部清空</a>
+          </header>
+
+          <div class="ul-row">
+            <div class="file-icon-wrap pdf"><i class="icon icon-file-text"></i></div>
+            <div>
+              <div class="file-name">
+                <span>实训报告.pdf</span>
+                <span class="label label-success">已完成解析</span>
+              </div>
+              <div class="file-meta">4.2 MB <span class="sep">·</span> 2026-05-13 14:28 上传 <span class="sep">·</span> sha256: 4c3f...8a2b</div>
+            </div>
+            <div class="file-progress">
+              <div class="progress-track success"><div style="width: 100%;"></div></div>
+              <span class="progress-text">100%</span>
+            </div>
+            <div class="text-xs" style="color: var(--success); font-weight: 500;">解析成功</div>
+            <div class="file-actions">
+              <button class="file-action-btn"><i class="icon icon-eye"></i></button>
+              <button class="file-action-btn"><i class="icon icon-replace"></i></button>
+              <button class="file-action-btn danger"><i class="icon icon-trash-2"></i></button>
+            </div>
+          </div>
+
+          <div class="ul-row">
+            <div class="file-icon-wrap zip"><i class="icon icon-file-archive"></i></div>
+            <div>
+              <div class="file-name">
+                <span>src.zip</span>
+                <span class="label label-info">上传中 67%</span>
+              </div>
+              <div class="file-meta">12.8 / 19.2 MB <span class="sep">·</span> 预计 1 分钟</div>
+            </div>
+            <div class="file-progress">
+              <div class="progress-track"><div style="width: 67%;"></div></div>
+              <span class="progress-text">67%</span>
+            </div>
+            <div class="text-xs" style="color: var(--info);">上传中</div>
+            <div class="file-actions">
+              <button class="file-action-btn"><i class="icon icon-pause"></i></button>
+              <button class="file-action-btn danger"><i class="icon icon-x"></i></button>
+            </div>
+          </div>
+
+          <div class="ul-row">
+            <div class="file-icon-wrap img"><i class="icon icon-image"></i></div>
+            <div>
+              <div class="file-name">
+                <span>测试截图_主页面.png</span>
+                <span class="label label-success">OCR 完成</span>
+              </div>
+              <div class="file-meta">1.2 MB <span class="sep">·</span> 2026-05-13 14:18 上传 <span class="sep">·</span> 已识别 178 字</div>
+            </div>
+            <div class="file-progress">
+              <div class="progress-track success"><div style="width: 100%;"></div></div>
+              <span class="progress-text">100%</span>
+            </div>
+            <div class="text-xs" style="color: var(--success); font-weight: 500;">解析成功</div>
+            <div class="file-actions">
+              <button class="file-action-btn"><i class="icon icon-eye"></i></button>
+              <button class="file-action-btn"><i class="icon icon-replace"></i></button>
+              <button class="file-action-btn danger"><i class="icon icon-trash-2"></i></button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT: requirements -->
+      <div class="flex-col gap-5">
+        <section class="card req-card">
+          <div class="card-title-sm" style="color: var(--ink); font-weight: 600;">实训要求</div>
+          <div class="req-content">基于课程第三章并发与同步内容，要求使用 Java 实现一个简化版生产者—消费者模型，并完成测试用例与实验报告。</div>
+
+          <div class="chk-list">
+            <div class="text-xs font-semibold" style="color: var(--muted-foreground);">提交清单</div>
+            <div class="chk-item">
+              <span class="dot"><i class="icon icon-check"></i></span>
+              <span>实验报告（PDF 或 Word）</span>
+            </div>
+            <div class="chk-item">
+              <span class="dot"><i class="icon icon-check"></i></span>
+              <span>源代码压缩包（.zip）</span>
+            </div>
+            <div class="chk-item muted">
+              <span class="dot"><i class="icon icon-check"></i></span>
+              <span>测试结果截图（至少 1 张）</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- tip -->
+        <section class="tip-card">
+          <div class="tip-card-h">
+            <i class="icon icon-shield-alert"></i>
+            <span>诚信提示</span>
+          </div>
+          <div class="tip-card-content">系统将自动检测相似度，相似度过高会标记为疑似抄袭并通知教师人工复核。请独立完成你的实训。</div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

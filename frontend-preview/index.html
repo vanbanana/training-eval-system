@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>页面预览索引 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="shared.css" />
+  <style>
+    body { padding: 32px; min-height: 100vh; }
+    .container { max-width: 1280px; margin: 0 auto; }
+    h1 {
+      margin: 0 0 8px;
+      color: var(--ink);
+      font-size: 28px; font-weight: 700;
+    }
+    .subtitle {
+      color: var(--muted-foreground);
+      font-size: 14px;
+      margin: 0 0 32px;
+    }
+    .group { margin-bottom: 32px; }
+    .group-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--muted-foreground);
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    .item {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .item:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(30, 58, 95, 0.08);
+    }
+    .item-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .item-name {
+      font-size: 14px; font-weight: 600;
+      color: var(--ink);
+    }
+    .item-tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      font-weight: 600;
+      margin-top: 4px;
+      width: fit-content;
+    }
+    .item-tag.teacher { background: var(--primary-soft); color: var(--primary); }
+    .item-tag.student { background: var(--accent-soft); color: var(--accent); }
+    .item-tag.admin { background: var(--danger-soft); color: var(--danger); }
+    .item-tag.shared { background: var(--gold-soft); color: var(--gold); }
+    .item-tag.auth { background: var(--success-soft); color: var(--success); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>智能实训评价管理系统  ·  页面预览索引</h1>
+    <p class="subtitle">点击任意卡片打开对应页面，查看 HTML+CSS 复刻效果</p>
+
+    <div class="group">
+      <div class="group-title">认证</div>
+      <div class="grid">
+        <a class="item" href="pages/01-login.html">
+          <span class="item-num">01</span>
+          <span class="item-name">登录</span>
+          <span class="item-tag auth">公开</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">教师端</div>
+      <div class="grid">
+        <a class="item" href="pages/02-teacher-dashboard.html">
+          <span class="item-num">02</span>
+          <span class="item-name">教师工作台</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+        <a class="item" href="pages/03-tasks.html">
+          <span class="item-num">03</span>
+          <span class="item-name">实训任务管理</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+        <a class="item" href="pages/04-task-create.html">
+          <span class="item-num">04</span>
+          <span class="item-name">创建实训任务</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+        <a class="item" href="pages/05-grading.html">
+          <span class="item-num">05</span>
+          <span class="item-name">批改工作台</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+        <a class="item" href="pages/06-grading-detail.html">
+          <span class="item-num">06</span>
+          <span class="item-name">批改详情·并排对比</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+        <a class="item" href="pages/10-classes.html">
+          <span class="item-num">10</span>
+          <span class="item-name">班级管理</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+        <a class="item" href="pages/12-teaching-profile.html">
+          <span class="item-num">12</span>
+          <span class="item-name">教学画像</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+        <a class="item" href="pages/18-reports.html">
+          <span class="item-num">18</span>
+          <span class="item-name">报表中心</span>
+          <span class="item-tag teacher">教师</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">学生端</div>
+      <div class="grid">
+        <a class="item" href="pages/07-student-dashboard.html">
+          <span class="item-num">07</span>
+          <span class="item-name">学生工作台</span>
+          <span class="item-tag student">学生</span>
+        </a>
+        <a class="item" href="pages/08-student-upload.html">
+          <span class="item-num">08</span>
+          <span class="item-name">实训成果上传</span>
+          <span class="item-tag student">学生</span>
+        </a>
+        <a class="item" href="pages/09-student-evaluation.html">
+          <span class="item-num">09</span>
+          <span class="item-name">评价结果·AI 问答</span>
+          <span class="item-tag student">学生</span>
+        </a>
+        <a class="item" href="pages/16-student-profile.html">
+          <span class="item-num">16</span>
+          <span class="item-name">我的能力画像</span>
+          <span class="item-tag student">学生</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">管理员端</div>
+      <div class="grid">
+        <a class="item" href="pages/13-llm-config.html">
+          <span class="item-num">13</span>
+          <span class="item-name">大模型服务配置</span>
+          <span class="item-tag admin">管理员</span>
+        </a>
+        <a class="item" href="pages/14-audit.html">
+          <span class="item-num">14</span>
+          <span class="item-name">审计日志</span>
+          <span class="item-tag admin">管理员</span>
+        </a>
+        <a class="item" href="pages/15-users.html">
+          <span class="item-num">15</span>
+          <span class="item-name">用户与权限</span>
+          <span class="item-tag admin">管理员</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">共用</div>
+      <div class="grid">
+        <a class="item" href="pages/11-templates.html">
+          <span class="item-num">11</span>
+          <span class="item-name">评价模板库</span>
+          <span class="item-tag shared">共用</span>
+        </a>
+        <a class="item" href="pages/17-notifications.html">
+          <span class="item-num">17</span>
+          <span class="item-name">通知中心</span>
+          <span class="item-tag shared">共用</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

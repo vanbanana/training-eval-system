@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>评价模板库 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .seg-tabs {
+      display: inline-flex; padding: 3px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .seg-tab {
+      padding: 6px 12px;
+      font-size: 12px; font-weight: 500;
+      color: var(--muted-foreground);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .seg-tab.active {
+      background: var(--surface);
+      color: var(--ink);
+      font-weight: 600;
+      border: 1px solid var(--border);
+    }
+
+    /* template grid */
+    .tpl-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .tpl-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .tpl-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(30, 58, 95, 0.08);
+    }
+
+    .tpl-h {
+      padding: 20px 22px 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .tpl-h-top {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .tpl-icon-wrap {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+    }
+    .tpl-icon-wrap.code { background: var(--info-soft); color: var(--info); }
+    .tpl-icon-wrap.doc { background: var(--gold-soft); color: var(--gold); }
+    .tpl-icon-wrap.team { background: var(--success-soft); color: var(--success); }
+    .tpl-icon-wrap.func { background: var(--primary-soft); color: var(--primary); }
+    .tpl-icon-wrap.net { background: var(--accent-soft); color: var(--accent); }
+    .tpl-h-name { font-size: 15px; font-weight: 700; color: var(--ink); }
+    .tpl-h-desc {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--muted-foreground);
+    }
+
+    /* dim list */
+    .tpl-b {
+      background: var(--surface-2);
+      padding: 16px 22px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .tpl-b-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px;
+    }
+    .tpl-b-name { color: var(--foreground); }
+    .tpl-b-weight {
+      color: var(--ink); font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    /* footer */
+    .tpl-f {
+      padding: 14px 22px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .tpl-f-meta { font-size: 11px; color: var(--muted-foreground); }
+    .tpl-f-ops {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 12px;
+    }
+    .tpl-f-op {
+      color: var(--primary); font-weight: 500;
+      cursor: pointer;
+    }
+    .tpl-f-op.muted { color: var(--muted-foreground); }
+
+    /* create new card */
+    .tpl-card-new {
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px;
+      cursor: pointer;
+      min-height: 220px;
+    }
+    .tpl-card-new:hover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+    .tpl-new-circle {
+      width: 48px; height: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      color: var(--primary);
+      font-size: 20px;
+    }
+    .tpl-new-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .tpl-new-desc { font-size: 12px; color: var(--muted-foreground); text-align: center; }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link active">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">教学资源</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">评价模板</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>评价模板库</h1>
+        <p>沉淀常用评价指标方案，创建任务时可一键复用</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">导入 / 导出</button>
+        <button class="btn btn-primary">+ 新建模板</button>
+      </div>
+    </div>
+
+    <!-- toolbar -->
+    <div class="card" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+      <div class="seg-tabs">
+        <span class="seg-tab active">全部 18</span>
+        <span class="seg-tab">系统预置 4</span>
+        <span class="seg-tab">我创建的 8</span>
+        <span class="seg-tab">团队共享 6</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="searchbox" style="width: 280px;">
+          <i class="icon icon-search"></i>
+          <input placeholder="按模板名称 / 维度搜索" />
+        </div>
+        <select class="tes-select">
+          <option>全部分类</option>
+          <option>编程类</option>
+          <option>文档类</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Row 1 -->
+    <div class="tpl-grid">
+      <!-- Template 1 -->
+      <article class="tpl-card">
+        <div class="tpl-h">
+          <div class="tpl-h-top">
+            <div class="tpl-icon-wrap code"><i class="icon icon-code-2"></i></div>
+            <span class="label label-info">系统预置</span>
+          </div>
+          <div class="tpl-h-name">代码质量评价</div>
+          <div class="tpl-h-desc">适用于 Java / Python / C++ 编程类实训，重点考察规范、实现与测试。</div>
+        </div>
+        <div class="tpl-b">
+          <div class="tpl-b-row"><span class="tpl-b-name">代码规范性</span><span class="tpl-b-weight">30%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">功能完整性</span><span class="tpl-b-weight">35%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">测试与质量</span><span class="tpl-b-weight">20%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">实验报告与文档</span><span class="tpl-b-weight">15%</span></div>
+        </div>
+        <div class="tpl-f">
+          <span class="tpl-f-meta">已被 12 个任务使用</span>
+          <div class="tpl-f-ops">
+            <span class="tpl-f-op">使用</span>
+            <span class="tpl-f-op muted">复制</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Template 2 -->
+      <article class="tpl-card">
+        <div class="tpl-h">
+          <div class="tpl-h-top">
+            <div class="tpl-icon-wrap doc"><i class="icon icon-file-text"></i></div>
+            <span class="label label-info">系统预置</span>
+          </div>
+          <div class="tpl-h-name">文档规范性评价</div>
+          <div class="tpl-h-desc">侧重实验报告 / 论文写作类实训，关注结构、表达与图表。</div>
+        </div>
+        <div class="tpl-b">
+          <div class="tpl-b-row"><span class="tpl-b-name">结构清晰</span><span class="tpl-b-weight">30%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">内容完整</span><span class="tpl-b-weight">25%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">表达规范</span><span class="tpl-b-weight">25%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">参考文献规范</span><span class="tpl-b-weight">20%</span></div>
+        </div>
+        <div class="tpl-f">
+          <span class="tpl-f-meta">已被 8 个任务使用</span>
+          <div class="tpl-f-ops">
+            <span class="tpl-f-op">使用</span>
+            <span class="tpl-f-op muted">复制</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Template 3 -->
+      <article class="tpl-card">
+        <div class="tpl-h">
+          <div class="tpl-h-top">
+            <div class="tpl-icon-wrap team"><i class="icon icon-users"></i></div>
+            <span class="label label-success">团队共享</span>
+          </div>
+          <div class="tpl-h-name">团队作业评价 · 王伟</div>
+          <div class="tpl-h-desc">分组项目专用，加入了协作与个人贡献两个独立维度。</div>
+        </div>
+        <div class="tpl-b">
+          <div class="tpl-b-row"><span class="tpl-b-name">代码质量</span><span class="tpl-b-weight">25%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">个人贡献</span><span class="tpl-b-weight">25%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">协作与沟通</span><span class="tpl-b-weight">25%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">汇报与答辩</span><span class="tpl-b-weight">25%</span></div>
+        </div>
+        <div class="tpl-f">
+          <span class="tpl-f-meta">创建于 2026-03-04 · 已被 5 个任务使用</span>
+          <div class="tpl-f-ops">
+            <span class="tpl-f-op">使用</span>
+            <span class="tpl-f-op muted">编辑</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="tpl-grid">
+      <!-- Template 4 -->
+      <article class="tpl-card">
+        <div class="tpl-h">
+          <div class="tpl-h-top">
+            <div class="tpl-icon-wrap func"><i class="icon icon-zap"></i></div>
+            <span class="label label-info">系统预置</span>
+          </div>
+          <div class="tpl-h-name">功能实现度评价</div>
+          <div class="tpl-h-desc">轻量配置，仅评估功能完整与正确性，适合短周期实训。</div>
+        </div>
+        <div class="tpl-b">
+          <div class="tpl-b-row"><span class="tpl-b-name">功能完整性</span><span class="tpl-b-weight">40%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">正确性</span><span class="tpl-b-weight">35%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">分支与边界处理</span><span class="tpl-b-weight">25%</span></div>
+        </div>
+        <div class="tpl-f">
+          <span class="tpl-f-meta">已被 6 个任务使用</span>
+          <div class="tpl-f-ops">
+            <span class="tpl-f-op">使用</span>
+            <span class="tpl-f-op muted">复制</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Template 5 -->
+      <article class="tpl-card">
+        <div class="tpl-h">
+          <div class="tpl-h-top">
+            <div class="tpl-icon-wrap net"><i class="icon icon-network"></i></div>
+            <span class="label label-warning">我创建的</span>
+          </div>
+          <div class="tpl-h-name">网络抓包实验 · 张教授</div>
+          <div class="tpl-h-desc">专门评价 Wireshark / TCPDump 抓包分析的深度与准确性。</div>
+        </div>
+        <div class="tpl-b">
+          <div class="tpl-b-row"><span class="tpl-b-name">协议分析准确性</span><span class="tpl-b-weight">40%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">报文识别完整性</span><span class="tpl-b-weight">35%</span></div>
+          <div class="tpl-b-row"><span class="tpl-b-name">分析报告</span><span class="tpl-b-weight">25%</span></div>
+        </div>
+        <div class="tpl-f">
+          <span class="tpl-f-meta">创建于 2026-04-12 · 已被 2 个任务使用</span>
+          <div class="tpl-f-ops">
+            <span class="tpl-f-op">使用</span>
+            <span class="tpl-f-op muted">编辑</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- New template card -->
+      <div class="tpl-card-new">
+        <div class="tpl-new-circle"><i class="icon icon-plus"></i></div>
+        <div class="tpl-new-title">创建新模板</div>
+        <div class="tpl-new-desc">自定义评价维度与权重，沉淀你的教学经验</div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

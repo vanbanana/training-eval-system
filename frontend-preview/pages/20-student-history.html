@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>我的评价历史 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    /* trend chart */
+    .trend-card {
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .trend-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .trend-area {
+      height: 200px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      padding: 0 16px; gap: 16px;
+    }
+    .tb-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .tb-bar-wrap {
+      height: 160px;
+      display: flex; align-items: flex-end;
+      width: 48px;
+    }
+    .tb-bar-wrap.peak { width: 64px; }
+    .tb-bar {
+      width: 100%;
+      background: var(--primary-soft);
+      border-radius: 4px 4px 0 0;
+      position: relative;
+    }
+    .tb-bar.high {
+      background: var(--success);
+      box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.15);
+    }
+    .tb-bar.low {
+      background: var(--accent);
+      box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.15);
+    }
+    .tb-bar.current {
+      background: var(--primary);
+    }
+    .tb-marker {
+      position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+      font-size: 14px;
+    }
+    .tb-score {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .tb-score.success { color: var(--success); font-weight: 600; }
+    .tb-score.danger { color: var(--accent); font-weight: 600; }
+    .tb-score.current { color: var(--ink); font-weight: 600; }
+    .tb-label {
+      font-size: 11px;
+      color: var(--ink);
+      text-align: center;
+      width: 80px;
+    }
+    .tb-label.current { font-weight: 600; }
+
+    /* table */
+    .ht-cols {
+      display: grid;
+      grid-template-columns: 1fr 160px 140px 140px 120px 120px 80px;
+      align-items: center;
+    }
+    .ht-head {
+      background: var(--surface-2);
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ht-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .ht-row {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ht-row:hover { background: var(--surface-2); }
+    .ht-row:last-child { border-bottom: 0; }
+    .ht-row.warn { background: var(--warning-soft); }
+
+    .task-name {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+
+    .score-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .score-num {
+      font-size: 14px; font-weight: 700;
+      font-feature-settings: 'tnum';
+    }
+    .score-num.success { color: var(--success); }
+    .score-num.danger { color: var(--accent); }
+    .score-tag {
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .score-tag.success { background: var(--success-soft); color: var(--success); }
+    .score-tag.danger { background: var(--surface); border: 1px solid var(--accent); color: var(--accent); }
+
+    .ht-link {
+      font-size: 12px;
+      color: var(--primary);
+      font-weight: 500;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar" style="background: var(--accent-soft); color: var(--accent);">李</span><span class="user-name">李文清  同学</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link active">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">我的</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">学习中心</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">评价历史</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>我的评价历史</h1>
+        <p>共 8 次评价  ·  平均 82.4  ·  最高 94.8（数据结构 #2）</p>
+      </div>
+      <div class="page-hd-r">
+        <select class="tes-select"><option>全部课程</option></select>
+        <select class="tes-select"><option>2026 春季</option></select>
+        <button class="btn btn-secondary">导出 PDF</button>
+      </div>
+    </div>
+
+    <!-- trend -->
+    <section class="card trend-card">
+      <header class="trend-h">
+        <div>
+          <div class="card-title">成长轨迹</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">折线图标记最高分、最低分及显著下降点</div>
+        </div>
+      </header>
+
+      <div class="trend-area">
+        <div class="tb-col">
+          <div class="tb-bar-wrap"><div class="tb-bar" style="height: 65px;"></div></div>
+          <span class="tb-score">68</span>
+          <span class="tb-label">操作系统 #1</span>
+        </div>
+        <div class="tb-col">
+          <div class="tb-bar-wrap peak"><div class="tb-bar high" style="height: 152px;"><span class="tb-marker">🏆</span></div></div>
+          <span class="tb-score success">94.8 ★</span>
+          <span class="tb-label">数据结构 #2</span>
+        </div>
+        <div class="tb-col">
+          <div class="tb-bar-wrap"><div class="tb-bar" style="height: 105px;"></div></div>
+          <span class="tb-score">79.5</span>
+          <span class="tb-label">软工 #1</span>
+        </div>
+        <div class="tb-col">
+          <div class="tb-bar-wrap"><div class="tb-bar" style="height: 120px;"></div></div>
+          <span class="tb-score">83.0</span>
+          <span class="tb-label">网络 #1</span>
+        </div>
+        <div class="tb-col">
+          <div class="tb-bar-wrap peak"><div class="tb-bar low" style="height: 80px;"><span class="tb-marker">⚠️</span></div></div>
+          <span class="tb-score danger">71.2</span>
+          <span class="tb-label">软工 #2</span>
+        </div>
+        <div class="tb-col">
+          <div class="tb-bar-wrap"><div class="tb-bar" style="height: 130px;"></div></div>
+          <span class="tb-score">84.6</span>
+          <span class="tb-label">数据库 #1</span>
+        </div>
+        <div class="tb-col">
+          <div class="tb-bar-wrap"><div class="tb-bar" style="height: 122px;"></div></div>
+          <span class="tb-score">82.5</span>
+          <span class="tb-label">操作系统 #2</span>
+        </div>
+        <div class="tb-col">
+          <div class="tb-bar-wrap"><div class="tb-bar current" style="height: 140px;"></div></div>
+          <span class="tb-score current">86.8</span>
+          <span class="tb-label current">软工 #3</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- history table -->
+    <section class="card" style="overflow: hidden;">
+      <div class="ht-cols ht-head">
+        <div>实训任务</div>
+        <div>所属课程</div>
+        <div>提交日期</div>
+        <div>综合得分</div>
+        <div>班级排名</div>
+        <div>状态</div>
+        <div></div>
+      </div>
+
+      <div class="ht-cols ht-row">
+        <div class="task-name"><span>软件工程实践 · 第三次实训</span></div>
+        <div class="text-sm">软件工程</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-05-12</div>
+        <div class="score-row">
+          <span class="score-num success">86.8</span>
+          <span class="score-tag success">已上升</span>
+        </div>
+        <div class="text-sm font-medium">8 / 56</div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="ht-link">详情 →</div>
+      </div>
+
+      <div class="ht-cols ht-row">
+        <div class="task-name"><span>操作系统 · 进程同步实验 #2</span></div>
+        <div class="text-sm">操作系统</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-04-28</div>
+        <div class="score-row"><span class="score-num" style="color: var(--ink);">82.5</span></div>
+        <div class="text-sm font-medium">15 / 52</div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="ht-link">详情 →</div>
+      </div>
+
+      <div class="ht-cols ht-row">
+        <div class="task-name"><span>数据库系统 · 复杂查询优化</span></div>
+        <div class="text-sm">数据库原理</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-04-12</div>
+        <div class="score-row"><span class="score-num" style="color: var(--ink);">84.6</span></div>
+        <div class="text-sm font-medium">11 / 54</div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="ht-link">详情 →</div>
+      </div>
+
+      <div class="ht-cols ht-row warn">
+        <div class="task-name">
+          <i class="icon icon-trending-down" style="color: var(--accent); font-size: 13px;"></i>
+          <span>软件工程实践 · 第二次实训</span>
+        </div>
+        <div class="text-sm">软件工程</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-03-22</div>
+        <div class="score-row">
+          <span class="score-num danger">71.2</span>
+          <span class="score-tag danger">显著下降</span>
+        </div>
+        <div class="text-sm font-medium">32 / 56</div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="ht-link">详情 →</div>
+      </div>
+
+      <div class="ht-cols ht-row">
+        <div class="task-name">
+          <i class="icon icon-award" style="color: var(--success); font-size: 13px;"></i>
+          <span>数据结构 · 二叉树遍历实验</span>
+        </div>
+        <div class="text-sm">数据结构与算法</div>
+        <div class="font-mono-tes text-xs" style="color: var(--muted-foreground);">2026-03-08</div>
+        <div class="score-row">
+          <span class="score-num success">94.8</span>
+          <span class="score-tag success">最高分</span>
+        </div>
+        <div class="text-sm font-bold" style="color: var(--success);">2 / 60</div>
+        <div><span class="label label-success">已确认</span></div>
+        <div class="ht-link">详情 →</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

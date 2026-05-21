@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Task 完成后自动校验",
+  "description": "单个 spec Task 完成后，自动检查代码格式、类型与测试是否通过，失败则回到 AI 让其修复。",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "刚完成一个 spec Task。请按以下顺序快速自验证：\n\n1. 后端代码改动（backend/ 下）：\n   - 跑 `cd backend && ruff check . && mypy --strict app/` 确认无错\n   - 跑 `pytest tests/unit -x --no-cov` 确认本 Task 涉及的单元测试通过\n2. 前端代码改动（frontend/ 下）：\n   - 跑 `cd frontend && pnpm lint && pnpm typecheck` 确认无错\n3. spec 改动（.kiro/specs/ 下）：\n   - 用 getDiagnostics 检查 tasks.md / requirements.md / design.md 格式\n\n任何一步失败就立刻修复后再标 [x]。检查通过后简要汇报\"Task X.Y 校验通过\"即可，不要做额外工作。"
+  }
+}

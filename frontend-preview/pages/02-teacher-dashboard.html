@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>教师工作台 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    /* 仪表盘特有样式 */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .main-row { display: grid; grid-template-columns: 1fr 420px; gap: 18px; }
+
+    /* chart bar */
+    .chart-area {
+      height: 200px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      padding: 0 8px; gap: 24px;
+    }
+    .bar-col {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    .bar {
+      width: 100%; max-width: 32px;
+      background: var(--primary-soft);
+      border-radius: 4px 4px 0 0;
+      position: relative;
+    }
+    .bar.active { background: var(--primary); }
+    .bar-label {
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .bar-value {
+      position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; font-weight: 600;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .chart-tabs {
+      display: flex; gap: 8px;
+    }
+    .chart-tab {
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted-foreground);
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .chart-tab.active { background: var(--primary); color: #fff; font-weight: 600; }
+
+    /* 待批改任务行 */
+    .task-list { display: flex; flex-direction: column; }
+    .task-row {
+      display: grid;
+      grid-template-columns: 1fr 220px 100px 80px;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .task-row:last-child { border-bottom: 0; }
+    .task-row:hover { background: var(--surface-2); }
+    .task-name {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .task-meta {
+      font-size: 12px; color: var(--muted-foreground);
+      margin-top: 4px;
+    }
+    .progress {
+      height: 8px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      position: relative; overflow: hidden;
+    }
+    .progress-fill {
+      position: absolute; top: 0; left: 0; bottom: 0;
+      background: var(--primary);
+      border-radius: var(--radius-pill);
+    }
+    .progress.success .progress-fill { background: var(--success); }
+    .progress.warning .progress-fill { background: var(--warning); }
+
+    /* 快捷操作 */
+    .qa-grid { display: flex; flex-direction: column; gap: 10px; }
+    .qa-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .qa-item:hover { border-color: var(--primary); background: var(--surface-2); }
+    .qa-icon-wrap {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-md);
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .qa-item .qa-info { flex: 1; }
+    .qa-item .qa-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .qa-item .qa-desc { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; }
+    .qa-arrow { color: var(--subtle-foreground); font-size: 16px; }
+
+    /* 通知 */
+    .notif-list { display: flex; flex-direction: column; }
+    .notif-item {
+      display: flex; gap: 10px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .notif-item:last-child { border-bottom: 0; }
+    .notif-item:hover { background: var(--surface-2); }
+    .notif-dot {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: var(--radius-pill);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .notif-item.read .notif-dot { background: transparent; }
+    .notif-text { flex: 1; }
+    .notif-title { font-size: 13px; font-weight: 500; color: var(--ink); line-height: 1.4; }
+    .notif-meta { font-size: 11px; color: var(--muted-foreground); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <!-- ===== Top Nav ===== -->
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill">
+          <i class="icon icon-building-2"></i>
+          <span>软件学院</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search">
+          <i class="icon icon-search"></i>
+          <span class="placeholder">全局搜索任务、学生、班级</span>
+          <kbd class="kbd">⌘K</kbd>
+        </div>
+        <button class="icon-btn" aria-label="帮助"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative" aria-label="通知">
+          <i class="icon icon-bell"></i>
+          <span class="ndot"></span>
+        </button>
+        <button class="user-pill">
+          <span class="avatar">王</span>
+          <span class="user-name">王伟  老师</span>
+          <i class="icon icon-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link active">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <!-- ===== Page Header ===== -->
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>早上好，王伟老师 👋</h1>
+        <p>今日 2026 年 5 月 19 日 · 你有 42 份提交待批改，3 项任务即将到期。</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">
+          <i class="icon icon-download"></i>
+          <span>导出周报</span>
+        </button>
+        <button class="btn btn-primary">+ 创建实训任务</button>
+      </div>
+    </div>
+
+    <!-- ===== Stat Cards ===== -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">待批改提交</span>
+          <i class="icon icon-clipboard-list stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">42</div>
+        <div class="stat-card-trend up">
+          <i class="icon icon-trending-up"></i>
+          <span>较上周 +12</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">本周已批改</span>
+          <i class="icon icon-check-check stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">68</div>
+        <div class="stat-card-trend up">
+          <i class="icon icon-trending-up"></i>
+          <span>按期完成 92%</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">班级平均分</span>
+          <i class="icon icon-line-chart stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">81.4</div>
+        <div class="stat-card-trend up">
+          <i class="icon icon-trending-up"></i>
+          <span>较上次 +2.3</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">疑似抄袭警告</span>
+          <i class="icon icon-shield-alert stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">5</div>
+        <div class="stat-card-trend down">
+          <i class="icon icon-trending-down"></i>
+          <span style="color: var(--danger)">待人工复核</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Main Row ===== -->
+    <div class="main-row">
+      <!-- LEFT: chart + tasks -->
+      <div class="flex-col gap-5">
+        <!-- chart -->
+        <section class="card card-padded">
+          <header class="flex justify-between items-center" style="margin-bottom: 18px;">
+            <div>
+              <div class="card-title">班级活跃度</div>
+              <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">近 7 天提交与批改数据</div>
+            </div>
+            <div class="chart-tabs">
+              <span class="chart-tab">4 周</span>
+              <span class="chart-tab active">7 天</span>
+              <span class="chart-tab">今天</span>
+            </div>
+          </header>
+          <div class="chart-area">
+            <div class="bar-col">
+              <div class="bar" style="height: 80px;"><span class="bar-value">12</span></div>
+              <span class="bar-label">5/13</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height: 110px;"><span class="bar-value">18</span></div>
+              <span class="bar-label">5/14</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height: 140px;"><span class="bar-value">24</span></div>
+              <span class="bar-label">5/15</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar active" style="height: 175px;"><span class="bar-value">31</span></div>
+              <span class="bar-label">5/16</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height: 95px;"><span class="bar-value">15</span></div>
+              <span class="bar-label">5/17</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height: 120px;"><span class="bar-value">20</span></div>
+              <span class="bar-label">5/18</span>
+            </div>
+            <div class="bar-col">
+              <div class="bar" style="height: 75px;"><span class="bar-value">11</span></div>
+              <span class="bar-label">5/19</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- tasks -->
+        <section class="card">
+          <header class="card-hd">
+            <div class="card-title">近期实训任务</div>
+            <a href="#" class="card-link">全部 ›</a>
+          </header>
+          <div class="task-list">
+            <div class="task-row">
+              <div>
+                <div class="task-name">
+                  <span class="text-sm font-semibold" style="color: var(--ink);">软件工程实践 · 第三次实训</span>
+                  <span class="label label-warning">批改中</span>
+                </div>
+                <div class="task-meta">软件 22-1 班 · 截止 5/22 18:00</div>
+              </div>
+              <div class="progress"><div class="progress-fill" style="width: 60%;"></div></div>
+              <span class="text-xs" style="color: var(--muted-foreground);">28 / 50 已批改</span>
+              <div class="text-xs text-right" style="color: var(--muted-foreground);">3 天后</div>
+            </div>
+
+            <div class="task-row">
+              <div>
+                <div class="task-name">
+                  <span class="text-sm font-semibold" style="color: var(--ink);">数据结构 · 二叉树遍历实现</span>
+                  <span class="label label-success">已完成</span>
+                </div>
+                <div class="task-meta">软件 22-2 班 · 截止 5/16 18:00</div>
+              </div>
+              <div class="progress success"><div class="progress-fill" style="width: 100%;"></div></div>
+              <span class="text-xs" style="color: var(--muted-foreground);">48 / 48 已批改</span>
+              <div class="text-xs text-right" style="color: var(--success);">已完成</div>
+            </div>
+
+            <div class="task-row">
+              <div>
+                <div class="task-name">
+                  <span class="text-sm font-semibold" style="color: var(--ink);">计算机网络 · TCP 协议实验</span>
+                  <span class="label label-info">已发布</span>
+                </div>
+                <div class="task-meta">软件 22-1 班 · 截止 5/25 18:00</div>
+              </div>
+              <div class="progress"><div class="progress-fill" style="width: 28%;"></div></div>
+              <span class="text-xs" style="color: var(--muted-foreground);">14 / 50 已提交</span>
+              <div class="text-xs text-right" style="color: var(--muted-foreground);">6 天后</div>
+            </div>
+
+            <div class="task-row">
+              <div>
+                <div class="task-name">
+                  <span class="text-sm font-semibold" style="color: var(--ink);">操作系统 · 进程同步实验</span>
+                  <span class="label label-muted">草稿</span>
+                </div>
+                <div class="task-meta">软件 22-3 班 · 暂未发布</div>
+              </div>
+              <div class="progress"><div class="progress-fill" style="width: 0;"></div></div>
+              <span class="text-xs" style="color: var(--muted-foreground);">—</span>
+              <div class="text-xs text-right" style="color: var(--muted-foreground);">草稿</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT: quick actions + notifications -->
+      <div class="flex-col gap-5">
+        <!-- 快捷操作 -->
+        <section class="card card-padded">
+          <header class="flex justify-between items-center" style="margin-bottom: 14px;">
+            <div class="card-title">快捷操作</div>
+          </header>
+          <div class="qa-grid">
+            <div class="qa-item">
+              <div class="qa-icon-wrap" style="background: var(--primary-soft);">
+                <i class="icon icon-clipboard-list" style="color: var(--primary); font-size: 18px;"></i>
+              </div>
+              <div class="qa-info">
+                <div class="qa-title">创建实训任务</div>
+                <div class="qa-desc">从模板快速发起新任务</div>
+              </div>
+              <i class="icon icon-chevron-right qa-arrow"></i>
+            </div>
+            <div class="qa-item">
+              <div class="qa-icon-wrap" style="background: var(--info-soft);">
+                <i class="icon icon-pen-line" style="color: var(--info); font-size: 18px;"></i>
+              </div>
+              <div class="qa-info">
+                <div class="qa-title">批改工作台</div>
+                <div class="qa-desc">42 份待批改提交等待处理</div>
+              </div>
+              <i class="icon icon-chevron-right qa-arrow"></i>
+            </div>
+            <div class="qa-item">
+              <div class="qa-icon-wrap" style="background: var(--accent-soft);">
+                <i class="icon icon-users" style="color: var(--accent); font-size: 18px;"></i>
+              </div>
+              <div class="qa-info">
+                <div class="qa-title">班级管理</div>
+                <div class="qa-desc">3 个班级 · 共 168 名学生</div>
+              </div>
+              <i class="icon icon-chevron-right qa-arrow"></i>
+            </div>
+          </div>
+        </section>
+
+        <!-- 通知中心 -->
+        <section class="card">
+          <header class="card-hd">
+            <div class="card-title">通知中心</div>
+            <a href="#" class="card-link">全部 ›</a>
+          </header>
+          <div class="notif-list">
+            <div class="notif-item">
+              <span class="notif-dot"></span>
+              <div class="notif-text">
+                <div class="notif-title">软件 22-1 班提交高峰已到达</div>
+                <div class="notif-meta">12 名同学已陆续完成第三次实训提交，AI 解析将在 5 分钟内完成</div>
+              </div>
+            </div>
+            <div class="notif-item">
+              <span class="notif-dot"></span>
+              <div class="notif-text">
+                <div class="notif-title">检测到 3 份疑似相似度过高的提交</div>
+                <div class="notif-meta">建议在批改工作台中人工复核，涉及任务"二叉树遍历实现"</div>
+              </div>
+            </div>
+            <div class="notif-item read">
+              <span class="notif-dot"></span>
+              <div class="notif-text">
+                <div class="notif-title">系统已多模型完成 v0.4.2 自动配置</div>
+                <div class="notif-meta">DeepSeek-V3 接入，问答场景平均响应时间下降 23%</div>
+              </div>
+            </div>
+            <div class="notif-item read">
+              <span class="notif-dot"></span>
+              <div class="notif-text">
+                <div class="notif-title">教务下发新评价指标模板</div>
+                <div class="notif-meta">"软件工程实践 v2026" 模板已可在评价模板库中使用</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

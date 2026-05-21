@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>解析进度·实时 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .live-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px;
+      background: var(--info-soft);
+      color: var(--info);
+      border-radius: var(--radius-pill);
+      font-size: 11px; font-weight: 600;
+    }
+    .live-dot {
+      width: 6px; height: 6px;
+      background: var(--info);
+      border-radius: var(--radius-pill);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* overall card */
+    .ov-card {
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .ov-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ov-num {
+      font-size: 32px; font-weight: 700;
+      color: var(--primary);
+      line-height: 1;
+    }
+    .ov-num .pct { font-size: 16px; font-weight: 600; }
+
+    .ov-bar {
+      height: 12px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      display: flex;
+    }
+    .ov-bar > div {
+      height: 100%;
+    }
+
+    .ov-legend {
+      display: flex; gap: 18px;
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .ov-legend-row { display: flex; align-items: center; gap: 6px; }
+    .ov-dot {
+      width: 8px; height: 8px;
+      border-radius: var(--radius-pill);
+    }
+
+    /* job cards */
+    .jh {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .jh-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .jh-r { display: flex; align-items: center; gap: 14px; }
+
+    /* job item: in-progress (with stages + log) */
+    .ji-progress {
+      background: var(--info-soft);
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .ji-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ji-h-l { display: flex; align-items: center; gap: 10px; }
+    .ji-h-r { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted-foreground); }
+
+    .stages {
+      display: flex; align-items: center; width: 100%;
+    }
+    .stage {
+      flex: 0 0 auto;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .stage-circle {
+      width: 28px; height: 28px;
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      font-size: 13px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .stage-circle.done { background: var(--success); color: #fff; }
+    .stage-circle.active {
+      background: var(--info); color: #fff;
+    }
+    .stage-circle.todo {
+      background: var(--surface);
+      color: var(--muted-foreground);
+      border: 1px solid var(--border);
+    }
+    .stage-name {
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .stage.done .stage-name, .stage.active .stage-name {
+      color: var(--ink); font-weight: 500;
+    }
+    .stage-line {
+      flex: 1;
+      height: 2px;
+      background: var(--muted);
+      margin-bottom: 18px;
+    }
+    .stage-line.done { background: var(--success); }
+
+    /* log */
+    .log-block {
+      background: var(--ink);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+    .log-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .log-line.info { color: #a8c5dd; }
+    .log-line.warn { color: #ffa37a; }
+    .log-line.success { color: #9bd494; }
+
+    /* job item: completed/queued */
+    .ji-row {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .ji-row:last-child { border-bottom: 0; }
+    .ji-row.failed { background: var(--danger-soft); }
+    .ji-row .ji-l {
+      display: flex; align-items: center; gap: 10px;
+      flex: 1;
+    }
+    .ji-info { display: flex; flex-direction: column; gap: 2px; }
+    .ji-name {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .ji-meta { font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); }
+
+    .ji-bar {
+      width: 200px; height: 6px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .ji-bar > div {
+      height: 100%; border-radius: var(--radius-pill);
+    }
+    .ji-bar.success > div { background: var(--success); }
+    .ji-bar.info > div { background: var(--info); }
+
+    .ji-pct {
+      font-family: var(--font-mono);
+      font-size: 11px; font-weight: 600;
+      width: 50px; text-align: right;
+    }
+    .ji-pct.success { color: var(--success); }
+    .ji-pct.info { color: var(--info); }
+    .ji-pct.muted { color: var(--muted-foreground); font-weight: 400; }
+
+    /* switch */
+    .switch-mini {
+      width: 36px; height: 20px;
+      background: var(--primary);
+      border-radius: var(--radius-pill);
+      position: relative;
+      cursor: pointer;
+    }
+    .switch-mini::after {
+      content: '';
+      position: absolute;
+      top: 2px; right: 2px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: var(--radius-pill);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link active">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">批改工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">软件工程实践 · 第三次实训</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">解析进度</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1 style="margin:0;">实时解析进度</h1>
+          <span class="live-pill"><span class="live-dot"></span><span>WebSocket 已连接</span></span>
+        </div>
+        <p style="margin-top:6px;">42 份提交  ·  已完成 28  ·  解析中 8  ·  排队 6  ·  失败 0</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">全部重新解析</button>
+        <button class="btn btn-primary">前往批改工作台</button>
+      </div>
+    </div>
+
+    <!-- overall progress -->
+    <section class="card ov-card">
+      <div class="ov-h">
+        <div>
+          <div class="text-sm font-semibold" style="color: var(--ink);">整体进度</div>
+          <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">预计 4 分 32 秒后全部完成</div>
+        </div>
+        <div class="ov-num">67<span class="pct"> %</span></div>
+      </div>
+      <div class="ov-bar">
+        <div style="background: var(--success); width: 50%;"></div>
+        <div style="background: var(--info); width: 17%;"></div>
+        <div style="background: var(--muted-foreground); width: 14%; opacity: 0.4;"></div>
+      </div>
+      <div class="ov-legend">
+        <div class="ov-legend-row"><span class="ov-dot" style="background: var(--success);"></span><span>已完成 28</span></div>
+        <div class="ov-legend-row"><span class="ov-dot" style="background: var(--info);"></span><span>解析中 8</span></div>
+        <div class="ov-legend-row"><span class="ov-dot" style="background: var(--muted-foreground);"></span><span>排队 6</span></div>
+        <div class="ov-legend-row"><span class="ov-dot" style="background: var(--danger);"></span><span>失败 0</span></div>
+      </div>
+    </section>
+
+    <!-- jobs detail -->
+    <section class="card" style="overflow: hidden;">
+      <header class="jh">
+        <span class="jh-title">提交解析详情</span>
+        <div class="jh-r">
+          <span class="text-xs" style="color: var(--muted-foreground);">自动刷新</span>
+          <div class="switch-mini"></div>
+        </div>
+      </header>
+
+      <!-- ji 1: in-progress with stages and log -->
+      <div class="ji-progress">
+        <div class="ji-h">
+          <div class="ji-h-l">
+            <span class="user-avatar" style="width: 30px; height: 30px; font-size: 13px;">薛</span>
+            <div>
+              <div class="text-sm font-semibold" style="color: var(--ink);">薛涛伟  ·  21100098  <span class="label label-info" style="margin-left: 4px;">解析中 67%</span></div>
+              <div class="text-xs" style="color: var(--muted-foreground); margin-top: 2px;">实训报告.pdf  ·  4.2 MB  ·  4 个文件</div>
+            </div>
+          </div>
+          <div class="ji-h-r">
+            <span>当前阶段</span>
+            <span style="color: var(--info); font-weight: 600;">LLM 调用</span>
+          </div>
+        </div>
+
+        <!-- stages -->
+        <div class="stages">
+          <div class="stage">
+            <div class="stage-circle done"><i class="icon icon-check" style="font-size: 13px;"></i></div>
+            <span class="stage-name">01  上传校验</span>
+          </div>
+          <div class="stage-line done"></div>
+          <div class="stage">
+            <div class="stage-circle done"><i class="icon icon-check" style="font-size: 13px;"></i></div>
+            <span class="stage-name">02  文本提取</span>
+          </div>
+          <div class="stage-line done"></div>
+          <div class="stage">
+            <div class="stage-circle active">
+              <i class="icon icon-loader" style="font-size: 13px; animation: spin 1.2s linear infinite;"></i>
+            </div>
+            <span class="stage-name">03  LLM 调用</span>
+          </div>
+          <div class="stage-line"></div>
+          <div class="stage">
+            <div class="stage-circle todo">04</div>
+            <span class="stage-name">04  相似度检测</span>
+          </div>
+          <div class="stage-line"></div>
+          <div class="stage">
+            <div class="stage-circle todo">05</div>
+            <span class="stage-name">05  完成</span>
+          </div>
+        </div>
+
+        <!-- log -->
+        <div class="log-block">
+          <div class="log-line info">[17:42:18] parse.start  upload_id=u_8742  size=4.2MB</div>
+          <div class="log-line info">[17:42:18] mime=application/pdf  pages=12  ocr_required=false</div>
+          <div class="log-line success">[17:42:21] extracted  paragraphs=42  headings=4  images=3</div>
+          <div class="log-line warn">[17:42:22] llm.invoke  skill=pdf_to_structure  model=qwen2.5-72b</div>
+          <div class="log-line warn">[17:42:24] llm.streaming  tokens=384/1500  ▌</div>
+        </div>
+      </div>
+
+      <!-- ji 2: completed -->
+      <div class="ji-row">
+        <div class="ji-l">
+          <span class="user-avatar" style="width: 30px; height: 30px; font-size: 13px;">陈</span>
+          <div class="ji-info">
+            <div class="ji-name"><span>陈嘉迅  ·  21100087</span><span class="label label-success">已完成</span></div>
+            <div class="ji-meta">耗时 12.4s  ·  1567 tokens</div>
+          </div>
+        </div>
+        <div class="ji-bar success"><div style="width: 100%;"></div></div>
+        <span class="ji-pct success">100%</span>
+        <span class="text-xs" style="color: var(--primary); font-weight: 500;">查看 →</span>
+      </div>
+
+      <!-- ji 3: in-progress simple -->
+      <div class="ji-row">
+        <div class="ji-l">
+          <span class="user-avatar" style="width: 30px; height: 30px; font-size: 13px;">刘</span>
+          <div class="ji-info">
+            <div class="ji-name"><span>刘子琪  ·  21100211</span><span class="label label-info">OCR 中 32%</span></div>
+            <div class="ji-meta">2 张图片  ·  1 个 PDF</div>
+          </div>
+        </div>
+        <div class="ji-bar info"><div style="width: 32%;"></div></div>
+        <span class="ji-pct info">32%</span>
+        <i class="icon icon-square-pause" style="color: var(--muted-foreground); font-size: 14px;"></i>
+      </div>
+
+      <!-- ji 4: queued -->
+      <div class="ji-row">
+        <div class="ji-l">
+          <span class="user-avatar" style="width: 30px; height: 30px; font-size: 13px;">孙</span>
+          <div class="ji-info">
+            <div class="ji-name"><span>孙浩然  ·  21100173</span><span class="label label-muted">排队中</span></div>
+            <div class="ji-meta">第 1 / 6 位</div>
+          </div>
+        </div>
+        <div class="ji-bar"></div>
+        <span class="ji-pct muted">等待</span>
+        <i class="icon icon-clock-3" style="color: var(--muted-foreground); font-size: 14px;"></i>
+      </div>
+
+      <!-- ji 5: failed -->
+      <div class="ji-row failed">
+        <div class="ji-l">
+          <span class="user-avatar" style="width: 30px; height: 30px; font-size: 13px; background: var(--danger-soft); color: var(--danger);">郑</span>
+          <div class="ji-info">
+            <div class="ji-name"><span>郑文杰  ·  21100302</span><span class="label label-danger">解析失败</span></div>
+            <div class="ji-meta">实训报告.pdf  ·  错误：文件加密无法读取，请重新上传</div>
+          </div>
+        </div>
+        <span class="text-sm font-semibold" style="color: var(--danger); cursor: pointer;">重试</span>
+        <span class="text-xs" style="color: var(--muted-foreground); cursor: pointer;">通知学生</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

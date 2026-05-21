@@ -1,0 +1,26 @@
+# 强制 LF 行尾，防止 Windows/Unix 提交差异
+* text=auto eol=lf
+
+# 二进制文件
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.docx binary
+*.xlsx binary
+*.db binary
+*.sqlite binary
+
+# 设计稿
+*.pen binary
+
+# 字体
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>审计日志 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    /* date pill */
+    .date-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+    }
+    .date-pill .icon { color: var(--muted-foreground); font-size: 13px; }
+    .date-pill span { font-family: var(--font-mono); font-size: 12px; color: var(--ink); font-weight: 500; }
+
+    /* warn alert */
+    .warn-alert {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 20px;
+      background: var(--danger-soft);
+      border: 1px solid var(--danger);
+      border-radius: var(--radius-lg);
+    }
+    .warn-icon-wrap {
+      width: 32px; height: 32px;
+      background: var(--surface);
+      border-radius: var(--radius-pill);
+      display: grid; place-items: center;
+      color: var(--danger);
+      flex-shrink: 0;
+    }
+    .warn-content { flex: 1; }
+    .warn-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--danger);
+    }
+    .warn-desc {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 4px;
+    }
+
+    /* table grid */
+    .au-cols {
+      display: grid;
+      grid-template-columns: 180px 170px 160px 1fr 140px 100px 60px;
+      align-items: center;
+    }
+    .au-head {
+      background: var(--surface-2);
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .au-head > div {
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-foreground);
+    }
+    .au-row {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .au-row:hover { background: var(--surface-2); }
+    .au-row:last-child { border-bottom: 0; }
+
+    .au-time {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .au-user-cell { display: flex; align-items: center; gap: 8px; }
+    .au-user-info { display: flex; flex-direction: column; gap: 1px; }
+    .au-user-name { font-size: 12px; font-weight: 600; color: var(--ink); }
+    .au-user-meta { font-size: 10px; color: var(--muted-foreground); font-family: var(--font-mono); }
+
+    .au-target {
+      font-size: 12px;
+      color: var(--foreground);
+      line-height: 1.5;
+    }
+    .au-target-meta {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+
+    .au-ip {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+    }
+
+    .au-arrow {
+      color: var(--muted-foreground);
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .pf-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 20px;
+      background: var(--surface-2);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-shield"></i><span>管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">管</span><span class="user-name">管理员</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">系统总览</a>
+      <a href="#" class="nav-link">用户与权限</a>
+      <a href="#" class="nav-link">课程管理</a>
+      <a href="#" class="nav-link">系统配置</a>
+      <a href="#" class="nav-link active">审计日志</a>
+      <a href="#" class="nav-link">教学画像</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">管理控制台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">安全审计</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">审计日志</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <h1>操作审计日志</h1>
+        <p>关键业务操作可追溯  ·  日志保留 12 个月  ·  仅可查询与导出，不可修改</p>
+      </div>
+      <div class="page-hd-r">
+        <button class="btn btn-secondary">导出 CSV</button>
+        <button class="btn btn-primary">归档至冷存储</button>
+      </div>
+    </div>
+
+    <!-- toolbar -->
+    <div class="card" style="padding: 16px 20px; display: flex; gap: 12px; align-items: center;">
+      <span class="date-pill">
+        <i class="icon icon-calendar"></i>
+        <span>2026-05-12 至 2026-05-19</span>
+        <i class="icon icon-chevron-down" style="font-size: 11px;"></i>
+      </span>
+      <select class="tes-select"><option>全部操作类型</option><option>登录</option><option>配置变更</option><option>评分提交</option></select>
+      <select class="tes-select"><option>全部用户</option></select>
+      <div class="searchbox" style="width: 280px;">
+        <i class="icon icon-search"></i>
+        <input placeholder="按操作对象 / IP 搜索" />
+      </div>
+      <div class="flex-1"></div>
+      <span class="text-xs" style="color: var(--muted-foreground);">共 4,287 条</span>
+    </div>
+
+    <!-- warn alert -->
+    <div class="warn-alert">
+      <div class="warn-icon-wrap"><i class="icon icon-shield-alert" style="font-size: 15px;"></i></div>
+      <div class="warn-content">
+        <div class="warn-title">检测到可疑行为：1 个账号在 5 分钟内登录失败 12 次</div>
+        <div class="warn-desc">用户 admin@university.edu  ·  来源 IP 124.117.4.18  ·  17:42:12 已自动锁定 15 分钟</div>
+      </div>
+      <button class="btn btn-secondary btn-sm">查看详情</button>
+    </div>
+
+    <!-- table -->
+    <section class="card" style="overflow: hidden;">
+      <div class="au-cols au-head">
+        <div>操作时间</div>
+        <div>操作人</div>
+        <div>操作类型</div>
+        <div>操作对象</div>
+        <div>客户端 IP</div>
+        <div>结果</div>
+        <div></div>
+      </div>
+
+      <!-- Row 1: 登录失败 -->
+      <div class="au-cols au-row">
+        <div class="au-time">2026-05-19 17:42:12.341</div>
+        <div class="au-user-cell">
+          <span class="user-avatar" style="width: 26px; height: 26px; font-size: 11px; background: var(--danger-soft); color: var(--danger);">管</span>
+          <div class="au-user-info">
+            <span class="au-user-name">admin</span>
+            <span class="au-user-meta">admin · admin</span>
+          </div>
+        </div>
+        <div><span class="label label-danger">登录失败</span></div>
+        <div>
+          <div class="au-target">密码错误（连续 12 次） · 触发自动锁定</div>
+        </div>
+        <div class="au-ip">124.117.4.18</div>
+        <div><span class="label label-danger">失败</span></div>
+        <div class="au-arrow"><i class="icon icon-chevron-right"></i></div>
+      </div>
+
+      <!-- Row 2: 配置变更 -->
+      <div class="au-cols au-row">
+        <div class="au-time">2026-05-19 16:42:08.027</div>
+        <div class="au-user-cell">
+          <span class="user-avatar" style="width: 26px; height: 26px; font-size: 11px;">林</span>
+          <div class="au-user-info">
+            <span class="au-user-name">林教务长</span>
+            <span class="au-user-meta">admin</span>
+          </div>
+        </div>
+        <div><span class="label label-info">配置变更</span></div>
+        <div>
+          <div class="au-target">LLM 配置变更：供应商 通义千问  ·  Chat 模型 qwen2.5-72b-instruct</div>
+          <div class="au-target-meta">差异：temperature 0.3 → 0.2</div>
+        </div>
+        <div class="au-ip">10.3.18.42</div>
+        <div><span class="label label-success">成功</span></div>
+        <div class="au-arrow"><i class="icon icon-chevron-right"></i></div>
+      </div>
+
+      <!-- Row 3: 任务发布 -->
+      <div class="au-cols au-row">
+        <div class="au-time">2026-05-19 14:32:55.612</div>
+        <div class="au-user-cell">
+          <span class="user-avatar" style="width: 26px; height: 26px; font-size: 11px;">王</span>
+          <div class="au-user-info">
+            <span class="au-user-name">王伟</span>
+            <span class="au-user-meta">teacher</span>
+          </div>
+        </div>
+        <div><span class="label label-info">任务发布</span></div>
+        <div>
+          <div class="au-target">实训任务「软件工程实践 · 第三次实训」状态：草稿 → 已发布</div>
+        </div>
+        <div class="au-ip">10.3.21.07</div>
+        <div><span class="label label-success">成功</span></div>
+        <div class="au-arrow"><i class="icon icon-chevron-right"></i></div>
+      </div>
+
+      <!-- Row 4: 评分提交 -->
+      <div class="au-cols au-row">
+        <div class="au-time">2026-05-19 13:48:21.187</div>
+        <div class="au-user-cell">
+          <span class="user-avatar" style="width: 26px; height: 26px; font-size: 11px;">王</span>
+          <div class="au-user-info">
+            <span class="au-user-name">王伟</span>
+            <span class="au-user-meta">teacher</span>
+          </div>
+        </div>
+        <div><span class="label label-muted">评分提交</span></div>
+        <div>
+          <div class="au-target">为 李文清 提交综合评分 86.8</div>
+          <div class="au-target-meta">详情：代码 86 / 功能 92 / 测试 82 / 报告 82</div>
+        </div>
+        <div class="au-ip">10.3.21.07</div>
+        <div><span class="label label-success">成功</span></div>
+        <div class="au-arrow"><i class="icon icon-chevron-right"></i></div>
+      </div>
+
+      <!-- Row 5: 批量导入 -->
+      <div class="au-cols au-row">
+        <div class="au-time">2026-05-19 11:02:18.045</div>
+        <div class="au-user-cell">
+          <span class="user-avatar" style="width: 26px; height: 26px; font-size: 11px;">林</span>
+          <div class="au-user-info">
+            <span class="au-user-name">林教务长</span>
+            <span class="au-user-meta">admin</span>
+          </div>
+        </div>
+        <div><span class="label label-info">批量导入</span></div>
+        <div>
+          <div class="au-target">批量导入用户：成功 213 条 · 失败 4 条 · 跳过 2 条</div>
+        </div>
+        <div class="au-ip">10.3.18.42</div>
+        <div><span class="label label-warning">部分成功</span></div>
+        <div class="au-arrow"><i class="icon icon-chevron-right"></i></div>
+      </div>
+
+      <!-- Row 6: 数据导出 -->
+      <div class="au-cols au-row">
+        <div class="au-time">2026-05-19 09:24:01.998</div>
+        <div class="au-user-cell">
+          <span class="user-avatar" style="width: 26px; height: 26px; font-size: 11px;">张</span>
+          <div class="au-user-info">
+            <span class="au-user-name">张教授</span>
+            <span class="au-user-meta">teacher</span>
+          </div>
+        </div>
+        <div><span class="label label-info">数据导出</span></div>
+        <div>
+          <div class="au-target">导出班级评价报表「网络 21-2 班 - 抓包分析.xlsx」</div>
+        </div>
+        <div class="au-ip">10.3.18.74</div>
+        <div><span class="label label-success">成功</span></div>
+        <div class="au-arrow"><i class="icon icon-chevron-right"></i></div>
+      </div>
+
+      <!-- Row 7: 自动备份 -->
+      <div class="au-cols au-row">
+        <div class="au-time">2026-05-19 08:30:00.123</div>
+        <div class="au-user-cell">
+          <span class="user-avatar" style="width: 26px; height: 26px; font-size: 11px; background: var(--muted); color: var(--muted-foreground);">系</span>
+          <div class="au-user-info">
+            <span class="au-user-name">system</span>
+            <span class="au-user-meta">scheduler</span>
+          </div>
+        </div>
+        <div><span class="label label-muted">自动备份</span></div>
+        <div>
+          <div class="au-target">数据库每日备份完成  ·  大小 2.4 GB  ·  耗时 3m 12s</div>
+        </div>
+        <div class="au-ip">localhost</div>
+        <div><span class="label label-success">成功</span></div>
+        <div class="au-arrow"><i class="icon icon-chevron-right"></i></div>
+      </div>
+
+      <div class="pf-row">
+        <span class="text-xs" style="color: var(--muted-foreground);">显示 1 - 7 共 4,287 条</span>
+        <div class="text-xs" style="color: var(--ink);">上一页 1 / 613 下一页</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

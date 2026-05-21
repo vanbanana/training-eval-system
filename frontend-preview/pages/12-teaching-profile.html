@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>教学画像 · 智能实训评价管理系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.469.0/font/lucide.css" />
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+    .two-col { display: grid; grid-template-columns: 1fr 440px; gap: 18px; }
+
+    /* class compare bars */
+    .cc-h {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .cc-bars { display: flex; flex-direction: column; gap: 14px; }
+    .cc-row { display: flex; align-items: center; gap: 14px; }
+    .cc-label {
+      width: 100px;
+      font-size: 12px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .cc-bar {
+      flex: 1;
+      height: 28px;
+      background: var(--muted);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      position: relative;
+    }
+    .cc-bar > div {
+      height: 100%;
+      border-radius: var(--radius-sm);
+      transition: width 0.3s;
+    }
+    .cc-bar.success > div { background: var(--success); }
+    .cc-bar.primary > div { background: var(--primary); }
+    .cc-bar.warning > div { background: var(--warning); }
+    .cc-bar.accent > div { background: var(--accent); }
+    .cc-value {
+      width: 50px;
+      font-size: 13px;
+      color: var(--ink);
+      font-weight: 700;
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+
+    /* heatmap */
+    .heat-tbl { display: flex; flex-direction: column; gap: 6px; }
+    .heat-head, .heat-row {
+      display: grid;
+      grid-template-columns: 100px repeat(5, 1fr);
+      gap: 6px;
+      align-items: center;
+    }
+    .heat-head > div {
+      font-size: 11px; color: var(--muted-foreground); font-weight: 500;
+      text-align: center;
+    }
+    .heat-row > .heat-row-label {
+      font-size: 12px; color: var(--ink); font-weight: 500;
+      text-align: left;
+    }
+    .heat-cell {
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: grid; place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      font-family: var(--font-mono);
+    }
+    /* heat colors by score */
+    .heat-90 { background: #15803d; }
+    .heat-80 { background: #4d9866; }
+    .heat-75 { background: #9bb988; }
+    .heat-70 { background: #d4c98a; color: var(--ink); }
+    .heat-60 { background: #e9b888; color: var(--ink); }
+    .heat-50 { background: #d97852; }
+    .heat-40 { background: var(--accent); }
+
+    .heat-legend {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: var(--muted-foreground);
+    }
+    .heat-legend-bar {
+      flex: 1;
+      max-width: 120px;
+      height: 8px;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(to right, var(--accent), #d97852, #d4c98a, #9bb988, var(--success));
+    }
+
+    /* common weakness card */
+    .cm-h {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--accent-soft);
+    }
+    .cm-list { display: flex; flex-direction: column; }
+    .cm-row {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .cm-row:last-child { border-bottom: 0; }
+    .cm-row-h {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 6px;
+    }
+    .cm-row-name {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: var(--ink);
+    }
+    .cm-row-rate {
+      font-size: 12px; font-weight: 600; color: var(--accent);
+      font-family: var(--font-mono);
+    }
+    .cm-row-bar {
+      height: 4px;
+      background: var(--muted);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .cm-row-bar > div {
+      height: 100%;
+      background: var(--accent);
+      border-radius: var(--radius-pill);
+    }
+    .cm-row-meta {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      line-height: 1.6;
+    }
+
+    /* dist chart */
+    .dist-chart {
+      height: 140px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 8px;
+    }
+    .dist-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .dist-bar {
+      width: 100%;
+      max-width: 38px;
+      border-radius: 4px 4px 0 0;
+      position: relative;
+    }
+    .dist-bar.low { background: var(--accent); }
+    .dist-bar.mid { background: var(--warning); }
+    .dist-bar.high { background: var(--primary); }
+    .dist-bar.peak { background: var(--success); }
+    .dist-value {
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; font-weight: 600;
+      color: var(--ink);
+    }
+    .dist-label {
+      font-size: 10px;
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-row topnav-top">
+      <div class="brand-row">
+        <div class="brand-mark">训</div>
+        <span class="brand-text">实训评价管理系统</span>
+        <span class="brand-divider"></span>
+        <button class="org-pill"><i class="icon icon-building-2"></i><span>软件学院</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+      <div class="tn-actions">
+        <div class="global-search"><i class="icon icon-search"></i><span class="placeholder">全局搜索</span><kbd class="kbd">⌘K</kbd></div>
+        <button class="icon-btn"><i class="icon icon-life-buoy"></i></button>
+        <button class="icon-btn relative"><i class="icon icon-bell"></i><span class="ndot"></span></button>
+        <button class="user-pill"><span class="avatar">王</span><span class="user-name">王伟  老师</span><i class="icon icon-chevron-down"></i></button>
+      </div>
+    </div>
+    <nav class="topnav-row topnav-nav">
+      <a href="#" class="nav-link">工作台</a>
+      <a href="#" class="nav-link">实训任务</a>
+      <a href="#" class="nav-link">批改工作台</a>
+      <a href="#" class="nav-link">班级管理</a>
+      <a href="#" class="nav-link">评价模板</a>
+      <a href="#" class="nav-link active">教学画像</a>
+      <a href="#" class="nav-link">通知中心</a>
+    </nav>
+  </header>
+
+  <main class="page-body">
+    <div class="breadcrumb">
+      <a href="#">工作台</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <a href="#">教学画像</a>
+      <span class="sep"><i class="icon icon-chevron-right"></i></span>
+      <span class="current">软件工程</span>
+    </div>
+
+    <div class="page-hd">
+      <div class="page-hd-l">
+        <div class="flex items-center gap-3">
+          <h1 style="margin:0;">软件工程  ·  课程教学画像</h1>
+          <span class="label label-info">近 6 个月</span>
+        </div>
+        <p style="margin-top:6px;">基于 4 个班级 · 218 名学生 · 16 次实训 · 4172 份提交</p>
+      </div>
+      <div class="page-hd-r">
+        <select class="tes-select"><option>近 6 个月</option><option>近 3 个月</option><option>近 1 年</option></select>
+        <button class="btn btn-secondary">导出 PDF</button>
+        <button class="btn btn-primary">分享报告</button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">实训完成率</span>
+          <i class="icon icon-check-check stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">94.2%</div>
+        <div class="stat-card-trend up"><i class="icon icon-trending-up"></i><span>较上学期 +3.4%</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">课程平均分</span>
+          <i class="icon icon-award stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">81.4</div>
+        <div class="stat-card-trend neutral"><i class="icon icon-bar-chart-3"></i><span>中位数 82.0 · σ 8.7</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">按时提交率</span>
+          <i class="icon icon-clock-3 stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">96.8%</div>
+        <div class="stat-card-trend neutral"><i class="icon icon-clock-3"></i><span>延迟提交 7%</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-head">
+          <span class="stat-card-label">共性薄弱点</span>
+          <i class="icon icon-target stat-card-icon" style="color: var(--accent);"></i>
+        </div>
+        <div class="stat-card-value">3</div>
+        <div class="stat-card-trend" style="color: var(--accent);">
+          <i class="icon icon-circle-alert"></i><span>建议加强教学</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- LEFT -->
+      <div class="flex-col gap-5">
+        <!-- 班级对比 -->
+        <section class="card card-padded">
+          <div class="cc-h" style="margin-bottom: 18px;">
+            <div>
+              <div class="card-title">班级表现对比</div>
+              <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">基于近 6 个月评价数据</div>
+            </div>
+            <select class="tes-select"><option>按平均分</option><option>按完成率</option></select>
+          </div>
+          <div class="cc-bars">
+            <div class="cc-row">
+              <span class="cc-label">软工 21-3 班</span>
+              <div class="cc-bar success"><div style="width: 86%;"></div></div>
+              <span class="cc-value">86.4</span>
+            </div>
+            <div class="cc-row">
+              <span class="cc-label">软工 22-1 班</span>
+              <div class="cc-bar primary"><div style="width: 82%;"></div></div>
+              <span class="cc-value">82.1</span>
+            </div>
+            <div class="cc-row">
+              <span class="cc-label">软工 21-1 班</span>
+              <div class="cc-bar warning"><div style="width: 80%;"></div></div>
+              <span class="cc-value">79.8</span>
+            </div>
+            <div class="cc-row">
+              <span class="cc-label">软工 22-1 班</span>
+              <div class="cc-bar accent"><div style="width: 76%;"></div></div>
+              <span class="cc-value">76.4</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 知识点掌握热力图 -->
+        <section class="card card-padded">
+          <div class="cc-h" style="margin-bottom: 18px;">
+            <div>
+              <div class="card-title">知识点掌握热力图</div>
+              <div class="text-xs" style="color: var(--muted-foreground); margin-top: 4px;">维度 × 班级 平均得分（0-100）</div>
+            </div>
+            <div class="heat-legend">
+              <span>低</span>
+              <div class="heat-legend-bar"></div>
+              <span>高</span>
+            </div>
+          </div>
+
+          <div class="heat-tbl">
+            <div class="heat-head">
+              <div></div>
+              <div>代码规范性</div>
+              <div>功能完整性</div>
+              <div>测试与质量</div>
+              <div>实验报告</div>
+              <div>创新性</div>
+            </div>
+            <div class="heat-row">
+              <span class="heat-row-label">软工 21-3 班</span>
+              <div class="heat-cell heat-80">86</div>
+              <div class="heat-cell heat-90">92</div>
+              <div class="heat-cell heat-75">82</div>
+              <div class="heat-cell heat-80">85</div>
+              <div class="heat-cell heat-70">68</div>
+            </div>
+            <div class="heat-row">
+              <span class="heat-row-label">软工 22-1 班</span>
+              <div class="heat-cell heat-75">81</div>
+              <div class="heat-cell heat-80">85</div>
+              <div class="heat-cell heat-70">68</div>
+              <div class="heat-cell heat-75">79</div>
+              <div class="heat-cell heat-60">62</div>
+            </div>
+            <div class="heat-row">
+              <span class="heat-row-label">软工 21-1 班</span>
+              <div class="heat-cell heat-75">80</div>
+              <div class="heat-cell heat-75">82</div>
+              <div class="heat-cell heat-60">64</div>
+              <div class="heat-cell heat-70">72</div>
+              <div class="heat-cell heat-50">58</div>
+            </div>
+            <div class="heat-row">
+              <span class="heat-row-label">软工 22-2 班</span>
+              <div class="heat-cell heat-70">75</div>
+              <div class="heat-cell heat-75">79</div>
+              <div class="heat-cell heat-50">58</div>
+              <div class="heat-cell heat-60">66</div>
+              <div class="heat-cell heat-50">55</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="flex-col gap-5">
+        <!-- 共性薄弱点 -->
+        <section class="card" style="overflow: hidden;">
+          <header class="cm-h">
+            <div class="flex items-center gap-2">
+              <i class="icon icon-target" style="color: var(--accent);"></i>
+              <span class="text-md font-semibold" style="color: var(--accent-strong);">共性薄弱点</span>
+            </div>
+            <span class="text-xs" style="color: var(--accent-strong); font-weight: 500;">3 项 · 建议加强教学</span>
+          </header>
+          <div class="cm-list">
+            <div class="cm-row">
+              <div class="cm-row-h">
+                <div class="cm-row-name">
+                  <i class="icon icon-circle-alert" style="color: var(--accent); font-size: 14px;"></i>
+                  <span>测试用例覆盖度不足</span>
+                </div>
+                <span class="cm-row-rate">58% 学生 &lt; 60</span>
+              </div>
+              <div class="cm-row-bar"><div style="width: 58%;"></div></div>
+              <div class="cm-row-meta">建议：在《软件工程》课堂加入"基于 AHP 的测试用例设计"专题</div>
+            </div>
+            <div class="cm-row">
+              <div class="cm-row-h">
+                <div class="cm-row-name">
+                  <i class="icon icon-circle-alert" style="color: var(--accent); font-size: 14px;"></i>
+                  <span>性能优化思考</span>
+                </div>
+                <span class="cm-row-rate">42% 学生 &lt; 60</span>
+              </div>
+              <div class="cm-row-bar"><div style="width: 42%;"></div></div>
+              <div class="cm-row-meta">建议：增加"复杂度与基准测试"专题</div>
+            </div>
+            <div class="cm-row">
+              <div class="cm-row-h">
+                <div class="cm-row-name">
+                  <i class="icon icon-circle-alert" style="color: var(--accent); font-size: 14px;"></i>
+                  <span>并发原语理解</span>
+                </div>
+                <span class="cm-row-rate">37% 学生 &lt; 60</span>
+              </div>
+              <div class="cm-row-bar"><div style="width: 37%;"></div></div>
+              <div class="cm-row-meta">建议：复习 wait/notify 与 Lock + Condition 实例对比</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 分数分布 -->
+        <section class="card card-padded">
+          <div class="card-title-sm" style="font-weight: 600; color: var(--ink); margin-bottom: 14px;">分数分布</div>
+          <div class="dist-chart">
+            <div class="dist-col"><div class="dist-bar low" style="height: 25px;"><span class="dist-value">8</span></div><span class="dist-label">&lt;60</span></div>
+            <div class="dist-col"><div class="dist-bar mid" style="height: 50px;"><span class="dist-value">22</span></div><span class="dist-label">60-69</span></div>
+            <div class="dist-col"><div class="dist-bar high" style="height: 90px;"><span class="dist-value">42</span></div><span class="dist-label">70-79</span></div>
+            <div class="dist-col"><div class="dist-bar peak" style="height: 130px;"><span class="dist-value">68</span></div><span class="dist-label">80-89</span></div>
+            <div class="dist-col"><div class="dist-bar high" style="height: 90px;"><span class="dist-value">38</span></div><span class="dist-label">90-100</span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
