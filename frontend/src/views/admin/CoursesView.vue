@@ -4,6 +4,7 @@ import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
 import BreadcrumbNav from '@/components/business/BreadcrumbNav.vue'
 import EmptyState from '@/components/business/EmptyState.vue'
+import IllustNoCourses from '@/components/illustrations/IllustNoCourses.vue'
 import { useToast } from '@/components/ui/toast'
 import { confirm } from '@/composables/useConfirm'
 import { Button } from '@/components/ui/button'
@@ -314,6 +315,7 @@ function exportCourses() {
     <!-- Empty -->
     <EmptyState
       v-else-if="filteredCourses.length === 0"
+      :illustration="IllustNoCourses"
       title="暂无课程"
       description="点击下方「新建课程」开始创建"
       action-label="新建课程"

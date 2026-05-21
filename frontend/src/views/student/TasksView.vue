@@ -5,6 +5,7 @@ import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
 import BreadcrumbNav from '@/components/business/BreadcrumbNav.vue'
 import EmptyState from '@/components/business/EmptyState.vue'
+import IllustNoTasks from '@/components/illustrations/IllustNoTasks.vue'
 import { useToast } from '@/components/ui/toast'
 import { safeGet } from '@/lib/api-helpers'
 import { Button } from '@/components/ui/button'
@@ -240,6 +241,7 @@ function formatDeadline(iso: string | null) {
 
     <EmptyState
       v-else-if="filtered.length === 0"
+      :illustration="IllustNoTasks"
       :icon="FileText"
       title="暂无符合条件的任务"
       :description="filterStatus === 'all' ? '老师还未发布任务，敬请期待' : '试试切换其他状态筛选'"

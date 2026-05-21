@@ -8,8 +8,8 @@
 
 ## Tasks
 
-- [ ] 1. Design Token 扩展与基础样式层
-  - [ ] 1.1. 在 globals.css 中扩展 shadow/glass/gradient/transition 变量
+- [x] 1. Design Token 扩展与基础样式层
+  - [x] 1.1. 在 globals.css 中扩展 shadow/glass/gradient/transition 变量
     - 在 `:root` 中添加 `--shadow-sm`、`--shadow-md`、`--shadow-lg` 多层柔和阴影变量
     - 添加 `--glass-blur`、`--glass-bg`、`--glass-border` 毛玻璃变量
     - 添加 `--gradient-primary`、`--gradient-accent`、`--gradient-success`、`--gradient-warning`、`--gradient-page-bg` 渐变变量
@@ -36,15 +36,15 @@
     - Tag: `Feature: ui-polish-refinement, Property 4: Decorative element opacity constraint`
     - **Validates: Requirements 3.4**
 
-- [ ] 2. 卡片与按钮组件样式升级
-  - [ ] 2.1. 升级 Card 组件样式：添加柔和阴影与 hover 过渡
+- [x] 2. 卡片与按钮组件样式升级
+  - [x] 2.1. 升级 Card 组件样式：添加柔和阴影与 hover 过渡
     - 为 Card 组件默认应用 `box-shadow: var(--shadow-sm)` 替代纯 border
     - 添加 hover 状态过渡到 `var(--shadow-md)`，duration 200ms ease-out
     - 确保 border-radius 使用 radius-lg（≥10px）
     - 保持 1px solid border 作为底层，阴影为叠加层
     - _Requirements: 2.1, 2.2, 2.4, 2.5_
 
-  - [ ] 2.2. 升级 Button primary 样式：添加立体感与交互反馈
+  - [x] 2.2. 升级 Button primary 样式：添加立体感与交互反馈
     - 为 primary 按钮添加 `inset 0 1px 0 rgba(255,255,255,0.12)` 顶部高光
     - hover 状态：`filter: brightness(1.05)` + shadow 扩大，150ms ease-out
     - active 状态：`transform: scale(0.97)`，100ms 过渡
@@ -66,8 +66,8 @@
 - [ ] 3. Checkpoint - 基础样式验证
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. 新业务组件开发
-  - [ ] 4.1. 创建 StatCard 组件：带渐变色条 + staggered 入场动效
+- [x] 4. 新业务组件开发
+  - [x] 4.1. 创建 StatCard 组件：带渐变色条 + staggered 入场动效
     - 实现 `StatCardProps` 接口（label, value, icon, trend, accentColor, animateValue, delay）
     - 左侧 4px 渐变色条通过 `::before` 伪元素 + `var(--gradient-{accentColor})` 实现
     - 入场动效使用 CSS `@starting-style` + `transition-delay` 实现 stagger（间隔 80-120ms）
@@ -81,7 +81,7 @@
     - 不引入第三方动画库
     - _Requirements: 6.3, 9.1, 9.2_
 
-  - [ ] 4.3. 升级 EmptyState 组件：支持 illustration prop
+  - [x] 4.3. 升级 EmptyState 组件：支持 illustration prop
     - 扩展 `EmptyStateProps` 接口，添加 `illustration?: Component` prop
     - 有 illustration 时渲染 SVG 插画组件，无 illustration 时回退到 icon
     - 保持标题、描述文案、操作按钮的布局结构
@@ -93,8 +93,8 @@
     - 测试 EmptyState 接受 illustration prop 并正确渲染
     - _Requirements: 2.3, 4.1, 6.3_
 
-- [ ] 5. SVG 插画系统
-  - [ ] 5.1. 创建 5 个核心空状态 SVG 插画 Vue 组件
+- [x] 5. SVG 插画系统
+  - [x] 5.1. 创建 5 个核心空状态 SVG 插画 Vue 组件
     - 创建 `components/illustrations/` 目录
     - 实现 IllustNoTasks.vue、IllustNoNotifications.vue、IllustNoEvaluations.vue、IllustNoCourses.vue、IllustNoResults.vue
     - 所有颜色使用 `currentColor` 或 `var(--...)` CSS 变量引用
@@ -117,15 +117,15 @@
 - [ ] 6. Checkpoint - 组件与插画验证
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. 布局与导航升级
-  - [ ] 7.1. 升级 TopNav 组件：应用 glassmorphism 效果
+- [x] 7. 布局与导航升级
+  - [x] 7.1. 升级 TopNav 组件：应用 glassmorphism 效果
     - 设置 `background: var(--glass-bg)` + `backdrop-filter: blur(var(--glass-blur))`
     - 添加 `border-bottom: 1px solid var(--glass-border)` + `box-shadow: var(--shadow-sm)`
     - 实现 `@supports not (backdrop-filter: blur(1px))` 降级为纯色背景
     - 活跃导航项使用渐变下划线 `border-image: var(--gradient-primary) 1`
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [ ] 7.2. 升级 AppShell 组件：添加背景层次深度
+  - [x] 7.2. 升级 AppShell 组件：添加背景层次深度
     - 主内容区域添加 `background-image: var(--gradient-page-bg)` 微妙径向渐变
     - 添加 `::before` 装饰性渐变球（opacity ≤ 0.05，pointer-events: none）
     - 确保暗色模式下渐变色调自动适配（通过 CSS 变量）
@@ -143,8 +143,8 @@
     - 测试活跃导航项渐变下划线
     - _Requirements: 5.1, 5.4_
 
-- [ ] 8. 登录页视觉升级
-  - [ ] 8.1. 升级 LoginView：glassmorphism 表单 + 渐变背景
+- [x] 8. 登录页视觉升级
+  - [x] 8.1. 升级 LoginView：glassmorphism 表单 + 渐变背景
     - 全屏渐变背景（primary 色系径向渐变）
     - 登录表单卡片应用 glassmorphism 效果（glass-bg + backdrop-filter）
     - 背景区域添加品牌 SVG 装饰元素

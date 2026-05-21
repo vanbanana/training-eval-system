@@ -5,6 +5,7 @@ import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
 import BreadcrumbNav from '@/components/business/BreadcrumbNav.vue'
 import EmptyState from '@/components/business/EmptyState.vue'
+import IllustNoNotifications from '@/components/illustrations/IllustNoNotifications.vue'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -240,6 +241,7 @@ onMounted(async () => {
 
       <EmptyState
         v-else-if="filtered.length === 0"
+        :illustration="IllustNoNotifications"
         :icon="Bell"
         title="暂无通知"
         :description="notifications.length === 0 ? '一切都在掌控之中' : '尝试调整筛选条件'"
