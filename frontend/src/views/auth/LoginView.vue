@@ -66,8 +66,8 @@ async function onSubmit() {
     </aside>
 
     <!-- RIGHT form -->
-    <main class="flex items-center bg-card px-16 max-lg:px-8">
-      <form class="mx-auto flex w-full max-w-[416px] flex-col gap-6" @submit.prevent="onSubmit">
+    <main class="login-right relative flex items-center px-16 max-lg:px-8 overflow-hidden">
+      <form class="login-form relative z-10 mx-auto flex w-full max-w-[416px] flex-col gap-6 rounded-xl border border-border bg-card/80 p-8 [backdrop-filter:blur(8px)] [-webkit-backdrop-filter:blur(8px)] [box-shadow:var(--shadow-lg)]" @submit.prevent="onSubmit">
         <div>
           <h1 class="m-0 text-2xl font-bold text-ink">账号登录</h1>
           <p class="mt-2 text-[13px] text-muted-foreground">请使用学校统一账号登录系统</p>
@@ -140,3 +140,27 @@ async function onSubmit() {
     </main>
   </div>
 </template>
+
+<style scoped>
+.login-right {
+  background:
+    radial-gradient(ellipse at 30% 20%, hsl(var(--primary) / 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, hsl(var(--accent) / 0.03) 0%, transparent 40%),
+    hsl(var(--background));
+}
+
+.dark .login-right {
+  background:
+    radial-gradient(ellipse at 30% 20%, hsl(var(--primary) / 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, hsl(var(--accent) / 0.04) 0%, transparent 40%),
+    hsl(var(--background));
+}
+
+/* Glassmorphism 降级 */
+@supports not (backdrop-filter: blur(1px)) {
+  .login-form {
+    background: hsl(var(--card)) !important;
+    backdrop-filter: none !important;
+  }
+}
+</style>

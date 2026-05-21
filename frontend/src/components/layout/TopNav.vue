@@ -118,7 +118,7 @@ const roleLabel = computed(() => {
 </script>
 
 <template>
-  <header class="bg-card border-b border-border sticky top-0 z-40">
+  <header class="top-nav sticky top-0 z-40 border-b [border-color:var(--glass-border)] [background:var(--glass-bg)] [backdrop-filter:blur(var(--glass-blur))] [-webkit-backdrop-filter:blur(var(--glass-blur))] [box-shadow:var(--shadow-sm)]">
     <!-- 上行：品牌 + 搜索 + 用户 -->
     <div class="flex items-center justify-between h-14 px-8">
       <div class="flex items-center gap-3.5">
@@ -290,7 +290,7 @@ const roleLabel = computed(() => {
         :key="item.to + item.label"
         :to="item.to"
         class="h-11 flex items-center px-4 text-[13px] font-medium text-muted-foreground border-b-2 border-transparent -mb-px transition-colors duration-150 hover:text-ink"
-        active-class="!text-primary !font-semibold !border-primary"
+        active-class="!text-primary !font-semibold nav-item-active"
       >
         {{ item.label }}
       </RouterLink>
@@ -300,3 +300,19 @@ const roleLabel = computed(() => {
     <GlobalSearch v-model:open="searchOpen" />
   </header>
 </template>
+
+<style scoped>
+/* Glassmorphism 降级 */
+@supports not (backdrop-filter: blur(1px)) {
+  .top-nav {
+    background: hsl(var(--card)) !important;
+  }
+}
+
+/* 活跃导航项渐变下划线 */
+.nav-item-active {
+  background: hsl(var(--primary) / 0.06);
+  border-bottom: 2px solid transparent;
+  border-image: var(--gradient-primary) 1;
+}
+</style>
