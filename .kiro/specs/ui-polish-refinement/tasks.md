@@ -157,7 +157,8 @@
     - 测试暗色模式适配
     - _Requirements: 8.2, 8.3, 8.4_
 
-- [ ] 9. 页面集成与接线
+- [x] 9. 页面集成与接线
+  - [x] 9.2. 在各页面空状态中集成 SVG 插画
   - [ ] 9.1. 在 DashboardView 中集成 StatCard + AnimatedNumber
     - 替换现有统计卡片为 StatCard 组件
     - 为数字指标接入 AnimatedNumber 组件
@@ -174,8 +175,8 @@
     - 测试空状态页面渲染对应 SVG 插画
     - _Requirements: 4.1, 6.1_
 
-- [ ] 10. 性能验证与最终检查
-  - [ ] 10.1. 性能预算验证
+- [x] 10. 性能验证与最终检查
+  - [x] 10.1. 性能预算验证
     - 运行 `npm run build` 后检查 CSS 产物 gzip 大小增量 < 5KB
     - 验证 package.json 未新增运行时动画依赖
     - 验证 SVG 插画以 Vue 组件形式存在（支持 tree-shaking）
