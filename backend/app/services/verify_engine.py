@@ -1,7 +1,11 @@
-"""Verify Engine - 智能核查引擎（Epic 15）.
+"""Verify Engine - 智能核查引擎.
 
 输入：ParseResult.raw_text + 任务要求 (TrainingTask.requirements)
-输出：VerifyResult（match_rate, missing_items, logic_issues, overall_confidence）
+输出：VerifyResult（match_rate, checkpoints, missing_items, logic_issues, overall_confidence）
+
+两阶段核查：
+1. 关键词/bigram 匹配（快速，无需 LLM）
+2. LLM 深度核查（覆盖度 + 逻辑漏洞检测）
 """
 
 from __future__ import annotations
@@ -101,6 +105,13 @@ def keyword_match_rate(text: str, checkpoints: list[str]) -> tuple[float, list[s
 
 
 class VerifyEngine:
+    """智能核查引擎.
+
+    两阶段：
+    1. 快速关键词匹配（无 LLM 依赖）
+    2. LLM 深度核查（有 LLM 时执行覆盖度检查 + 逻辑漏洞检测）
+    """
+
     def __init__(self, llm: "LLMProvider | None" = None) -> None:
         self.llm = llm
 
@@ -129,22 +140,57 @@ class VerifyEngine:
 
         text = parse_result.raw_text or ""
 
+        # ===== 阶段 1: 快速关键词匹配 =====
         checkpoints = extract_checkpoints(task.requirements)
         match_rate, missing = keyword_match_rate(text, checkpoints)
 
-        # 简化：logic_issues 留给 LLM Skill 在生产中检测
+        # ===== 阶段 2: LLM 深度核查（可选）=====
         logic_issues: list[dict[str, object]] = []
+        llm_checkpoints: list[dict[str, object]] | None = None
 
-        # 综合置信度：基于 match_rate 与文本长度的简单启发
+        if self.llm is not None and text:
+            llm_checkpoints, logic_issues = await self._llm_verify(
+                task_requirements=task.requirements,
+                parse_text=text,
+                structured_content=parse_result.structured_content,
+            )
+            # 如果 LLM 返回了覆盖度检查结果，用 LLM 结果替代关键词匹配
+            if llm_checkpoints:
+                matched_count = sum(
+                    1 for cp in llm_checkpoints if cp.get("matched")
+                )
+                total = len(llm_checkpoints)
+                if total > 0:
+                    match_rate = matched_count / total * 100
+                    missing = [
+                        cp.get("requirement", "")
+                        for cp in llm_checkpoints
+                        if not cp.get("matched")
+                    ]
+
+        # 综合置信度
         text_score = min(100, len(text) // 10) if text else 0
         overall_confidence = int((match_rate * 0.7 + text_score * 0.3))
+
+        # 构建 checkpoints 输出
+        final_checkpoints: list[dict[str, object]]
+        if llm_checkpoints:
+            final_checkpoints = llm_checkpoints
+        else:
+            final_checkpoints = [
+                {"requirement": cp, "matched": cp not in missing, "confidence": 70}
+                for cp in checkpoints
+            ]
+
+        # 删除旧的 VerifyResult（重新核查场景）
+        if upload.verify_result is not None:
+            await db.delete(upload.verify_result)
+            await db.flush()
 
         verify_result = VerifyResult(
             upload_id=upload_id,
             match_rate=round(match_rate, 2),
-            checkpoints=[
-                {"text": cp, "matched": cp not in missing} for cp in checkpoints
-            ],
+            checkpoints=final_checkpoints,
             missing_items=missing,
             logic_issues=logic_issues,
             overall_confidence=overall_confidence,
@@ -157,5 +203,72 @@ class VerifyEngine:
             upload_id=upload_id,
             match_rate=match_rate,
             missing_count=len(missing),
+            logic_issues_count=len(logic_issues),
+            used_llm=self.llm is not None,
         )
         return verify_result
+
+    async def _llm_verify(
+        self,
+        *,
+        task_requirements: str,
+        parse_text: str,
+        structured_content: dict | None,
+    ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+        """调用 LLM Skills 进行深度核查.
+
+        返回 (checkpoints, logic_issues)。
+        任一 Skill 失败不阻塞，降级为空结果。
+        """
+        checkpoints: list[dict[str, object]] = []
+        logic_issues: list[dict[str, object]] = []
+
+        if self.llm is None:
+            return checkpoints, logic_issues
+
+        # 提取摘要和要点
+        summary = ""
+        key_points: list[str] = []
+        if structured_content:
+            summary = structured_content.get("llm_summary", "") or ""
+            key_points = structured_content.get("llm_key_topics", []) or []
+        if not summary:
+            summary = parse_text[:2000]
+
+        # 覆盖度检查
+        try:
+            from app.llm.skills.verify.coverage_check import (
+                CoverageCheckSkill,
+                CoverageInput,
+            )
+
+            skill = CoverageCheckSkill()
+            input_data = CoverageInput(
+                task_requirements=task_requirements[:3000],
+                parse_summary=summary[:2000],
+                parse_key_points=key_points[:20],
+            )
+            output = await skill.execute(input_data, self.llm)
+            checkpoints = [cp.model_dump() for cp in output.checkpoints]
+        except Exception as e:  # noqa: BLE001
+            log.warning("verify.llm_coverage_failed", error=str(e))
+
+        # 逻辑漏洞检测
+        try:
+            from app.llm.skills.verify.logic_audit import (
+                LogicAuditInput,
+                LogicAuditSkill,
+            )
+
+            skill2 = LogicAuditSkill()
+            input_data2 = LogicAuditInput(
+                task_requirements=task_requirements[:3000],
+                parse_summary=summary[:2000],
+                parse_key_points=key_points[:20],
+            )
+            output2 = await skill2.execute(input_data2, self.llm)
+            logic_issues = [issue.model_dump() for issue in output2.issues]
+        except Exception as e:  # noqa: BLE001
+            log.warning("verify.llm_logic_audit_failed", error=str(e))
+
+        return checkpoints, logic_issues

@@ -142,15 +142,32 @@ const dimSubjScore = ref(0)
 const dimComment = ref('')
 const dimSubmitting = ref(false)
 
+// 任务级聚合统计
+interface TaskSummary {
+  task_id: number
+  total_uploads: number
+  parsed_count: number
+  scored_count: number
+  confirmed_count: number
+  rejected_count: number
+  similarity_warnings: number
+  progress_percent: number
+}
+const taskSummary = ref<TaskSummary | null>(null)
+
 async function fetchAll() {
   loading.value = true
   try {
-    const taskRes = await axios.get(`/api/tasks/${taskId.value}`)
-    const subsRes = await axios.get(
-      `/api/grading/tasks/${taskId.value}/submissions`,
-    )
+    const [taskRes, subsRes, summaryRes] = await Promise.all([
+      axios.get(`/api/tasks/${taskId.value}`),
+      axios.get(`/api/grading/tasks/${taskId.value}/submissions`),
+      safeGet<TaskSummary>(`/api/grading/tasks/${taskId.value}/summary`, null as unknown as TaskSummary),
+    ])
     task.value = taskRes.data
     submissions.value = subsRes.data
+    if (!summaryRes.error) {
+      taskSummary.value = summaryRes.data
+    }
 
     // 相似度记录可降级（404=任务无相似度记录是常态）
     const simResult = await safeGet<SimilarityRecord[]>(

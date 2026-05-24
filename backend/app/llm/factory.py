@@ -57,21 +57,17 @@ class LLMFactory:
 
     @staticmethod
     def _build_provider(cfg: object) -> "LLMProvider":
-        # 需要时引入实际 OpenAICompatProvider；
-        # dev 占位：返回 FakeLLM，避免在无 LLM 配置时崩溃
-        try:
-            from app.llm.openai_compat import OpenAICompatProvider
+        """根据 DB 配置构建 OpenAI 兼容 Provider."""
+        from app.llm.openai_compat import OpenAICompatProvider
 
-            api_key = LLMConfigRepository.decrypt_api_key(cfg)  # type: ignore[arg-type]
-            return OpenAICompatProvider(
-                base_url=cfg.base_url,  # type: ignore[attr-defined]
-                api_key=api_key,
-                model=cfg.chat_model,  # type: ignore[attr-defined]
-            )
-        except ImportError:
-            from tests.fakes.fake_llm import FakeLLM
-
-            return FakeLLM()
+        api_key = LLMConfigRepository.decrypt_api_key(cfg)  # type: ignore[arg-type]
+        return OpenAICompatProvider(
+            base_url=cfg.base_url,  # type: ignore[attr-defined]
+            api_key=api_key,
+            model=cfg.chat_model,  # type: ignore[attr-defined]
+            embed_model=getattr(cfg, "embed_model", "") or "",
+            timeout=60.0,
+        )
 
 
 # 模块级单例

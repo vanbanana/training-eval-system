@@ -16,6 +16,100 @@ from app.models.user import User
 router = APIRouter(prefix="/api/grading", tags=["grading"])
 
 
+@router.get("/tasks/{task_id}/summary")
+async def task_grading_summary(
+    task_id: int, db: DbSession, current: CurrentUser
+) -> dict[str, object]:
+    """任务级批改进度聚合统计（批改工作台顶部进度条）."""
+    if current.role not in ("teacher", "admin"):
+        raise AuthorizationError("仅教师可访问")
+    task = await db.get(TrainingTask, task_id)
+    if not task:
+        raise ResourceNotFoundError("task not found")
+    if current.role == "teacher" and task.teacher_id != current.id:
+        raise AuthorizationError("无权查看他人任务")
+
+    from sqlalchemy import func
+
+    # 总提交数
+    total_uploads = (
+        await db.execute(
+            select(func.count(Upload.id)).where(
+                Upload.task_id == task_id, Upload.is_deleted == 0
+            )
+        )
+    ).scalar_one()
+
+    # 已解析数
+    parsed_count = (
+        await db.execute(
+            select(func.count(Upload.id)).where(
+                Upload.task_id == task_id,
+                Upload.is_deleted == 0,
+                Upload.parse_status == "parsed",
+            )
+        )
+    ).scalar_one()
+
+    # 已评价数（有 evaluation 记录）
+    scored_count = (
+        await db.execute(
+            select(func.count(Evaluation.id)).where(
+                Evaluation.task_id == task_id,
+            )
+        )
+    ).scalar_one()
+
+    # 已确认数
+    confirmed_count = (
+        await db.execute(
+            select(func.count(Evaluation.id)).where(
+                Evaluation.task_id == task_id,
+                Evaluation.status.in_(["confirmed", "finalized"]),
+            )
+        )
+    ).scalar_one()
+
+    # 被打回数
+    rejected_count = (
+        await db.execute(
+            select(func.count(Evaluation.id)).where(
+                Evaluation.task_id == task_id,
+                Evaluation.status == "rejected",
+            )
+        )
+    ).scalar_one()
+
+    # 相似度警告数
+    similarity_warnings = 0
+    try:
+        from app.models.similarity import SimilarityRecord
+
+        similarity_warnings = (
+            await db.execute(
+                select(func.count(SimilarityRecord.id)).where(
+                    SimilarityRecord.task_id == task_id,
+                    SimilarityRecord.state == "suspect",
+                )
+            )
+        ).scalar_one()
+    except Exception:  # noqa: BLE001
+        pass
+
+    return {
+        "task_id": task_id,
+        "total_uploads": total_uploads,
+        "parsed_count": parsed_count,
+        "scored_count": scored_count,
+        "confirmed_count": confirmed_count,
+        "rejected_count": rejected_count,
+        "similarity_warnings": similarity_warnings,
+        "progress_percent": round(
+            confirmed_count / total_uploads * 100 if total_uploads > 0 else 0, 1
+        ),
+    }
+
+
 @router.get("/tasks/{task_id}/submissions")
 async def list_submissions(task_id: int, db: DbSession, current: CurrentUser) -> list[dict[str, object]]:
     """教师查看某任务下所有学生提交 + 评价状态."""

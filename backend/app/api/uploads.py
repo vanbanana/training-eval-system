@@ -40,6 +40,18 @@ async def upload_file(
             content=content,
         ),
     )
+    # 上传成功后自动触发解析（异步 Celery 任务）
+    try:
+        from app.tasks.parse_tasks import parse_upload_task
+
+        parse_upload_task.delay(upload.id)
+    except Exception as e:  # noqa: BLE001
+        # Celery 不可用不阻塞上传
+        from app.core.logging import get_logger
+
+        get_logger(__name__).warning(
+            "upload.auto_parse_enqueue_failed", upload_id=upload.id, error=str(e)
+        )
     return UploadOut.model_validate(upload, from_attributes=True)
 
 

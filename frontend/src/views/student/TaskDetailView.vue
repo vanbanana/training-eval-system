@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -81,6 +81,22 @@ const evaluation = ref<Evaluation | null>(null)
 const verifyResults = ref<Record<number, VerifyResult | null>>({})
 const loading = ref(true)
 const triggering = ref<number | null>(null)
+
+// WebSocket 实时进度
+const uploadIds = computed(() => uploads.value.map((u) => u.id))
+const { getProgress, hasActiveProgress, messages: wsMessages } = useParseProgress(uploadIds)
+
+// 当 WebSocket 报告解析完成时自动刷新数据
+watch(
+  () => wsMessages.value.length,
+  () => {
+    const last = wsMessages.value[wsMessages.value.length - 1]
+    if (last && (last.status === 'parsed' || last.status === 'failed')) {
+      // 延迟 500ms 刷新，让后端有时间写入 DB
+      setTimeout(() => fetchAll(), 500)
+    }
+  },
+)
 
 const now = ref(Date.now())
 let timerId: number | null = null
@@ -192,6 +208,20 @@ function parseStatusBadge(status: string) {
     parsing: { label: '解析中', variant: 'info' as const },
     failed: { label: '解析失败', variant: 'destructive' as const },
   } as const)[status] ?? { label: '待解析', variant: 'secondary' as const }
+}
+
+/** 获取上传的实时状态（优先 WebSocket 推送，降级为 DB 状态） */
+function getUploadStatus(upload: Upload): string {
+  const wsProgress = getProgress(upload.id)
+  if (wsProgress) return wsProgress.status
+  return upload.parse_status
+}
+
+/** 获取上传的实时进度百分比 */
+function getUploadProgress(upload: Upload): number | null {
+  const wsProgress = getProgress(upload.id)
+  if (wsProgress && wsProgress.status === 'parsing') return wsProgress.progress
+  return null
 }
 
 const currentUpload = computed(() => uploads.value[0] ?? null)
@@ -363,8 +393,22 @@ function onUploadSuccess() {
                   {{ formatSize(currentUpload.file_size) }} · {{ formatTime(currentUpload.created_at) }} · v{{ currentUpload.version }}
                 </div>
               </div>
-              <div class="text-xs font-medium" :class="parseStatusBadge(currentUpload.parse_status).variant === 'success' ? 'text-success' : 'text-info'">
-                {{ parseStatusBadge(currentUpload.parse_status).label }}
+              <div class="text-xs font-medium" :class="parseStatusBadge(getUploadStatus(currentUpload)).variant === 'success' ? 'text-success' : 'text-info'">
+                <template v-if="getUploadProgress(currentUpload) !== null">
+                  <div class="flex items-center gap-2">
+                    <Loader2 class="w-3 h-3 animate-spin" />
+                    <span>解析中 {{ getUploadProgress(currentUpload) }}%</span>
+                  </div>
+                  <div class="mt-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      class="h-full bg-primary rounded-full transition-all duration-500"
+                      :style="{ width: `${getUploadProgress(currentUpload)}%` }"
+                    ></div>
+                  </div>
+                </template>
+                <template v-else>
+                  {{ parseStatusBadge(getUploadStatus(currentUpload)).label }}
+                </template>
               </div>
               <div class="flex gap-1.5 justify-end">
                 <Button
