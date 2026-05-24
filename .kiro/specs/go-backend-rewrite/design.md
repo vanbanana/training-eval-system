@@ -147,16 +147,20 @@ go-backend/
 │   │   ├── llm_config.go
 │   │   └── system_config.go
 │   ├── dto/
-│   │   ├── request.go           # 请求 DTO（按路由组分文件）
-│   │   └── response.go          # 响应 DTO
+│   │   ├── auth.go              # 认证相关请求/响应 DTO
+│   │   ├── user.go              # 用户 DTO
+│   │   ├── task.go              # 任务 DTO
+│   │   ├── upload.go            # 上传 DTO
+│   │   ├── evaluation.go        # 评价 DTO
+│   │   ├── common.go            # 分页信封、错误响应等公共结构
+│   │   └── ...                  # 其余按路由组一个文件
 │   ├── middleware/
-│   │   ├── auth.go              # JWT 验证 + RBAC
+│   │   ├── auth.go              # JWT 验证 + RBAC + 会话超时（合并）
 │   │   ├── trace.go             # trace_id 生成/传播
 │   │   ├── cors.go              # CORS
 │   │   ├── ratelimit.go         # 令牌桶限流
 │   │   ├── security_headers.go  # 安全响应头
-│   │   ├── logger.go            # 请求日志
-│   │   └── session_timeout.go   # 会话超时
+│   │   └── logger.go            # 请求日志
 │   ├── worker/
 │   │   ├── pool.go              # goroutine worker pool
 │   │   ├── task.go              # 任务定义与状态机
@@ -175,12 +179,16 @@ go-backend/
 │   │   └── cosine.go            # 余弦相似度
 │   ├── crypto/
 │   │   ├── aes.go               # AES-256-GCM 加解密
-│   │   └── bcrypt.go            # bcrypt 密码哈希
+│   │   ├── bcrypt.go            # bcrypt 密码哈希
+│   │   └── jwt.go               # JWT sign/verify（从 crypto 包分出，职责更清晰）
+│   ├── apperr/
+│   │   └── errors.go            # 统一业务错误类型 AppError + 构造函数
 │   ├── cache/
 │   │   └── lru.go               # 进程内 LRU 缓存 + TTL
 │   ├── parser/
-│   │   ├── docx.go              # DOCX 文本提取
-│   │   └── pdf.go               # PDF 文本提取
+│   │   ├── docx.go              # DOCX 文本提取（stdlib zip+xml）
+│   │   ├── pdf.go               # PDF 文本提取（ledongthuc/pdf）
+│   │   └── ocr.go               # OCR 委托（多模态 LLM API，零本地依赖）
 │   ├── report/
 │   │   ├── pdf.go               # PDF 报表生成
 │   │   └── excel.go             # Excel 报表生成
