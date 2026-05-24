@@ -689,17 +689,30 @@ type StatsData struct {
 ```go
 package parser
 
-// DocxParser extracts text from .docx files using pure-Go OOXML parsing.
+// DocxParser extracts text from .docx files using Go stdlib (archive/zip + encoding/xml).
+// 解析 word/document.xml 中的 <w:t> 文本节点，按 <w:p> 段落分隔。
 type DocxParser struct{}
 
 // Parse extracts structured text content from a .docx file.
 func (p *DocxParser) Parse(ctx context.Context, filePath string) (*ParseResult, error)
 
-// PDFParser extracts text from .pdf files using a pure-Go library.
+// PDFParser extracts text from .pdf files using ledongthuc/pdf (pure Go).
+// 已验证对中文文字型 PDF 有效。
 type PDFParser struct{}
 
 // Parse extracts text content from a PDF file.
+// 如果每页提取字符数 < 50，返回 ErrImagePDF 提示调用方走 OCR 路径。
 func (p *PDFParser) Parse(ctx context.Context, filePath string) (*ParseResult, error)
+
+// OCRParser delegates image/scanned-PDF recognition to the multimodal LLM API.
+// 不使用任何本地 OCR 引擎（无 Tesseract），完全依赖云端多模态 LLM。
+// 流程：将页面/图片转为 base64 → 发送给 LLM_Client 的视觉接口 → 返回识别文本。
+type OCRParser struct {
+    LLMClient *llm.Client
+}
+
+// Parse sends base64-encoded image(s) to the multimodal LLM for text recognition.
+func (p *OCRParser) Parse(ctx context.Context, filePath string) (*ParseResult, error)
 
 // ParseResult holds the structured output of document parsing.
 type ParseResult struct {
@@ -715,6 +728,12 @@ type Section struct {
     Content  string
     Figures  []string // figure descriptions
 }
+
+// 解析策略（parse_service.go 中编排）：
+// 1. .docx → DocxParser（本地，标准库）
+// 2. .pdf（文字型）→ PDFParser（本地，ledongthuc/pdf）
+// 3. .pdf（提取失败/字符太少）→ OCRParser（云端多模态 LLM）
+// 4. .png/.jpg → OCRParser（云端多模态 LLM）
 ```
 
 ### 16. Backup (internal/backup)

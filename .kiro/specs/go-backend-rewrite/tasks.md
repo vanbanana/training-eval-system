@@ -173,13 +173,14 @@
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6_
 
   - [ ] 7.4. 实现文档解析服务 (internal/parser + internal/service/parse_service.go)
-    - 实现 DocxParser（纯 Go OOXML 文本提取）
-    - 实现 PDFParser（纯 Go PDF 文本提取）
-    - 实现 LLM 委托解析（图片 OCR、复杂结构分析）
+    - 实现 DocxParser（Go 标准库 archive/zip + encoding/xml 解析 word/document.xml）
+    - 实现 PDFParser（ledongthuc/pdf 纯 Go 文本提取，已验证中文有效）
+    - 实现 OCRParser（将图片/扫描 PDF 转 base64 发送给多模态 LLM API 识别，不使用本地 OCR）
+    - 实现解析策略编排：docx→本地 / pdf文字型→本地 / pdf提取失败→LLM / 图片→LLM
     - 实现解析结果结构化输出（标题层级、段落、图片描述）
     - 实现解析状态更新 + SSE 进度事件
     - 实现超时处理（120s）+ 失败重试
-    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7_
+    - _Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6, 19.7, 19.8, 19.9_
 
   - [ ] 7.5. 实现剩余服务
     - 实现 ProfileService（画像生成与查询）

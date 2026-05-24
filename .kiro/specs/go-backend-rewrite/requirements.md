@@ -304,15 +304,17 @@
 
 ### Requirement 19: 文档解析集成
 
-**User Story:** As a developer, I want the Go backend to parse uploaded documents (Word, PDF, images) using LLM and available pure-Go libraries, so that the parsing pipeline works without Python dependencies.
+**User Story:** As a developer, I want the Go backend to parse uploaded documents (Word, PDF, images) using local pure-Go libraries for text extraction and cloud multimodal LLM API for OCR/image recognition, so that the parsing pipeline works without any local OCR dependencies.
 
 #### Acceptance Criteria
 
-1. THE Go_Backend SHALL extract text content from .docx files using a pure-Go OOXML parser
-2. THE Go_Backend SHALL extract text content from .pdf files using a pure-Go PDF text extraction library
-3. THE Go_Backend SHALL delegate image OCR and complex document structure analysis to the LLM_Client (sending base64-encoded images or extracted text for structuring)
-4. THE Go_Backend SHALL produce the same structured parse output format (title hierarchy, paragraphs, figure descriptions) as the Python backend
-5. WHEN parsing completes, THE Go_Backend SHALL update the upload record status and emit an SSE progress event, matching the Python backend's behavior
-6. IF parsing fails or times out (configurable, default 120 seconds), THEN THE Go_Backend SHALL mark the upload as parse-failed, log the error, and allow manual retry via API
-7. THE Go_Backend SHALL support concurrent parsing of multiple uploads limited by the Task_Runner's worker pool
+1. THE Go_Backend SHALL extract text content from .docx files using Go standard library (archive/zip + encoding/xml) to parse OOXML word/document.xml
+2. THE Go_Backend SHALL extract text content from .pdf files using ledongthuc/pdf (pure-Go PDF text extraction library, verified for Chinese content)
+3. WHEN local PDF text extraction yields fewer than 50 characters per page, THE Go_Backend SHALL treat the PDF as image-based and delegate to the multimodal LLM API for OCR
+4. THE Go_Backend SHALL delegate all image OCR (.png, .jpg) and scanned PDF recognition to the cloud multimodal LLM API (same provider as chat/evaluation), sending base64-encoded page images for text extraction
+5. THE Go_Backend SHALL NOT include any local OCR engine (no Tesseract, no CGO-based OCR library) — all OCR is handled by the cloud LLM API
+6. THE Go_Backend SHALL produce the same structured parse output format (title hierarchy, paragraphs, figure descriptions) as the Python backend
+7. WHEN parsing completes, THE Go_Backend SHALL update the upload record status and emit an SSE progress event, matching the Python backend's behavior
+8. IF parsing fails or times out (configurable, default 120 seconds), THEN THE Go_Backend SHALL mark the upload as parse-failed, log the error, and allow manual retry via API
+9. THE Go_Backend SHALL support concurrent parsing of multiple uploads limited by the Task_Runner's worker pool
 

@@ -20,6 +20,7 @@ inclusion: always
 - AI 编排：**Function Calling**（不引入 LangGraph 等 agent 框架）
 - 异步任务：goroutine worker pool + buffered channel（不用 Celery/Redis）
 - 实时推送：SSE（Server-Sent Events，net/http 原生）
+- 文档解析：DOCX 用标准库 zip+xml / PDF 用 ledongthuc/pdf / OCR 走云端多模态 LLM（**禁止本地 OCR**）
 - 交叉编译：CGO_ENABLED=0 GOOS=linux GOARCH=loong64
 
 ## AI 开发模式
