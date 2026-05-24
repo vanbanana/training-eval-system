@@ -8,6 +8,6 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "请按以下流程持续推进项目：\n\n1. 读 `.kiro/specs/training-evaluation-system/tasks.md`，找出第一个 `- [ ]` 未完成 Task\n2. 检查该 Task 的\"前置依赖\"字段，确认依赖的 Task 已 `[x]`；若有未完成依赖，转去做依赖\n3. 实施该 Task：\n   - 读对应的 requirements 与 design 章节\n   - 前端 Task 必读 `docs/design/02-html-references.md` 中对应的 HTML 参考\n   - 严格按 Task 的\"实施要点\"与\"测试验收\"完成代码与测试\n4. 完成后把 `- [ ]` 改为 `- [x]`，简要汇报\"完成 Task X.Y\"\n5. 立刻继续下一个 Task，直到：\n   - 遇到无法自动处理的问题（缺密钥、缺第三方授权、需要架构决策）\n   - 或本轮已完成 5 个 Task\n\n完成后给我一个简短总结：本次完成了哪些 Task。"
+    "prompt": "请按以下流程持续推进项目：\n\n1. 读 `.kiro/specs/go-backend-rewrite/tasks.md`，找出第一个 `- [ ]` 未完成 Task\n2. 检查该 Task 的依赖（参考 Task Dependency Graph），确认依赖的 Task 已 `[x]`；若有未完成依赖，转去做依赖\n3. 实施该 Task：\n   - 读对应的 requirements 与 design 章节（`.kiro/specs/go-backend-rewrite/`）\n   - 后端 Task 参考 Python 版本实现（`backend/app/` 目录）作为业务逻辑参照\n   - 前端 Task 必读 `docs/design/02-html-references.md` 中对应的 HTML 参考\n   - 严格按 Task 描述完成代码与测试\n4. 完成后把 `- [ ]` 改为 `- [x]`，简要汇报\"完成 Task X.Y\"\n5. 立刻继续下一个 Task，直到：\n   - 遇到无法自动处理的问题（缺密钥、缺第三方授权、需要架构决策）\n   - 或本轮已完成 5 个 Task\n\n完成后给我一个简短总结：本次完成了哪些 Task。"
   }
 }

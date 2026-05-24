@@ -3,7 +3,10 @@ inclusion: fileMatch
 fileMatchPattern: 'backend/**/*'
 ---
 
-# 后端开发规则
+# Python 后端规则（旧版参考，已冻结）
+
+> ⚠️ **注意：Python 后端已冻结，仅作为 Go 重写的业务逻辑参考。不再新增功能。**
+> 新后端代码请写在 `go-backend/` 目录，遵循 `go-backend-rules.md`。
 
 ## 分层
 
