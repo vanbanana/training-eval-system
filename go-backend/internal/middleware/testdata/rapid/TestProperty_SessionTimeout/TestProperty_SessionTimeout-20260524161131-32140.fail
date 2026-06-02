@@ -1,0 +1,7 @@
+# 2026/05/24 16:11:31.868401 [TestProperty_SessionTimeout] [rapid] draw minutesAgo: 30
+# 2026/05/24 16:11:31.868401 [TestProperty_SessionTimeout] session should be valid after 30 minutes (max=30), got 401
+# 
+v0.4.8#1825982876330023726
+0x0
+0xc05c654ab866b
+0x1e

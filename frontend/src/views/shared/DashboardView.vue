@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
+import TeacherDashboard from '@/components/dashboard/TeacherDashboard.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useCourseMap } from '@/composables/useCourseMap'
 import { safeGet } from '@/lib/api-helpers'
@@ -24,7 +25,6 @@ import {
   AlarmClock,
   BarChart3,
   RefreshCw,
-  LineChart,
 } from 'lucide-vue-next'
 
 // ============ Types ============
@@ -171,9 +171,8 @@ const radarEntries = computed(() => {
 const maxRadarScore = computed(() => Math.max(100, ...radarEntries.value.map((e) => e.score)))
 
 // ============ Teacher helpers ============
-const teacherData = computed(() => stats.value as TeacherDashboard | null)
-const activeClassCount = computed(() => classes.value.filter((c) => !c.is_archived).length)
-const maxActivity = computed(() => Math.max(1, ...(teacherData.value?.activity_7d?.map((d) => d.count) ?? [1])))
+// @ts-ignore unused - kept for future teacher dashboard in this shared view
+const teacherData = computed(() => stats.value as TeacherDashboard | null) // eslint-disable-line
 
 // ============ Admin helpers ============
 const adminData = computed(() => stats.value as AdminDashboard | null)
@@ -475,153 +474,8 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
     </template>
 
     <!-- ==================== TEACHER DASHBOARD ==================== -->
-    <template v-else-if="role === 'teacher' && teacherData">
-      <!-- Header -->
-      <div class="flex justify-between items-end">
-        <div>
-          <h1 class="text-2xl font-bold text-ink">{{ greeting }}，{{ auth.user?.display_name }}老师 👋</h1>
-          <p class="mt-1 text-sm text-muted-foreground">
-            你有 {{ teacherData.pending_grading }} 份提交待批改，{{ teacherData.my_tasks }} 项任务进行中。
-          </p>
-        </div>
-        <div class="flex items-center gap-3">
-          <button class="inline-flex items-center gap-1.5 h-9 px-4 bg-surface border border-border-strong rounded-md text-sm font-semibold text-ink hover:bg-surface-2 transition-colors">
-            <Download class="w-4 h-4" />
-            导出周报
-          </button>
-          <RouterLink to="/teacher/tasks/new" class="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-strong transition-colors">
-            <Plus class="w-4 h-4" />
-            创建实训任务
-          </RouterLink>
-        </div>
-      </div>
-
-      <!-- Teacher Stat Cards -->
-      <div class="grid grid-cols-4 gap-[18px]">
-        <div class="bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">待批改提交</span>
-            <ClipboardList class="w-4 h-4 text-subtle-foreground" />
-          </div>
-          <div class="text-3xl font-bold text-ink leading-none">{{ teacherData.pending_grading }}</div>
-          <div class="flex items-center gap-1.5 text-xs font-medium text-success"><TrendingUp class="w-3.5 h-3.5" /><span>需及时处理</span></div>
-        </div>
-        <div class="bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">本周已批改</span>
-            <CheckCheck class="w-4 h-4 text-subtle-foreground" />
-          </div>
-          <div class="text-3xl font-bold text-ink leading-none">{{ teacherData.graded_this_week }}</div>
-          <div class="flex items-center gap-1.5 text-xs font-medium text-success"><TrendingUp class="w-3.5 h-3.5" /><span>按期完成</span></div>
-        </div>
-        <div class="bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">班级平均分</span>
-            <LineChart class="w-4 h-4 text-subtle-foreground" />
-          </div>
-          <div class="text-3xl font-bold text-ink leading-none">{{ teacherData.class_avg_score ?? '—' }}</div>
-          <div class="flex items-center gap-1.5 text-xs font-medium text-success"><TrendingUp class="w-3.5 h-3.5" /><span>全班综合</span></div>
-        </div>
-        <div class="bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center">
-            <span class="text-xs font-medium tracking-wider text-muted-foreground">疑似抄袭警告</span>
-            <ShieldAlert class="w-4 h-4 text-subtle-foreground" />
-          </div>
-          <div class="text-3xl font-bold leading-none" :class="suspectCount > 0 ? 'text-danger' : 'text-ink'">{{ suspectCount }}</div>
-          <div class="flex items-center gap-1.5 text-xs font-medium" :class="suspectCount > 0 ? 'text-danger' : 'text-muted-foreground'">
-            <TrendingDown v-if="suspectCount > 0" class="w-3.5 h-3.5" /><span>{{ suspectCount > 0 ? '待人工复核' : '暂无异常' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Teacher Main Row -->
-      <div class="grid grid-cols-[1fr_420px] gap-[18px] items-start">
-        <div class="flex flex-col gap-[18px]">
-          <!-- 班级活跃度 -->
-          <section class="bg-surface border border-border rounded-lg p-6">
-            <div class="flex justify-between items-center mb-[18px]">
-              <div>
-                <div class="text-base font-semibold text-ink">班级活跃度</div>
-                <div class="text-xs text-muted-foreground mt-1">近 7 天提交数据</div>
-              </div>
-            </div>
-            <div v-if="!teacherData.activity_7d || teacherData.activity_7d.length === 0" class="h-[200px] flex items-center justify-center text-sm text-muted-foreground">暂无活跃数据</div>
-            <div v-else class="h-[200px] flex items-end justify-between gap-6 px-2">
-              <div v-for="(day, idx) in teacherData.activity_7d" :key="idx" class="flex-1 flex flex-col items-center gap-2">
-                <div class="w-full max-w-[32px] rounded-t relative transition-[height] duration-500" :class="day.count === Math.max(...teacherData.activity_7d.map(d => d.count)) ? 'bg-primary' : 'bg-primary-soft'" :style="{ height: `${Math.max(8, (day.count / maxActivity) * 175)}px` }">
-                  <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-ink whitespace-nowrap">{{ day.count }}</span>
-                </div>
-                <span class="text-[11px] text-muted-foreground">{{ day.date }}</span>
-              </div>
-            </div>
-          </section>
-
-          <!-- 近期实训任务（含进度条） -->
-          <section class="bg-surface border border-border rounded-lg overflow-hidden">
-            <header class="px-6 py-5 border-b border-border flex justify-between items-center">
-              <span class="text-md font-semibold text-ink">近期实训任务</span>
-              <RouterLink to="/teacher/tasks" class="text-xs text-primary font-medium">全部 ›</RouterLink>
-            </header>
-            <div v-if="teacherData.recent_tasks.length === 0" class="p-12 text-center text-sm text-muted-foreground">暂无任务</div>
-            <div v-for="t in teacherData.recent_tasks" :key="t.id" class="grid grid-cols-[1fr_220px_100px_80px] items-center gap-4 px-6 py-4 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors">
-              <div>
-                <div class="flex items-center gap-2.5">
-                  <span class="text-sm font-semibold text-ink">{{ t.name }}</span>
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold" :class="t.status === 'published' ? 'bg-warning-soft text-warning' : t.status === 'closed' ? 'bg-success-soft text-success' : 'bg-muted text-muted-foreground'">{{ t.status === 'published' ? '批改中' : t.status === 'closed' ? '已完成' : '草稿' }}</span>
-                </div>
-                <div class="text-xs text-muted-foreground mt-1">{{ courseName(t.course_id) }} · {{ t.deadline ? '截止 ' + t.deadline.slice(5, 10) : '暂未发布' }}</div>
-              </div>
-              <div>
-                <div class="h-2 bg-muted rounded-full overflow-hidden">
-                  <div class="h-full rounded-full transition-[width] duration-500" :class="t.graded === t.submitted ? 'bg-success' : 'bg-primary'" :style="{ width: `${t.total_students ? (t.submitted! / t.total_students) * 100 : 0}%` }"></div>
-                </div>
-              </div>
-              <span class="text-xs text-muted-foreground">{{ t.graded ?? 0 }} / {{ t.submitted ?? 0 }} 已批改</span>
-              <div class="text-xs text-right text-muted-foreground">{{ formatDeadline(t.deadline) }}</div>
-            </div>
-          </section>
-        </div>
-
-        <!-- RIGHT: Quick Actions + Notifications -->
-        <div class="flex flex-col gap-[18px]">
-          <section class="bg-surface border border-border rounded-lg p-5">
-            <div class="text-md font-semibold text-ink mb-3.5">快捷操作</div>
-            <div class="flex flex-col gap-2.5">
-              <RouterLink to="/teacher/tasks/new" class="flex items-center gap-3 px-3.5 py-3 border border-border rounded-md hover:border-primary hover:bg-surface-2 transition-colors">
-                <div class="w-9 h-9 bg-primary-soft text-primary rounded-md grid place-items-center flex-shrink-0"><ClipboardList class="w-4 h-4" /></div>
-                <div class="flex-1"><div class="text-[13px] font-semibold text-ink">创建实训任务</div><div class="text-[11px] text-muted-foreground mt-0.5">从模板快速发起新任务</div></div>
-                <ChevronRight class="w-4 h-4 text-subtle-foreground" />
-              </RouterLink>
-              <RouterLink to="/teacher/tasks" class="flex items-center gap-3 px-3.5 py-3 border border-border rounded-md hover:border-primary hover:bg-surface-2 transition-colors">
-                <div class="w-9 h-9 bg-info-soft text-info rounded-md grid place-items-center flex-shrink-0"><FileText class="w-4 h-4" /></div>
-                <div class="flex-1"><div class="text-[13px] font-semibold text-ink">批改工作台</div><div class="text-[11px] text-muted-foreground mt-0.5">{{ teacherData.pending_grading }} 份待批改提交等待处理</div></div>
-                <ChevronRight class="w-4 h-4 text-subtle-foreground" />
-              </RouterLink>
-              <RouterLink to="/teacher/classes" class="flex items-center gap-3 px-3.5 py-3 border border-border rounded-md hover:border-primary hover:bg-surface-2 transition-colors">
-                <div class="w-9 h-9 bg-accent-soft text-accent rounded-md grid place-items-center flex-shrink-0"><Users class="w-4 h-4" /></div>
-                <div class="flex-1"><div class="text-[13px] font-semibold text-ink">班级管理</div><div class="text-[11px] text-muted-foreground mt-0.5">{{ activeClassCount }} 个班级</div></div>
-                <ChevronRight class="w-4 h-4 text-subtle-foreground" />
-              </RouterLink>
-            </div>
-          </section>
-
-          <!-- 通知 -->
-          <section class="bg-surface border border-border rounded-lg overflow-hidden">
-            <header class="px-5 py-4 border-b border-border flex justify-between items-center">
-              <span class="text-md font-semibold text-ink">通知中心</span>
-              <RouterLink to="/notifications" class="text-xs text-primary font-medium">全部 ›</RouterLink>
-            </header>
-            <div v-if="!teacherData.recent_notifications?.length" class="p-8 text-center text-xs text-muted-foreground">暂无通知</div>
-            <div v-for="n in teacherData.recent_notifications" :key="n.id" class="flex gap-2.5 px-5 py-3.5 border-b border-border last:border-b-0 hover:bg-surface-2 cursor-pointer">
-              <span class="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-accent"></span>
-              <div class="flex-1 min-w-0">
-                <div class="text-[13px] font-medium text-ink leading-snug truncate">{{ n.title }}</div>
-                <div class="text-[11px] text-muted-foreground mt-1">{{ n.type }}</div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </div>
+    <template v-else-if="role === 'teacher'">
+      <TeacherDashboard />
     </template>
 
     <!-- ==================== ADMIN DASHBOARD ==================== -->

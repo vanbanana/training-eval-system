@@ -6,7 +6,6 @@ import { useNotifications } from '@/composables/useNotifications'
 import { useTheme } from '@/composables/useTheme'
 import {
   Search,
-  LifeBuoy,
   Bell,
   ChevronDown,
   User,
@@ -14,10 +13,19 @@ import {
   Settings,
   Sun,
   Moon,
-  HelpCircle,
-  BookOpen,
-  MessageSquareText,
   CheckCheck,
+  Home,
+  BookOpen,
+  ClipboardList,
+  PenLine,
+  Users,
+  BarChart3,
+  FileText,
+  History,
+  MessageSquare,
+  LayoutDashboard,
+  Cpu,
+  Shield,
 } from 'lucide-vue-next'
 import {
   DropdownMenu,
@@ -47,36 +55,54 @@ const navItems = computed(() => {
   switch (auth.user?.role) {
     case 'teacher':
       return [
-        { label: '工作台', to: '/dashboard' },
-        { label: '实训任务', to: '/teacher/tasks' },
-        { label: '批改工作台', to: '/teacher/tasks' },  // 跳到任务列表，再选具体任务进入 grading
-        { label: '班级管理', to: '/teacher/classes' },
-        { label: '评价模板', to: '/templates' },
-        { label: '教学画像', to: '/profiles' },
-        { label: '通知中心', to: '/notifications' },
+        { label: '首页', to: '/dashboard', icon: 'Home' },
+        { label: '实训任务', to: '/teacher/tasks', icon: 'ClipboardList' },
+        { label: '班级管理', to: '/teacher/classes', icon: 'Users' },
+        { label: '报表中心', to: '/teacher/reports', icon: 'BarChart3' },
+        { label: '评价模板', to: '/templates', icon: 'FileText' },
+        { label: '评价看板', to: '/profiles', icon: 'PenLine' },
       ]
     case 'student':
       return [
-        { label: '工作台', to: '/dashboard' },
-        { label: '我的任务', to: '/student/tasks' },
-        { label: '评价历史', to: '/student/history' },
-        { label: 'AI 问答', to: '/student/chat' },
-        { label: '能力画像', to: '/student/profile' },
-        { label: '通知中心', to: '/notifications' },
+        { label: '工作台', to: '/dashboard', icon: 'Home' },
+        { label: '我的任务', to: '/student/tasks', icon: 'FileText' },
+        { label: '评价历史', to: '/student/history', icon: 'History' },
+        { label: 'AI 问答', to: '/student/chat', icon: 'MessageSquare' },
+        { label: '能力画像', to: '/student/profile', icon: 'User' },
+        { label: '通知中心', to: '/notifications', icon: 'Bell' },
       ]
     case 'admin':
       return [
-        { label: '总览', to: '/admin/dashboard' },
-        { label: '用户管理', to: '/admin/users' },
-        { label: '课程管理', to: '/admin/courses' },
-        { label: 'LLM 配置', to: '/admin/llm' },
-        { label: '审计日志', to: '/admin/audit' },
-        { label: '通知中心', to: '/notifications' },
+        { label: '总览', to: '/admin/dashboard', icon: 'LayoutDashboard' },
+        { label: '用户管理', to: '/admin/users', icon: 'Users' },
+        { label: '课程管理', to: '/admin/courses', icon: 'BookOpen' },
+        { label: 'LLM 配置', to: '/admin/llm', icon: 'Cpu' },
+        { label: '审计日志', to: '/admin/audit', icon: 'Shield' },
+        { label: '通知中心', to: '/notifications', icon: 'Bell' },
       ]
     default:
-      return [{ label: '工作台', to: '/dashboard' }]
+      return [{ label: '工作台', to: '/dashboard', icon: 'Home' }]
   }
 })
+
+const isTeacher = computed(() => auth.user?.role === 'teacher')
+
+const iconMap: Record<string, object> = {
+  Home,
+  ClipboardList,
+  PenLine,
+  Users,
+  BarChart3,
+  FileText,
+  History,
+  MessageSquare,
+  Bell,
+  LayoutDashboard,
+  Cpu,
+  Shield,
+  BookOpen,
+  User,
+}
 
 function logout() {
   auth.logout()
@@ -118,9 +144,9 @@ const roleLabel = computed(() => {
 </script>
 
 <template>
-  <header class="top-nav sticky top-0 z-40 border-b [border-color:var(--glass-border)] [background:var(--glass-bg)] [backdrop-filter:blur(var(--glass-blur))] [-webkit-backdrop-filter:blur(var(--glass-blur))] [box-shadow:var(--shadow-sm)]">
-    <!-- 上行：品牌 + 搜索 + 用户 -->
-    <div class="flex items-center justify-between h-14 px-8">
+  <header class="top-nav" :class="{ 'top-nav-capsule': isTeacher }">
+    <!-- 上行：品牌 + 胶囊导航(教师) / 搜索 + 用户 -->
+    <div class="flex items-center justify-between h-16 px-8">
       <div class="flex items-center gap-3.5">
         <div
           class="w-8 h-8 bg-primary text-primary-foreground rounded-sm grid place-items-center font-bold text-[15px] shadow-sm"
@@ -133,51 +159,36 @@ const roleLabel = computed(() => {
           软件学院
         </span>
       </div>
+
+      <!-- 教师：胶囊式导航按钮组（居中） -->
+      <nav v-if="isTeacher" class="capsule-nav">
+        <RouterLink
+          v-for="item in navItems"
+          :key="item.to + item.label"
+          :to="item.to"
+          class="capsule-nav-btn"
+          active-class="capsule-nav-btn-active"
+        >
+          <component
+            :is="iconMap[item.icon]"
+            class="w-3.5 h-3.5"
+          />
+          <span>{{ item.label }}</span>
+        </RouterLink>
+      </nav>
+
       <div class="flex items-center gap-3.5">
         <!-- 全局搜索 ⌘K -->
         <button
-          class="flex items-center gap-2.5 w-[300px] h-9 px-3 bg-surface-2 border border-border rounded-md cursor-pointer transition-colors hover:border-border-strong"
+          class="flex items-center gap-2.5 h-9 px-3 bg-surface-2 border border-border rounded-md cursor-pointer transition-colors hover:border-border-strong"
+          :class="isTeacher ? 'w-[200px]' : 'w-[300px]'"
           aria-label="全局搜索"
           @click="searchOpen = true"
         >
           <Search class="w-3.5 h-3.5 text-muted-foreground" />
-          <span class="text-xs text-subtle-foreground flex-1 text-left">全局搜索任务、学生、班级</span>
+          <span class="text-xs text-subtle-foreground flex-1 text-left truncate">搜索实训任务、学生、班级...</span>
           <kbd class="text-[10px] text-muted-foreground border border-border bg-card rounded-sm px-1.5 py-0.5 font-mono">⌘K</kbd>
         </button>
-
-        <!-- 帮助按钮 -->
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <button
-              class="w-8 h-8 border border-border rounded-full grid place-items-center text-muted-foreground transition-all hover:border-border-strong hover:text-ink hover:bg-surface-2 active:scale-95"
-              aria-label="帮助"
-            >
-              <LifeBuoy class="w-4 h-4" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" class="w-56">
-            <DropdownMenuLabel>帮助与支持</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem as-child>
-              <a href="/docs/handbook/00-INDEX.md" target="_blank">
-                <BookOpen class="text-muted-foreground" />
-                <span>使用手册</span>
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem as-child>
-              <a href="https://github.com/" target="_blank" rel="noopener">
-                <HelpCircle class="text-muted-foreground" />
-                <span>常见问题</span>
-              </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem as-child>
-              <a href="mailto:support@example.edu" rel="noopener">
-                <MessageSquareText class="text-muted-foreground" />
-                <span>问题反馈</span>
-              </a>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
         <!-- 通知铃铛 -->
         <Popover>
@@ -245,7 +256,8 @@ const roleLabel = computed(() => {
               class="flex items-center gap-2 pl-1 pr-3 py-1 bg-surface-2 border border-border rounded-pill transition-colors hover:bg-muted"
             >
               <Avatar size="sm">{{ userInitial }}</Avatar>
-              <span class="text-xs font-medium text-ink">{{ auth.user?.display_name }} {{ roleLabel }}</span>
+              <span class="text-xs font-medium text-ink">{{ auth.user?.display_name }}</span>
+              <span class="text-[10px] text-muted-foreground">{{ roleLabel }}</span>
               <ChevronDown class="w-3.5 h-3.5 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
@@ -283,8 +295,9 @@ const roleLabel = computed(() => {
         </DropdownMenu>
       </div>
     </div>
-    <!-- 下行：导航 -->
-    <nav class="flex items-center h-11 px-8 gap-0">
+
+    <!-- 下行：导航（非教师角色保留原有下划线导航） -->
+    <nav v-if="!isTeacher" class="flex items-center h-11 px-8 gap-0">
       <RouterLink
         v-for="item in navItems"
         :key="item.to + item.label"
@@ -302,17 +315,75 @@ const roleLabel = computed(() => {
 </template>
 
 <style scoped>
+/* Base nav */
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid hsl(var(--border));
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-sm);
+}
+
+/* Teacher capsule mode: single row, no bottom border nav */
+.top-nav-capsule {
+  border-bottom: none;
+  background: hsl(var(--background));
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
 /* Glassmorphism 降级 */
 @supports not (backdrop-filter: blur(1px)) {
-  .top-nav {
+  .top-nav:not(.top-nav-capsule) {
     background: hsl(var(--card)) !important;
   }
 }
 
-/* 活跃导航项渐变下划线 */
+/* 活跃导航项渐变下划线（非教师） */
 .nav-item-active {
   background: hsl(var(--primary) / 0.06);
   border-bottom: 2px solid transparent;
   border-image: var(--gradient-primary) 1;
+}
+
+/* ===== Capsule Navigation (Teacher) ===== */
+.capsule-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: hsl(var(--surface-2));
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.capsule-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.capsule-nav-btn:hover {
+  color: hsl(var(--ink));
+  background: hsl(var(--surface));
+}
+
+.capsule-nav-btn-active {
+  background: hsl(var(--surface));
+  color: hsl(var(--ink));
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 </style>

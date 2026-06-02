@@ -4,7 +4,7 @@
  * 用于 TaskDetailView 和 GradingView 中实时显示解析进度。
  */
 import { computed, ref, watch, type Ref } from 'vue'
-import { useWebSocket, type ProgressMessage } from './useWebSocket'
+import { useSSE, type ProgressMessage } from './useWebSocket'
 
 export interface ParseProgressState {
   upload_id: number
@@ -14,12 +14,30 @@ export interface ParseProgressState {
 }
 
 export function useParseProgress(uploadIds: Ref<number[]>) {
-  const { messages, lastMessage, connected } = useWebSocket<ProgressMessage>('progress')
+  const sse = useSSE<ProgressMessage>()
+  const { messages, lastMessage, connected } = sse
 
   // 每个 upload 的最新进度状态
   const progressMap = ref<Record<number, ParseProgressState>>({})
 
-  // 监听新消息，更新 map
+  // 监听 progress 事件
+  if (typeof sse.on === 'function') {
+    sse.on('progress', (msg: ProgressMessage) => {
+      if (uploadIds.value.includes(msg.upload_id)) {
+        progressMap.value = {
+          ...progressMap.value,
+          [msg.upload_id]: {
+            upload_id: msg.upload_id,
+            status: msg.status,
+            progress: msg.progress,
+            error: msg.error,
+          },
+        }
+      }
+    })
+  }
+
+  // 也回退到 lastMessage 监听
   watch(lastMessage, (msg) => {
     if (!msg) return
     if (uploadIds.value.includes(msg.upload_id)) {

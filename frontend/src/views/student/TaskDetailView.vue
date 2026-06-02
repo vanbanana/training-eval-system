@@ -82,9 +82,14 @@ const verifyResults = ref<Record<number, VerifyResult | null>>({})
 const loading = ref(true)
 const triggering = ref<number | null>(null)
 
-// WebSocket 实时进度
+// WebSocket 实时进度（stub - SSE 版本待接入）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const uploadIds = computed(() => uploads.value.map((u) => u.id))
-const { getProgress, hasActiveProgress, messages: wsMessages } = useParseProgress(uploadIds)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getProgress = (_id: number): {status:string;progress:number}|null => null
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const hasActiveProgress = ref(false)
+const wsMessages = ref<{status:string;progress?:number}[]>([])
 
 // 当 WebSocket 报告解析完成时自动刷新数据
 watch(

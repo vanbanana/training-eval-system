@@ -2,10 +2,10 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { User, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-vue-next'
+import loginBg from '@/assets/login-bg.png'
 
 const router = useRouter()
 const route = useRoute()
@@ -30,7 +30,7 @@ async function onSubmit() {
     router.replace(redirect)
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data
-    errMsg.value = msg?.detail ?? msg?.message ?? '登录失败，请稍后重试'
+    errMsg.value = msg?.detail ?? msg?.message ?? ''
   } finally {
     submitting.value = false
   }
@@ -38,129 +38,75 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="grid min-h-screen lg:grid-cols-[1fr_560px]">
-    <!-- LEFT brand panel -->
-    <aside class="flex flex-col justify-between gap-10 bg-primary p-16 text-primary-foreground max-lg:min-h-[200px] max-lg:p-8">
-      <div class="flex items-center gap-3.5">
-        <div class="grid w-[38px] h-[38px] place-items-center rounded-sm bg-primary-foreground text-lg font-bold text-primary">
-          实
+  <div class="login-wrapper">
+    <img :src="loginBg" alt="" class="login-bg" />
+    <div class="login-card-container">
+      <form class="login-card" @submit.prevent="onSubmit">
+        <div class="login-header">
+          <h1>账号登录</h1>
+          <p>访问学校统一账号登录系统</p>
         </div>
-        <div>
-          <div class="text-[15px] font-semibold leading-tight">实训评价管理系统</div>
-          <div class="mt-0.5 text-[11px] uppercase tracking-widest text-primary-foreground/60">
-            Training Evaluation System
+        <div class="field">
+          <Label class="field-label">账号</Label>
+          <div class="field-input">
+            <User class="field-icon" />
+            <input v-model="username" type="text" placeholder="请输入工号 / 学号" autocomplete="username" />
           </div>
         </div>
-      </div>
-
-      <div>
-        <h2 class="m-0 whitespace-pre-line text-[42px] font-bold leading-[1.3] max-lg:text-3xl">
-          赋能教学评价 ·{{ '\n' }}沉淀实训数据
-        </h2>
-        <p class="mt-4 max-w-[480px] text-sm leading-[1.8] text-primary-foreground/60">
-          以多维度评价、智能核查与教学画像，帮助教师减负增效，帮助学生看见自己的成长轨迹。
-        </p>
-      </div>
-
-      <div class="text-xs text-primary-foreground/40">© 2026 软件学院 · 教学信息化中心</div>
-    </aside>
-
-    <!-- RIGHT form -->
-    <main class="login-right relative flex items-center px-16 max-lg:px-8 overflow-hidden">
-      <form class="login-form relative z-10 mx-auto flex w-full max-w-[416px] flex-col gap-6 rounded-xl border border-border bg-card/80 p-8 [backdrop-filter:blur(8px)] [-webkit-backdrop-filter:blur(8px)] [box-shadow:var(--shadow-lg)]" @submit.prevent="onSubmit">
-        <div>
-          <h1 class="m-0 text-2xl font-bold text-ink">账号登录</h1>
-          <p class="mt-2 text-[13px] text-muted-foreground">请使用学校统一账号登录系统</p>
-        </div>
-
-        <div class="h-px w-full bg-border" />
-
-        <div class="space-y-2">
-          <Label>账号</Label>
-          <div
-            class="flex h-11 items-center gap-2.5 rounded-md border border-border-strong bg-card px-3.5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
-          >
-            <User class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-            <input
-              v-model="username"
-              type="text"
-              placeholder="请输入工号 / 学号"
-              autocomplete="username"
-              class="w-full border-0 bg-transparent text-[13px] text-foreground outline-0 placeholder:text-subtle-foreground"
-            />
+        <div class="field">
+          <div class="field-row">
+            <Label class="field-label">密码</Label>
+            <RouterLink to="/forgot-password" class="forgot-link">忘记密码?</RouterLink>
           </div>
-        </div>
-
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <Label>密码</Label>
-            <RouterLink to="/forgot-password" class="text-xs font-medium text-primary hover:underline">
-              忘记密码？
-            </RouterLink>
-          </div>
-          <div
-            class="flex h-11 items-center gap-2.5 rounded-md border border-border-strong bg-card px-3.5 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
-          >
-            <Lock class="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-            <input
-              v-model="password"
-              :type="showPwd ? 'text' : 'password'"
-              placeholder="请输入密码"
-              autocomplete="current-password"
-              class="w-full border-0 bg-transparent text-[13px] text-foreground outline-0 placeholder:text-subtle-foreground"
-            />
-            <button
-              type="button"
-              class="grid place-items-center text-muted-foreground hover:text-ink transition-colors"
-              :aria-label="showPwd ? '隐藏密码' : '显示密码'"
-              @click="showPwd = !showPwd"
-            >
-              <Eye v-if="!showPwd" class="w-3.5 h-3.5" />
-              <EyeOff v-else class="w-3.5 h-3.5" />
+          <div class="field-input">
+            <Lock class="field-icon" />
+            <input v-model="password" :type="showPwd ? 'text' : 'password'" placeholder="请输入密码" autocomplete="current-password" />
+            <button type="button" class="eye-btn" @click="showPwd = !showPwd">
+              <Eye v-if="!showPwd" class="field-icon" /><EyeOff v-else class="field-icon" />
             </button>
           </div>
         </div>
-
-        <label class="flex cursor-pointer items-center gap-2 text-[13px] text-foreground">
+        <label class="remember">
           <Checkbox :model-value="remember" @update:model-value="(v) => remember = v === true" />
           <span>7 天内自动登录</span>
         </label>
-
-        <p v-if="errMsg" class="rounded-md bg-danger-soft px-3 py-2 text-xs text-danger anim-in">{{ errMsg }}</p>
-
-        <Button type="submit" :disabled="!canSubmit" class="h-[46px] text-sm font-semibold">
+        <p v-if="errMsg" class="error-msg">{{ errMsg }}</p>
+        <button type="submit" :disabled="!canSubmit" class="submit-btn">
           {{ submitting ? '登录中…' : '登录' }}
-        </Button>
-
-        <div class="flex items-center justify-center gap-1.5 py-2 text-xs text-muted-foreground">
-          <ShieldCheck class="w-3.5 h-3.5 text-success" />
+        </button>
+        <div class="security-notice">
+          <ShieldCheck class="security-icon" />
           <span>系统已启用 HTTPS · 登录数据加密传输</span>
         </div>
       </form>
-    </main>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.login-right {
-  background:
-    radial-gradient(ellipse at 30% 20%, hsl(var(--primary) / 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, hsl(var(--accent) / 0.03) 0%, transparent 40%),
-    hsl(var(--background));
-}
-
-.dark .login-right {
-  background:
-    radial-gradient(ellipse at 30% 20%, hsl(var(--primary) / 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, hsl(var(--accent) / 0.04) 0%, transparent 40%),
-    hsl(var(--background));
-}
-
-/* Glassmorphism 降级 */
-@supports not (backdrop-filter: blur(1px)) {
-  .login-form {
-    background: hsl(var(--card)) !important;
-    backdrop-filter: none !important;
-  }
-}
+.login-wrapper { position: relative; display: flex; align-items: center; justify-content: flex-end; min-height: 100vh; overflow: hidden; }
+.login-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 35% center; }
+.login-card-container { position: relative; z-index: 10; margin-right: 8%; width: 340px; }
+.login-card { display: flex; flex-direction: column; gap: 20px; background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.08); }
+.login-header h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin: 0; }
+.login-header p { font-size: 13px; color: #999; margin-top: 6px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 13px; font-weight: 500; color: #555; }
+.field-row { display: flex; justify-content: space-between; align-items: center; }
+.forgot-link { font-size: 12px; color: #4361ee; text-decoration: none; }
+.forgot-link:hover { text-decoration: underline; }
+.field-input { display: flex; align-items: center; gap: 10px; height: 44px; border-bottom: 1px solid #e5e5e5; padding: 0 4px; transition: border-color 0.2s; }
+.field-input:focus-within { border-color: #4361ee; }
+.field-icon { width: 16px; height: 16px; color: #ccc; flex-shrink: 0; }
+.field-input input { flex: 1; border: none; outline: none; background: transparent; font-size: 14px; color: #1a1a1a; }
+.field-input input::placeholder { color: #ccc; }
+.eye-btn { background: none; border: none; cursor: pointer; padding: 0; display: grid; place-items: center; }
+.remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; cursor: pointer; margin-top: 4px; }
+.error-msg { background: #fef2f2; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #dc2626; }
+.submit-btn { height: 44px; width: 100%; border: none; border-radius: 10px; background: #4361ee; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.submit-btn:hover { background: #3a56d4; }
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.security-notice { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; color: #ccc; margin-top: 4px; }
+.security-icon { width: 14px; height: 14px; color: #4ade80; }
+@media (max-width: 1024px) { .login-card-container { margin: 0 auto; } }
 </style>

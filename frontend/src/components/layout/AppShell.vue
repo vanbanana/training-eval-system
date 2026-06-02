@@ -1,11 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import TopNav from './TopNav.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const isTeacher = computed(() => auth.user?.role === 'teacher')
 </script>
 
 <template>
   <div class="min-h-screen bg-background flex flex-col">
     <TopNav />
-    <main class="app-shell-content relative flex-1 px-8 py-7 flex flex-col gap-6">
+    <main
+      class="app-shell-content relative flex-1 flex flex-col"
+      :class="isTeacher ? 'px-6 py-4 gap-4' : 'px-8 py-7 gap-6'"
+    >
       <slot />
     </main>
   </div>
