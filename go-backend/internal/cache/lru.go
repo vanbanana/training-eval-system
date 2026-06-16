@@ -20,6 +20,7 @@ type LRU[K comparable, V any] struct {
 	capacity int
 	ttl      time.Duration
 	done     chan struct{}
+	stopOnce sync.Once
 }
 
 // New creates a new LRU cache with the given capacity and TTL.
@@ -124,7 +125,7 @@ func (c *LRU[K, V]) StartCleanup(interval time.Duration) {
 
 // Stop terminates the background cleanup goroutine.
 func (c *LRU[K, V]) Stop() {
-	close(c.done)
+	c.stopOnce.Do(func() { close(c.done) })
 }
 
 func (c *LRU[K, V]) removeLocked(key K) {

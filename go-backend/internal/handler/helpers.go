@@ -3,15 +3,23 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strconv"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
 )
 
 // JSON writes a JSON response with the given status code.
+// Nil slices are converted to empty arrays to avoid null in JSON.
 func JSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	// Convert nil slices to empty slices so JSON is [] not null
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		w.Write([]byte("[]\n"))
+		return
+	}
 	json.NewEncoder(w).Encode(v)
 }
 

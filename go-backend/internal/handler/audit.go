@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"encoding/csv"
 	"net/http"
+	"strconv"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
 	"github.com/smartedu/training-eval-system/internal/repository"
@@ -39,8 +41,31 @@ func (h *AuditHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuditHandler) Export(w http.ResponseWriter, r *http.Request) {
+	// Pull a large page of logs for export.
+	params := repository.ListParams{Page: 1, PageSize: 10000, Search: QueryStr(r, "search", "")}
+	logs, _, err := h.svc.List(r.Context(), params, nil, nil)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=audit_logs.csv")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("id,occurred_at,username,action,target,result\n"))
+
+	cw := csv.NewWriter(w)
+	defer cw.Flush()
+	_ = cw.Write([]string{"id", "occurred_at", "user_id", "username", "role", "action", "target_type", "target_id", "result", "detail", "client_ip"})
+	for _, l := range logs {
+		userID := ""
+		if l.UserID != nil {
+			userID = strconv.FormatInt(*l.UserID, 10)
+		}
+		_ = cw.Write([]string{
+			strconv.FormatInt(l.ID, 10),
+			l.OccurredAt.Format("2006-01-02T15:04:05Z07:00"),
+			userID, l.Username, l.Role, l.Action,
+			l.TargetType, l.TargetID, l.Result, l.Detail, l.ClientIP,
+		})
+	}
 }

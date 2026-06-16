@@ -127,7 +127,12 @@ const previewStats = computed(() => {
   return { total, valid, invalid }
 })
 
-const canSubmit = computed(() => previewStats.value.invalid === 0 && previewStats.value.valid > 0)
+const canSubmit = computed(() => {
+  if (!importFile.value) return false
+  // xlsx 文件跳过了前端预览，直接允许提交
+  if (importFile.value.name.toLowerCase().endsWith('.xlsx')) return true
+  return previewStats.value.invalid === 0 && previewStats.value.valid > 0
+})
 
 async function submitImport() {
   if (!importFile.value) return
@@ -341,8 +346,8 @@ function goBack() {
           <CloudUpload class="w-6 h-6" />
         </div>
         <div class="text-md font-semibold text-ink">将 CSV 文件拖到此处，或点击选择</div>
-        <div class="text-xs text-muted-foreground">仅支持 .csv 文件，UTF-8 编码</div>
-        <input type="file" accept=".csv" class="hidden" @change="onFileSelected" />
+        <div class="text-xs text-muted-foreground">支持 .csv / .xlsx 文件，UTF-8 编码</div>
+        <input type="file" accept=".csv,.xlsx" class="hidden" @change="onFileSelected" />
       </div>
 
       <!-- Preview -->
@@ -369,7 +374,8 @@ function goBack() {
         </div>
 
         <!-- Preview table -->
-        <div class="grid grid-cols-[60px_120px_100px_1fr_120px_1fr] items-center px-6 py-3 bg-surface-2 border-b border-border">
+        <div class="tes-table-shell">
+        <div class="grid min-w-[860px] grid-cols-[60px_120px_100px_minmax(12rem,1fr)_120px_minmax(14rem,1fr)] items-center px-6 py-3 bg-surface-2 border-b border-border">
           <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">行号</div>
           <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">账号</div>
           <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">角色</div>
@@ -377,11 +383,11 @@ function goBack() {
           <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
           <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">备注</div>
         </div>
-        <div class="max-h-[400px] overflow-y-auto">
+        <div class="max-h-[400px] min-w-[860px] overflow-y-auto">
           <div
             v-for="r in previewRows"
             :key="r.row"
-            class="grid grid-cols-[60px_120px_100px_1fr_120px_1fr] items-center px-6 py-2.5 border-b border-border last:border-b-0 text-xs"
+            class="grid grid-cols-[60px_120px_100px_minmax(12rem,1fr)_120px_minmax(14rem,1fr)] items-center px-6 py-2.5 border-b border-border last:border-b-0 text-xs"
             :class="r.valid ? '' : 'bg-danger-soft'"
           >
             <span class="font-mono text-muted-foreground">#{{ r.row }}</span>
@@ -404,6 +410,7 @@ function goBack() {
             </span>
             <span class="text-danger truncate" :title="r.error">{{ r.error || '—' }}</span>
           </div>
+        </div>
         </div>
 
         <!-- Footer -->

@@ -38,6 +38,7 @@ type Config struct {
 	LLMAPIKey    string // LLM API key (MiMo: passed via api-key header)
 	LLMModel     string // default "mimo-v2.5-pro"
 	LLMEmbedModel string // embedding model name (can be empty)
+	LLMOCRModel  string // OCR model name for multimodal image recognition (e.g. "mimo-v2.5")
 
 	// Use api-key header instead of Authorization: Bearer (MiMo style)
 	LLMUseAPIKeyHeader bool // default true
@@ -65,8 +66,8 @@ func Load() (*Config, error) {
 		LLMKeyMaster:         envStr("TES_LLM_KEY_MASTER", ""),
 		CORSOrigins:          envStringSlice("TES_CORS_ORIGINS", []string{"http://localhost:5173", "http://localhost:3000"}),
 		MaxUploadSizeMB:      envInt("TES_MAX_UPLOAD_SIZE_MB", 50),
-		WorkerCount:          envInt("TES_WORKER_COUNT", 4),
-		TaskBufferSize:       envInt("TES_TASK_BUFFER_SIZE", 100),
+		WorkerCount:          envInt("TES_WORKER_COUNT", 32),
+		TaskBufferSize:       envInt("TES_TASK_BUFFER_SIZE", 2000),
 		LogLevel:             envStr("TES_LOG_LEVEL", "info"),
 		BackupDir:            envStr("TES_BACKUP_DIR", "./data/backups"),
 		BackupInterval:       envDuration("TES_BACKUP_INTERVAL_HOURS", 24*time.Hour),
@@ -79,6 +80,7 @@ func Load() (*Config, error) {
 		LLMAPIKey:          envStr("TES_LLM_API_KEY", ""),
 		LLMModel:           envStr("TES_LLM_MODEL", "mimo-v2.5-pro"),
 		LLMEmbedModel:      envStr("TES_LLM_EMBED_MODEL", ""),
+		LLMOCRModel:        envStr("TES_LLM_OCR_MODEL", ""),
 		LLMUseAPIKeyHeader: envBool("TES_LLM_USE_API_KEY_HEADER", true),
 	}
 

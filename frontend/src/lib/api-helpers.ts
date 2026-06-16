@@ -23,6 +23,7 @@ export async function safeGet<T>(
   url: string,
   fallback: T,
   config?: AxiosRequestConfig,
+  options?: { silent404?: boolean },
 ): Promise<SafeGetResult<T>> {
   try {
     const r: AxiosResponse<T> = await axios.get<T>(url, config)
@@ -32,9 +33,11 @@ export async function safeGet<T>(
     const detail =
       (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? null
     const message = describeError(status, detail)
-    // 控制台保留信息，便于运维定位
-    // eslint-disable-next-line no-console
-    console.warn('[safeGet] failed', { url, status, message, error: e })
+    // 404 且调用方声明静默（如 verify-result 尚未生成）则不打日志
+    if (!(status === 404 && options?.silent404)) {
+      // eslint-disable-next-line no-console
+      console.warn('[safeGet] failed', { url, status, message, error: e })
+    }
     return { data: fallback, error: message, status }
   }
 }

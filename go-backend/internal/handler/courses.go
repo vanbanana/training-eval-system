@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
 	"github.com/smartedu/training-eval-system/internal/model"
@@ -36,7 +37,11 @@ func (h *CoursesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	c := &model.Course{Name: req.Name, Code: req.Code}
 	if err := h.svc.Create(r.Context(), c); err != nil {
-		Error(w, http.StatusConflict, err.Error())
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			Error(w, http.StatusConflict, "Course code already exists")
+			return
+		}
+		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	JSON(w, http.StatusCreated, c)
@@ -54,7 +59,10 @@ func (h *CoursesHandler) ToggleArchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	course.IsArchived = !course.IsArchived
-	_ = h.svc.Update(r.Context(), course)
+	if err := h.svc.Update(r.Context(), course); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	JSON(w, http.StatusOK, course)
 }
 

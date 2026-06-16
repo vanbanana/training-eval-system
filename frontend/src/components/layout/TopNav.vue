@@ -146,16 +146,16 @@ const roleLabel = computed(() => {
 <template>
   <header class="top-nav" :class="{ 'top-nav-capsule': isTeacher }">
     <!-- 上行：品牌 + 胶囊导航(教师) / 搜索 + 用户 -->
-    <div class="flex items-center justify-between h-16 px-8">
-      <div class="flex items-center gap-3.5">
+    <div class="top-nav-row">
+      <div class="top-nav-brand flex min-w-0 items-center gap-3.5">
         <div
           class="w-8 h-8 bg-primary text-primary-foreground rounded-sm grid place-items-center font-bold text-[15px] shadow-sm"
         >
           训
         </div>
-        <span class="text-[15px] font-semibold text-ink">实训评价管理系统</span>
-        <span class="w-px h-[18px] bg-border"></span>
-        <span class="text-xs font-medium text-foreground px-2.5 py-1.5 bg-surface-2 border border-border rounded-md">
+        <span class="truncate text-[15px] font-semibold text-ink">实训评价管理系统</span>
+        <span class="hidden sm:block w-px h-[18px] bg-border"></span>
+        <span class="hidden sm:inline-flex text-xs font-medium text-foreground px-2.5 py-1.5 bg-surface-2 border border-border rounded-md">
           软件学院
         </span>
       </div>
@@ -177,11 +177,11 @@ const roleLabel = computed(() => {
         </RouterLink>
       </nav>
 
-      <div class="flex items-center gap-3.5">
+      <div class="top-nav-actions">
         <!-- 全局搜索 ⌘K -->
         <button
           class="flex items-center gap-2.5 h-9 px-3 bg-surface-2 border border-border rounded-md cursor-pointer transition-colors hover:border-border-strong"
-          :class="isTeacher ? 'w-[200px]' : 'w-[300px]'"
+          :class="isTeacher ? 'w-[min(14rem,28vw)]' : 'w-[min(19rem,32vw)]'"
           aria-label="全局搜索"
           @click="searchOpen = true"
         >
@@ -236,7 +236,7 @@ const roleLabel = computed(() => {
                     ></span>
                     <div class="flex-1 min-w-0">
                       <p class="text-xs font-semibold text-ink truncate">{{ n.title }}</p>
-                      <p v-if="n.body" class="text-xs text-muted-foreground line-clamp-2 mt-0.5">{{ n.body }}</p>
+                      <p v-if="n.content" class="text-xs text-muted-foreground line-clamp-2 mt-0.5">{{ n.content }}</p>
                       <p class="text-[10px] text-subtle-foreground mt-1">{{ formatTime(n.created_at) }}</p>
                     </div>
                   </div>
@@ -256,8 +256,8 @@ const roleLabel = computed(() => {
               class="flex items-center gap-2 pl-1 pr-3 py-1 bg-surface-2 border border-border rounded-pill transition-colors hover:bg-muted"
             >
               <Avatar size="sm">{{ userInitial }}</Avatar>
-              <span class="text-xs font-medium text-ink">{{ auth.user?.display_name }}</span>
-              <span class="text-[10px] text-muted-foreground">{{ roleLabel }}</span>
+              <span class="hidden sm:inline text-xs font-medium text-ink">{{ auth.user?.display_name }}</span>
+              <span class="hidden md:inline text-[10px] text-muted-foreground">{{ roleLabel }}</span>
               <ChevronDown class="w-3.5 h-3.5 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
@@ -297,7 +297,7 @@ const roleLabel = computed(() => {
     </div>
 
     <!-- 下行：导航（非教师角色保留原有下划线导航） -->
-    <nav v-if="!isTeacher" class="flex items-center h-11 px-8 gap-0">
+    <nav v-if="!isTeacher" class="top-nav-tabs">
       <RouterLink
         v-for="item in navItems"
         :key="item.to + item.label"
@@ -327,6 +327,43 @@ const roleLabel = computed(() => {
   box-shadow: var(--shadow-sm);
 }
 
+.top-nav-row {
+  min-height: 5rem;
+  padding: 1rem 1.25rem;
+  display: grid;
+  grid-template-columns: minmax(12rem, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.top-nav-actions {
+  grid-column: 3;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.top-nav-capsule .top-nav-row {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+
+.top-nav-capsule .top-nav-brand {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.top-nav-capsule .capsule-nav {
+  grid-column: 2;
+  justify-self: center;
+}
+
+.top-nav-capsule .top-nav-actions {
+  grid-column: 3;
+  justify-self: end;
+}
+
 /* Teacher capsule mode: single row, no bottom border nav */
 .top-nav-capsule {
   border-bottom: none;
@@ -353,19 +390,30 @@ const roleLabel = computed(() => {
 .capsule-nav {
   display: flex;
   align-items: center;
+  justify-self: start;
   gap: 4px;
+  width: max-content;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
   background: hsl(var(--surface-2));
   border: 1px solid hsl(var(--border));
   border-radius: 999px;
-  padding: 4px;
+  padding: 5px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.capsule-nav::-webkit-scrollbar,
+.top-nav-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .capsule-nav-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 16px;
+  padding: 9px 18px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
@@ -385,5 +433,64 @@ const roleLabel = computed(() => {
   color: hsl(var(--ink));
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.top-nav-tabs {
+  height: 2.75rem;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+@media (max-width: 1180px) {
+  .top-nav-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .top-nav-capsule .top-nav-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .top-nav-actions {
+    grid-column: 2;
+  }
+
+  .top-nav-capsule .top-nav-actions {
+    grid-column: 2;
+  }
+
+  .capsule-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: auto;
+    justify-self: stretch;
+  }
+
+  .top-nav-capsule .capsule-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: auto;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 760px) {
+  .top-nav-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .top-nav-actions {
+    grid-column: 1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .top-nav-actions > button:first-child {
+    width: min(100%, 22rem) !important;
+  }
 }
 </style>

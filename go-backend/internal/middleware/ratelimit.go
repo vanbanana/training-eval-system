@@ -12,6 +12,7 @@ type RateLimiter struct {
 	visitors map[string]*visitor
 	limit    int
 	window   time.Duration
+	done     chan struct{}
 }
 
 type visitor struct {
@@ -24,10 +25,16 @@ func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 		visitors: make(map[string]*visitor),
 		limit:    limit,
 		window:   window,
+		done:     make(chan struct{}),
 	}
 	// Start cleanup goroutine
 	go rl.cleanup()
 	return rl
+}
+
+// Stop terminates the background cleanup goroutine.
+func (rl *RateLimiter) Stop() {
+	close(rl.done)
 }
 
 // Middleware returns an HTTP middleware that enforces rate limiting.
@@ -78,23 +85,28 @@ func (rl *RateLimiter) cleanup() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		rl.mu.Lock()
-		now := time.Now()
-		for ip, v := range rl.visitors {
-			cutoff := now.Add(-rl.window)
-			valid := v.timestamps[:0]
-			for _, ts := range v.timestamps {
-				if ts.After(cutoff) {
-					valid = append(valid, ts)
+	for {
+		select {
+		case <-rl.done:
+			return
+		case <-ticker.C:
+			rl.mu.Lock()
+			now := time.Now()
+			for ip, v := range rl.visitors {
+				cutoff := now.Add(-rl.window)
+				valid := v.timestamps[:0]
+				for _, ts := range v.timestamps {
+					if ts.After(cutoff) {
+						valid = append(valid, ts)
+					}
+				}
+				v.timestamps = valid
+				if len(v.timestamps) == 0 {
+					delete(rl.visitors, ip)
 				}
 			}
-			v.timestamps = valid
-			if len(v.timestamps) == 0 {
-				delete(rl.visitors, ip)
-			}
+			rl.mu.Unlock()
 		}
-		rl.mu.Unlock()
 	}
 }
 

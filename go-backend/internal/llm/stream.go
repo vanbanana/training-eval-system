@@ -57,7 +57,12 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 		return nil, fmt.Errorf("llm: create stream request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	// MiMo uses the api-key header; standard OpenAI uses Authorization: Bearer.
+	if c.useAPIKeyHeader {
+		httpReq.Header.Set("api-key", c.apiKey)
+	} else {
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(httpReq)

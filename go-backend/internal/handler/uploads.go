@@ -1,19 +1,26 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
 	"github.com/smartedu/training-eval-system/internal/middleware"
+	"github.com/smartedu/training-eval-system/internal/pipeline"
 	"github.com/smartedu/training-eval-system/internal/repository"
 	"github.com/smartedu/training-eval-system/internal/service"
+
+	"context"
 )
 
-type UploadsHandler struct{ svc *service.UploadService }
+type UploadsHandler struct {
+	svc  *service.UploadService
+	orch *pipeline.Orchestrator
+}
 
-func NewUploadsHandler(svc *service.UploadService) *UploadsHandler {
-	return &UploadsHandler{svc: svc}
+func NewUploadsHandler(svc *service.UploadService, orch *pipeline.Orchestrator) *UploadsHandler {
+	return &UploadsHandler{svc: svc, orch: orch}
 }
 
 func (h *UploadsHandler) ListByTask(w http.ResponseWriter, r *http.Request) {
@@ -63,11 +70,27 @@ func (h *UploadsHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
 	upload, err := h.svc.Upload(r.Context(), taskID, claims.Sub, header.Filename, header.Size, file)
 	if err != nil {
 		Error(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	// Trigger parse pipeline asynchronously after successful upload
+	if h.orch != nil {
+		uploadID := upload.ID
+		go func() {
+			bgCtx := context.Background()
+			if err := h.orch.TriggerParse(bgCtx, uploadID); err != nil {
+				slog.Error("failed to trigger parse pipeline", "upload_id", uploadID, "error", err)
+			}
+		}()
+	}
+
 	JSON(w, http.StatusCreated, dto.UploadResponse{
 		ID: upload.ID, TaskID: upload.TaskID, StudentID: upload.StudentID,
 		Filename: upload.Filename, FileType: upload.FileType, FileSize: upload.FileSize,
@@ -87,8 +110,16 @@ func (h *UploadsHandler) VerifyResult(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusNotFound, "Upload not found")
 		return
 	}
-	// Return 404 if no verify result exists yet
-	Error(w, http.StatusNotFound, "Verify result not available")
+	vr, err := h.svc.GetVerifyResult(r.Context(), id)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if vr == nil {
+		Error(w, http.StatusNotFound, "Verify result not available")
+		return
+	}
+	JSON(w, http.StatusOK, vr)
 }
 
 func (h *UploadsHandler) Retry(w http.ResponseWriter, r *http.Request) {
@@ -106,10 +137,16 @@ func (h *UploadsHandler) Retry(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusConflict, "Can only retry failed uploads")
 		return
 	}
-	// Reset status to pending for re-processing
-	if err := h.svc.UpdateStatus(r.Context(), id, "pending"); err != nil {
-		Error(w, http.StatusInternalServerError, err.Error())
-		return
+
+	// Re-trigger parse pipeline (pipeline will reset status to pending internally)
+	if h.orch != nil {
+		go func() {
+			bgCtx := context.Background()
+			if err := h.orch.TriggerRetry(bgCtx, id); err != nil {
+				slog.Error("failed to trigger retry pipeline", "upload_id", id, "error", err)
+			}
+		}()
 	}
+
 	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Retry submitted"})
 }

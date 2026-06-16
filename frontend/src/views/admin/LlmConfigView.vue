@@ -224,10 +224,10 @@ function saveCustomProvider() {
 
     <p v-if="saveMsg" class="text-xs" :class="saveMsg.includes('已保存') ? 'text-success' : 'text-danger'">{{ saveMsg }}</p>
 
-    <div class="grid grid-cols-[1fr_380px] gap-5">
+    <div class="tes-grid-main-aside">
       <!-- LEFT -->
       <div class="flex flex-col gap-5">
-        <Card class="overflow-hidden">
+        <Card class="tes-card-container overflow-hidden">
           <header class="flex justify-between items-center px-6 py-4 border-b border-border">
             <div>
               <div class="text-sm font-semibold text-ink">供应商选择</div>

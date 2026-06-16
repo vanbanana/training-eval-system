@@ -8,13 +8,15 @@ const isTeacher = computed(() => auth.user?.role === 'teacher')
 </script>
 
 <template>
-  <div class="min-h-screen bg-background flex flex-col">
+  <div class="min-h-dvh bg-background flex flex-col overflow-x-clip">
     <TopNav />
     <main
-      class="app-shell-content relative flex-1 flex flex-col"
-      :class="isTeacher ? 'px-6 py-4 gap-4' : 'px-8 py-7 gap-6'"
+      class="app-shell-content relative w-full min-w-0 flex flex-col items-start"
+      :class="isTeacher ? 'px-4 sm:px-5 lg:px-6 py-4 gap-4' : 'px-4 sm:px-6 lg:px-8 py-5 lg:py-7 gap-5 lg:gap-6'"
     >
-      <slot />
+      <div class="app-shell-inner relative z-[1] w-full min-w-0">
+        <slot />
+      </div>
     </main>
   </div>
 </template>
@@ -25,17 +27,18 @@ const isTeacher = computed(() => auth.user?.role === 'teacher')
   background-attachment: fixed;
 }
 
-/* 装饰性渐变球 */
-.app-shell-content::before {
-  content: '';
-  position: fixed;
-  top: -20%;
-  right: -10%;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, hsl(var(--accent) / 0.03), transparent 70%);
-  pointer-events: none;
-  z-index: 0;
+.app-shell-inner {
+  max-width: none;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: inherit;
+}
+
+@media (min-width: 1920px) {
+  .app-shell-inner {
+    max-width: none;
+  }
 }
 </style>

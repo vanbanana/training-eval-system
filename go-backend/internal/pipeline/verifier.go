@@ -107,15 +107,17 @@ func (v *Verifier) Verify(ctx context.Context, uploadID int64, rawText string) e
 
 // markVerifyFailed updates the upload state and notifies the teacher.
 func (v *Verifier) markVerifyFailed(ctx context.Context, upload *model.Upload, task *model.TrainingTask, reason string) error {
-	slog.Error("verifier: marking upload as verify_failed", "upload_id", upload.ID, "reason", reason)
+	slog.Error("verifier: marking upload as failed (verification failed)", "upload_id", upload.ID, "reason", reason)
 
-	_ = v.uploadRepo.UpdateStatus(ctx, upload.ID, "verify_failed")
+	// parse_status only accepts pending/parsing/parsed/failed; verification is a
+	// post-parse step, so a verification failure is recorded as "failed".
+	_ = v.uploadRepo.UpdateStatus(ctx, upload.ID, "failed")
 	_ = v.uploadRepo.SaveVerifyResult(ctx, &model.VerifyResult{
 		UploadID:     upload.ID,
 		ErrorMessage: reason,
 	})
 
-	// Notify teacher via SSE
+	// Notify teacher via SSE (event name is independent of the DB status value).
 	if v.broker != nil && task != nil {
 		v.broker.Publish(sse.Event{
 			UserID: task.TeacherID,

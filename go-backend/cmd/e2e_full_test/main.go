@@ -113,8 +113,8 @@ func main() {
 	authHandler := handler.NewAuthHandler(authSvc)
 	usersHandler := handler.NewUsersHandler(userSvc)
 	tasksHandler := handler.NewTasksHandler(taskSvc)
-	uploadsHandler := handler.NewUploadsHandler(uploadSvc)
-	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc)
+	uploadsHandler := handler.NewUploadsHandler(uploadSvc, nil)
+	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc, uploadSvc)
 	gradingHandler := handler.NewGradingHandler(evalSvc, uploadSvc, userSvc, db)
 	coursesHandler := handler.NewCoursesHandler(courseSvc, classSvc)
 	classesHandler := handler.NewClassesHandler(classSvc, userSvc)
@@ -124,12 +124,12 @@ func main() {
 	dashboardHandler := handler.NewDashboardHandler(db)
 	reportsHandler := handler.NewReportsHandler(evalSvc, taskSvc, userSvc, db)
 	profilesHandler := handler.NewProfilesHandler(profileSvc, db, nil)
-	llmHandler := handler.NewLLMHandler(llmConfigSvc)
+	llmHandler := handler.NewLLMHandler(llmConfigSvc, []byte("0123456789abcdef0123456789abcdef"))
 	auditHandler := handler.NewAuditHandler(auditSvc)
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
-	similarityHandler := handler.NewSimilarityHandler()
-	importsHandler := handler.NewImportsHandler()
+	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
+	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc)
 
 	router := handler.NewRouter(handler.RouterConfig{
 		JWTSecret: testJWTSecret, CORSOrigins: []string{"*"},
@@ -251,7 +251,7 @@ func main() {
 			fmt.Printf("⚠️  Report returned %d: %s\n\n", reportResp.StatusCode, string(body))
 		}
 	} else {
-		fmt.Println("  (skipped - no scored evaluations yet)\n")
+		fmt.Println("  (skipped - no scored evaluations yet)")
 	}
 
 	// ============ TEST G: Teacher scoring endpoint ============
@@ -266,7 +266,7 @@ func main() {
 			body, _ := io.ReadAll(patchResp.Body)
 			fmt.Printf("✅ Teacher score update: status=%d, body=%s\n\n", patchResp.StatusCode, string(body))
 		} else {
-			fmt.Println("  (skipped - no dimension scores yet)\n")
+			fmt.Println("  (skipped - no dimension scores yet)")
 		}
 	}
 

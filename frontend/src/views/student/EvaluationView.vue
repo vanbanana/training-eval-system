@@ -67,7 +67,7 @@ const dimMap = computed(() => {
 })
 
 const displayScores = computed(() => {
-  if (!evaluation.value) return []
+  if (!evaluation.value?.scores) return []
   return evaluation.value.scores
     .map((s) => {
       const dim = dimMap.value[s.dimension_id]
@@ -132,7 +132,7 @@ async function fetchAll() {
   loading.value = true
   try {
     const { data: evalData } = await axios.get(`/api/evaluations/${evalId.value}`)
-    evaluation.value = evalData
+    evaluation.value = { ...evalData, scores: evalData.scores ?? [] }
     if (evalData.task_id) {
       const { data: taskData } = await axios.get(`/api/tasks/${evalData.task_id}`)
       task.value = taskData
@@ -173,7 +173,7 @@ async function exportPdf() {
     a.href = url
     a.download = `evaluation_${evalId.value}.pdf`
     a.click()
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
     toast({ description: 'PDF 已下载', variant: 'success' })
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -371,5 +371,11 @@ function openChat() {
       <!-- Floating AI Chat Sidebar -->
       <ChatDialog ref="chatRef" :evaluation-id="Number(evalId)" />
     </template>
+
+    <!-- Fallback: not loading, but evaluation/task could not be fully loaded. -->
+    <div v-else class="flex flex-col items-center justify-center py-24 gap-3 text-center">
+      <p class="text-sm text-muted-foreground">评价信息加载不完整，请重试。</p>
+      <Button variant="outline" size="sm" @click="fetchAll">重新加载</Button>
+    </div>
   </AppShell>
 </template>

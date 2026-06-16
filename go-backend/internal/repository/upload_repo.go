@@ -173,3 +173,39 @@ func (r *SQLiteUploadRepo) SaveVerifyResult(ctx context.Context, vr *model.Verif
 	vr.ID = id
 	return nil
 }
+
+func (r *SQLiteUploadRepo) GetVerifyResult(ctx context.Context, uploadID int64) (*model.VerifyResult, error) {
+	var vr model.VerifyResult
+	var matchRate sql.NullFloat64
+	var checkpoints, missingItems, logicIssues sql.NullString
+	var overallConfidence sql.NullInt64
+	var verifiedAt sql.NullString
+	err := r.db.Reader.QueryRowContext(ctx,
+		`SELECT id, upload_id, match_rate, checkpoints, missing_items, logic_issues, overall_confidence, verified_at
+		 FROM verify_results WHERE upload_id=?`, uploadID).Scan(
+		&vr.ID, &vr.UploadID, &matchRate, &checkpoints, &missingItems, &logicIssues, &overallConfidence, &verifiedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("upload_repo: get verify result: %w", err)
+	}
+	if matchRate.Valid {
+		vr.MatchRate = &matchRate.Float64
+	}
+	if checkpoints.Valid {
+		_ = json.Unmarshal([]byte(checkpoints.String), &vr.Checkpoints)
+	}
+	if missingItems.Valid {
+		_ = json.Unmarshal([]byte(missingItems.String), &vr.MissingItems)
+	}
+	if logicIssues.Valid {
+		_ = json.Unmarshal([]byte(logicIssues.String), &vr.LogicIssues)
+	}
+	if overallConfidence.Valid {
+		conf := int(overallConfidence.Int64)
+		vr.OverallConfidence = &conf
+	}
+	vr.VerifiedAt = parseTime(verifiedAt.String)
+	return &vr, nil
+}

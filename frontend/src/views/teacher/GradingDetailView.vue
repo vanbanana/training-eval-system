@@ -157,7 +157,7 @@ function goNext() {
 }
 
 const previewSubjTotal = computed(() => {
-  if (!evaluation.value) return 0
+  if (!evaluation.value?.scores) return 0
   return Math.round(
     evaluation.value.scores.reduce((sum, d) => {
       const subj = subjScores.value[d.dimension_id] ?? d.obj_score
@@ -167,7 +167,7 @@ const previewSubjTotal = computed(() => {
 })
 
 const previewObjTotal = computed(() => {
-  if (!evaluation.value) return 0
+  if (!evaluation.value?.scores) return 0
   return Math.round(
     evaluation.value.scores.reduce((s, d) => s + d.obj_score * (d.weight / 100), 0),
   )
@@ -217,7 +217,7 @@ async function onReject(reason: string) {
 }
 
 async function saveDraft() {
-  if (!evaluation.value) return
+  if (!evaluation.value?.scores) return
   // 对每个改动的维度调 PATCH /api/evaluations/{id}/dimensions/{dim_id}
   submitting.value = true
   try {
@@ -291,14 +291,14 @@ function openHistory() {
       </div>
     </div>
 
-    <div v-if="loading" class="grid grid-cols-2 gap-4">
+    <div v-if="loading" class="tes-grid-main-aside">
       <Skeleton class="h-[600px]" />
       <Skeleton class="h-[600px]" />
     </div>
 
-    <div v-else-if="evaluation" class="grid grid-cols-2 gap-4 items-start">
+    <div v-else-if="evaluation" class="tes-grid-main-aside">
       <!-- LEFT: parsed text -->
-      <Card class="flex flex-col overflow-hidden h-[calc(100vh-280px)]">
+      <Card class="tes-card-container flex flex-col overflow-hidden max-h-[44rem]">
         <header class="px-5 py-3.5 border-b border-border flex justify-between items-center bg-surface-2">
           <div class="flex items-center gap-2">
             <FileSearch class="w-4 h-4 text-primary" />
@@ -327,25 +327,25 @@ function openHistory() {
           :uploaded-at="submission.uploaded_at"
         />
 
-        <Card>
+        <Card class="tes-card-container">
           <header class="px-5 py-4 border-b border-border flex justify-between items-center">
             <span class="text-sm font-semibold text-ink">综合得分预览</span>
             <span class="text-2xl font-bold text-primary num-tabular">{{ previewFinalTotal }}</span>
           </header>
-          <div class="px-5 py-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+          <div class="px-5 py-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-xs text-muted-foreground">
             <div>AI 客观分（×60%）：<span class="text-ink font-semibold">{{ previewObjTotal }}</span></div>
             <div>教师主观分（×40%）：<span class="text-ink font-semibold">{{ previewSubjTotal }}</span></div>
           </div>
         </Card>
 
-        <Card class="overflow-hidden">
+        <Card class="tes-card-container overflow-hidden">
           <header class="px-5 py-4 border-b border-border">
             <span class="text-sm font-semibold text-ink">维度评分</span>
           </header>
           <div
-            v-for="d in evaluation.scores"
+            v-for="d in (evaluation.scores ?? [])"
             :key="d.dimension_id"
-            class="px-5 py-3.5 border-b border-border last:border-b-0 grid grid-cols-[1fr_70px_70px_70px] items-center gap-3"
+            class="px-5 py-3.5 border-b border-border last:border-b-0 grid grid-cols-[minmax(12rem,1fr)_70px_70px_70px] items-center gap-3"
           >
             <div>
               <div class="text-sm font-semibold text-ink">{{ d.dimension_name }}</div>

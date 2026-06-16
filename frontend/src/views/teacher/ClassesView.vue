@@ -277,7 +277,8 @@ function openImportDialog() {
 }
 
 function downloadStudentTemplate() {
-  window.location.href = '/api/imports/template/student.xlsx'
+  // Reuses the shared user import template (same columns).
+  window.location.href = '/api/imports/template/user.xlsx'
   toast({ description: '模板下载已开始', variant: 'info' })
 }
 
@@ -322,6 +323,7 @@ function exportClassRoster() {
 }
 
 async function removeStudent(s: StudentRow) {
+  if (!selectedClass.value) return
   const ok = await confirm({
     title: '移出班级',
     description: `确定将 ${s.display_name} 移出当前班级？`,
@@ -329,11 +331,15 @@ async function removeStudent(s: StudentRow) {
     confirmText: '移出',
   })
   if (!ok) return
-  // 后端无显式 remove 端点 — 暂提示
-  toast({
-    description: '移出学生接口待 Epic 31 后端开放。当前可联系管理员处理。',
-    variant: 'warning',
-  })
+  try {
+    await axios.delete(`/api/classes/${selectedClass.value.id}/students/${s.id}`)
+    toast({ description: `已将 ${s.display_name} 移出班级`, variant: 'success' })
+    await loadStudents(selectedClass.value.id)
+    await loadClasses()
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    toast({ description: msg ?? '移出失败', variant: 'destructive' })
+  }
 }
 
 function viewProfile(s: StudentRow) {
@@ -366,9 +372,9 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="grid grid-cols-[300px_1fr] gap-[18px]">
+    <div class="tes-grid-sidebar-main">
       <!-- LEFT: Class List -->
-      <Card class="overflow-hidden">
+      <Card class="tes-card-container overflow-hidden">
         <div class="p-[18px] border-b border-border flex flex-col gap-2.5">
           <span class="text-sm font-semibold text-ink">班级列表</span>
           <div class="relative">
@@ -404,7 +410,7 @@ onMounted(async () => {
       </Card>
 
       <!-- RIGHT: Detail -->
-      <Card class="overflow-hidden">
+      <Card class="tes-card-container overflow-hidden">
         <template v-if="selectedClass">
           <div class="px-6 py-[18px] border-b border-border flex justify-between items-center">
             <div>
@@ -442,16 +448,16 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="bg-surface-2 border-b border-border px-6 py-[18px] flex gap-6">
-            <div class="flex-1 flex flex-col gap-0.5">
+          <div class="bg-surface-2 border-b border-border px-6 py-[18px] tes-grid-kpi">
+            <div class="flex min-w-0 flex-col gap-0.5">
               <span class="text-[11px] text-muted-foreground">学生总数</span>
               <span class="text-[22px] font-bold text-ink">{{ selectedClass.student_count }}</span>
             </div>
-            <div class="flex-1 flex flex-col gap-0.5">
+            <div class="flex min-w-0 flex-col gap-0.5">
               <span class="text-[11px] text-muted-foreground">课程</span>
               <span class="text-[22px] font-bold text-ink">{{ selectedCourse?.code ?? '—' }}</span>
             </div>
-            <div class="flex-1 flex flex-col gap-0.5">
+            <div class="flex min-w-0 flex-col gap-0.5">
               <span class="text-[11px] text-muted-foreground">状态</span>
               <span class="text-[22px] font-bold" :class="selectedClass.is_archived ? 'text-muted-foreground' : 'text-success'">
                 {{ selectedClass.is_archived ? '归档' : '在用' }}
@@ -459,9 +465,9 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="px-6 py-3.5 border-b border-border flex justify-between items-center gap-3">
-            <div class="flex items-center gap-3">
-              <div class="relative w-60">
+          <div class="px-6 py-3.5 border-b border-border flex flex-wrap justify-between items-center gap-3">
+            <div class="flex min-w-0 flex-wrap items-center gap-3">
+              <div class="relative w-full sm:w-60">
                 <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input v-model="searchStudent" placeholder="按学号 / 姓名搜索" class="pl-9" />
               </div>
@@ -485,17 +491,18 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="grid grid-cols-[36px_240px_140px_160px_140px_1fr] items-center bg-surface-2 px-6 py-3 border-b border-border">
-            <div></div>
-            <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学生</div>
-            <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学号</div>
-            <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">加入时间</div>
-            <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
-            <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
-          </div>
+          <div class="tes-table-shell">
+            <div class="grid min-w-[860px] grid-cols-[36px_240px_140px_160px_140px_minmax(12rem,1fr)] items-center bg-surface-2 px-6 py-3 border-b border-border">
+              <div></div>
+              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学生</div>
+              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学号</div>
+              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">加入时间</div>
+              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
+              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
+            </div>
 
           <template v-if="loadingStudents">
-            <div v-for="n in 5" :key="n" class="grid grid-cols-[36px_240px_140px_160px_140px_1fr] items-center px-6 py-3.5 border-b border-border">
+            <div v-for="n in 5" :key="n" class="grid min-w-[860px] grid-cols-[36px_240px_140px_160px_140px_minmax(12rem,1fr)] items-center px-6 py-3.5 border-b border-border">
               <Skeleton class="h-4 w-4" />
               <Skeleton class="h-9 w-3/4" />
               <Skeleton class="h-4 w-20" />
@@ -516,7 +523,7 @@ onMounted(async () => {
             v-for="(s, idx) in paginatedStudents"
             v-else
             :key="s.id"
-            class="grid grid-cols-[36px_240px_140px_160px_140px_1fr] items-center px-6 py-3.5 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
+            class="grid min-w-[860px] grid-cols-[36px_240px_140px_160px_140px_minmax(12rem,1fr)] items-center px-6 py-3.5 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
             :style="{ animationDelay: Math.min(idx * 20, 200) + 'ms' }"
           >
             <div></div>
@@ -539,7 +546,9 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div v-if="filteredStudents.length > 0" class="flex justify-between items-center px-6 py-3.5 bg-surface-2 border-t border-border">
+          </div>
+
+          <div v-if="filteredStudents.length > 0" class="flex flex-wrap justify-between items-center gap-3 px-6 py-3.5 bg-surface-2 border-t border-border">
             <span class="text-xs text-muted-foreground">
               显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, filteredStudents.length) }} 共 {{ filteredStudents.length }} 名学生
             </span>

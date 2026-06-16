@@ -71,8 +71,8 @@ func SetupTestApp(t *testing.T) *TestApp {
 	authHandler := handler.NewAuthHandler(authSvc)
 	usersHandler := handler.NewUsersHandler(userSvc)
 	tasksHandler := handler.NewTasksHandler(taskSvc)
-	uploadsHandler := handler.NewUploadsHandler(uploadSvc)
-	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc)
+	uploadsHandler := handler.NewUploadsHandler(uploadSvc, nil)
+	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc, uploadSvc)
 	gradingHandler := handler.NewGradingHandler(evalSvc, uploadSvc, userSvc, db)
 	coursesHandler := handler.NewCoursesHandler(courseSvc, classSvc)
 	classesHandler := handler.NewClassesHandler(classSvc, userSvc)
@@ -82,12 +82,13 @@ func SetupTestApp(t *testing.T) *TestApp {
 	dashboardHandler := handler.NewDashboardHandler(db)
 	reportsHandler := handler.NewReportsHandler(evalSvc, taskSvc, userSvc, db)
 	profilesHandler := handler.NewProfilesHandler(profileSvc, db, nil)
-	llmHandler := handler.NewLLMHandler(llmConfigSvc)
+	llmHandler := handler.NewLLMHandler(llmConfigSvc, testMasterKey())
 	auditHandler := handler.NewAuditHandler(auditSvc)
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
-	similarityHandler := handler.NewSimilarityHandler()
-	importsHandler := handler.NewImportsHandler()
+	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
+	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc)
+	sseHandler := handler.NewSSEHandler(broker, TestJWTSecret)
 
 	// Router
 	router := handler.NewRouter(handler.RouterConfig{
@@ -113,6 +114,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 		AuditHandler:         auditHandler,
 		AccountHandler:       accountHandler,
 		ParseHandler:         parseHandler,
+		SSEHandler:           sseHandler,
 	})
 
 	srv := httptest.NewServer(router)

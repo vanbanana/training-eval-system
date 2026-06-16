@@ -236,7 +236,10 @@ func (s *Scorer) getObjectiveRatio(ctx context.Context) float64 {
 }
 
 func (s *Scorer) markManualRequired(ctx context.Context, eval *model.Evaluation, reason string) error {
-	eval.Status = "manual_required"
+	// evaluations.status only accepts pending/scored/confirmed/rejected. When AI
+	// scoring fails, the evaluation stays "pending" so a teacher can score it
+	// manually; the reason is preserved in the comment and history.
+	eval.Status = "pending"
 	eval.OverallComment = reason
 	if err := s.evalRepo.Update(ctx, eval); err != nil {
 		return fmt.Errorf("scorer: mark manual_required: %w", err)
@@ -250,7 +253,7 @@ func (s *Scorer) markManualRequired(ctx context.Context, eval *model.Evaluation,
 		AfterValue:   reason,
 	})
 
-	slog.Warn("scorer: marking evaluation as manual_required", "eval_id", eval.ID, "reason", reason)
+	slog.Warn("scorer: AI scoring failed, evaluation left pending for manual scoring", "eval_id", eval.ID, "reason", reason)
 	return nil
 }
 

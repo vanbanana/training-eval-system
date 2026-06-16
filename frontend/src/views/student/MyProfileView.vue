@@ -62,7 +62,13 @@ async function fetchProfile() {
   loading.value = true
   try {
     const { data } = await axios.get<ProfileOut>(`/api/profiles/student/${auth.user?.id}`)
-    profile.value = data
+    profile.value = {
+      ...data,
+      radar_data: data.radar_data ?? {},
+      weakness_list: data.weakness_list ?? [],
+      suggestions: data.suggestions ?? [],
+      score_trend: data.score_trend ?? [],
+    }
   } catch {
     toast({ description: '加载画像失败', variant: 'destructive' })
   } finally {
@@ -164,9 +170,9 @@ function copyShareLink() {
   <AppShell>
     <BreadcrumbNav :items="breadcrumbs" />
 
-    <div class="flex justify-between items-end">
-      <div>
-        <h1 class="text-2xl font-bold text-ink">我的能力画像</h1>
+    <div class="tes-page-header">
+      <div class="min-w-0">
+        <h1 class="tes-clamp-title text-2xl font-bold text-ink">我的能力画像</h1>
         <p class="mt-1.5 text-sm text-muted-foreground">
           <template v-if="profile && !profile.insufficient_data">
             基于近 <AnimatedNumber :value="profile.source_evaluation_count" /> 次实训综合分析 · 最近一次更新于 {{ formattedDate }}
@@ -174,7 +180,7 @@ function copyShareLink() {
           <template v-else>个人能力发展轨迹与改进方向</template>
         </p>
       </div>
-      <div class="flex gap-3">
+      <div class="tes-page-actions">
         <Select v-model="timeRange">
           <SelectTrigger class="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -194,7 +200,7 @@ function copyShareLink() {
       </div>
     </div>
 
-    <div v-if="loading" class="grid grid-cols-[1fr_420px] gap-5">
+    <div v-if="loading" class="tes-grid-main-aside">
       <Skeleton class="h-[480px]" />
       <Skeleton class="h-[480px]" />
     </div>
@@ -208,9 +214,9 @@ function copyShareLink() {
       @action="$router.push('/student/tasks')"
     />
 
-    <div v-else class="grid grid-cols-[1fr_420px] gap-5">
+    <div v-else class="tes-grid-main-aside">
       <!-- LEFT: Weakness Analysis -->
-      <Card class="overflow-hidden">
+      <Card class="tes-card-container overflow-hidden">
         <header class="px-6 py-4 border-b border-border flex justify-between items-center">
           <div class="flex items-center gap-2.5">
             <Target class="w-4 h-4 text-accent" />
@@ -232,11 +238,11 @@ function copyShareLink() {
             :style="{ animationDelay: idx * 60 + 'ms' }"
           >
             <div class="flex justify-between items-center">
-              <div class="flex items-center gap-2.5">
+              <div class="flex min-w-0 items-center gap-2.5">
                 <span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold bg-accent-soft text-accent-strong">
                   {{ idx + 1 }}
                 </span>
-                <span class="text-[15px] font-bold text-ink">{{ w }}</span>
+                <span class="tes-breakable text-[15px] font-bold text-ink">{{ w }}</span>
               </div>
               <span
                 v-if="profile.radar_data[w] !== undefined"
@@ -273,14 +279,14 @@ function copyShareLink() {
       <!-- RIGHT -->
       <div class="flex flex-col gap-5">
         <!-- Radar -->
-        <Card class="p-6">
+        <Card class="tes-card-container p-6">
           <div class="flex justify-between items-center mb-3.5">
             <div>
               <div class="text-[15px] font-semibold text-ink">能力雷达图</div>
               <div class="text-xs text-muted-foreground mt-1">{{ radarEntries.length }} 个维度均值</div>
             </div>
           </div>
-          <div class="h-[300px] flex items-center justify-center">
+          <div class="min-h-[220px] max-h-[300px] flex items-center justify-center">
             <svg v-if="radarPolygons" viewBox="0 0 300 300" class="w-full h-full max-w-[300px]">
               <!-- grid -->
               <polygon
@@ -335,7 +341,7 @@ function copyShareLink() {
         </Card>
 
         <!-- Dimension Detail -->
-        <Card class="overflow-hidden">
+        <Card class="tes-card-container overflow-hidden">
           <header class="px-5 py-4 border-b border-border flex justify-between items-center">
             <span class="text-sm font-semibold text-ink">维度明细</span>
             <span class="text-xs text-muted-foreground">基于 {{ profile.source_evaluation_count }} 次评价</span>
@@ -361,7 +367,7 @@ function copyShareLink() {
         </Card>
 
         <!-- Score Trend -->
-        <Card v-if="profile.score_trend.length > 0" class="p-5">
+        <Card v-if="profile.score_trend.length > 0" class="tes-card-container p-5">
           <div class="flex items-center justify-between mb-3">
             <span class="text-sm font-semibold text-ink">综合分趋势</span>
             <span class="text-[11px] text-muted-foreground">{{ profile.score_trend.length }} 个数据点</span>

@@ -59,15 +59,18 @@ async function fetchProfile() {
     const pRes = await axios.get<ProfileOut>(
       `/api/profiles/student/${studentId.value}`,
     )
-    profile.value = pRes.data
-    // 用户信息可降级（仅用于展示姓名/账号）
-    const uRes = await safeGet<User[]>('/api/users', [])
-    if (uRes.error) {
-      // eslint-disable-next-line no-console
-      console.warn('[StudentProfile] users lookup failed:', uRes.error)
+    profile.value = {
+      ...pRes.data,
+      radar_data: pRes.data.radar_data ?? {},
+      weakness_list: pRes.data.weakness_list ?? [],
+      suggestions: pRes.data.suggestions ?? [],
+      score_trend: pRes.data.score_trend ?? [],
     }
-    student.value =
-      uRes.data.find((u) => u.id === studentId.value) ?? null
+    // 用户信息可降级（仅用于展示姓名/账号）
+    const uRes = await safeGet<User | null>(`/api/users/${studentId.value}`, null)
+    if (!uRes.error && uRes.data) {
+      student.value = uRes.data
+    }
   } catch (e) {
     const status = (e as { response?: { status?: number } })?.response?.status
     if (status === 403) {
@@ -154,14 +157,14 @@ const radarPolygons = computed(() => {
       ]"
     />
 
-    <div class="flex justify-between items-end">
-      <div class="flex items-center gap-3">
+    <div class="tes-page-header">
+      <div class="flex min-w-0 items-center gap-3">
         <Button variant="outline" size="icon-sm" @click="router.back()">
           <ArrowLeft class="w-4 h-4" />
         </Button>
         <Avatar size="lg" v-if="student">{{ student.display_name.charAt(0) }}</Avatar>
-        <div>
-          <h1 class="text-2xl font-bold text-ink">{{ student?.display_name ?? '学生画像' }}</h1>
+        <div class="min-w-0">
+          <h1 class="tes-clamp-title text-2xl font-bold text-ink">{{ student?.display_name ?? '学生画像' }}</h1>
           <p class="mt-1 text-sm text-muted-foreground">
             <span v-if="student" class="font-mono">{{ student.username }}</span>
             <span v-if="profile && !profile.insufficient_data">
@@ -172,7 +175,7 @@ const radarPolygons = computed(() => {
       </div>
     </div>
 
-    <div v-if="loading" class="grid grid-cols-[1fr_420px] gap-5">
+    <div v-if="loading" class="tes-grid-main-aside">
       <Skeleton class="h-[480px]" />
       <Skeleton class="h-[480px]" />
     </div>
@@ -184,8 +187,8 @@ const radarPolygons = computed(() => {
       description="该学生完成评价不足，暂无法生成画像（建议至少 3 次评价）"
     />
 
-    <div v-else class="grid grid-cols-[1fr_420px] gap-5">
-      <Card class="overflow-hidden">
+    <div v-else class="tes-grid-main-aside">
+      <Card class="tes-card-container overflow-hidden">
         <header class="px-6 py-4 border-b border-border flex justify-between items-center">
           <div class="flex items-center gap-2.5">
             <Target class="w-4 h-4 text-accent" />
@@ -207,11 +210,11 @@ const radarPolygons = computed(() => {
             :style="{ animationDelay: idx * 60 + 'ms' }"
           >
             <div class="flex justify-between items-center">
-              <div class="flex items-center gap-2.5">
+              <div class="flex min-w-0 items-center gap-2.5">
                 <span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold bg-accent-soft text-accent-strong">
                   {{ idx + 1 }}
                 </span>
-                <span class="text-[15px] font-bold text-ink">{{ w }}</span>
+                <span class="tes-breakable text-[15px] font-bold text-ink">{{ w }}</span>
               </div>
               <span
                 v-if="profile.radar_data[w] !== undefined"
@@ -228,7 +231,7 @@ const radarPolygons = computed(() => {
                 :style="{ width: profile.radar_data[w] + '%' }"
               ></div>
             </div>
-            <div v-if="profile.suggestions[idx]" class="p-3.5 bg-accent-soft rounded-md flex flex-col gap-2">
+            <div v-if="profile.suggestions?.[idx]" class="p-3.5 bg-accent-soft rounded-md flex flex-col gap-2">
               <div class="flex items-center gap-1.5 text-xs font-semibold text-accent-strong">
                 <Sparkles class="w-3.5 h-3.5" />
                 <span>AI 学习建议</span>
@@ -240,9 +243,9 @@ const radarPolygons = computed(() => {
       </Card>
 
       <div class="flex flex-col gap-5">
-        <Card class="p-6">
+        <Card class="tes-card-container p-6">
           <div class="text-[15px] font-semibold text-ink mb-3.5">能力雷达图</div>
-          <div class="h-[300px] flex items-center justify-center">
+          <div class="min-h-[220px] max-h-[300px] flex items-center justify-center">
             <svg v-if="radarPolygons" viewBox="0 0 300 300" class="w-full h-full max-w-[300px]">
               <polygon
                 v-for="(g, i) in radarPolygons.grid"
@@ -281,7 +284,7 @@ const radarPolygons = computed(() => {
           </div>
         </Card>
 
-        <Card class="overflow-hidden">
+        <Card class="tes-card-container overflow-hidden">
           <header class="px-5 py-4 border-b border-border flex justify-between items-center">
             <span class="text-sm font-semibold text-ink">维度明细</span>
             <span class="text-xs text-muted-foreground">基于 {{ profile.source_evaluation_count }} 次评价</span>

@@ -189,7 +189,7 @@ watch([page], fetchLogs)
     <!-- Filters -->
     <Card>
       <CardContent class="px-5 py-4">
-        <div class="grid grid-cols-[1fr_180px_180px_140px_auto] gap-3 items-end">
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))] gap-3 items-end">
           <div class="space-y-1.5">
             <Label class="text-[11px] text-muted-foreground">操作类型</Label>
             <Select v-model="filterAction">
@@ -230,8 +230,9 @@ watch([page], fetchLogs)
     </Card>
 
     <!-- Table -->
-    <Card class="overflow-hidden">
-      <div class="grid grid-cols-[180px_120px_80px_180px_1fr_140px] items-center px-6 py-3 bg-surface-2 border-b border-border text-[11px] font-semibold tracking-wider text-muted-foreground">
+    <Card class="tes-card-container overflow-hidden">
+      <div class="tes-table-shell">
+      <div class="grid min-w-[900px] grid-cols-[180px_120px_80px_180px_minmax(14rem,1fr)_140px] items-center px-6 py-3 bg-surface-2 border-b border-border text-[11px] font-semibold tracking-wider text-muted-foreground">
         <span>时间</span>
         <span>用户</span>
         <span>角色</span>
@@ -244,7 +245,7 @@ watch([page], fetchLogs)
         <div
           v-for="n in 8"
           :key="n"
-          class="grid grid-cols-[180px_120px_80px_180px_1fr_140px] items-center px-6 py-3 border-b border-border"
+          class="grid min-w-[900px] grid-cols-[180px_120px_80px_180px_minmax(14rem,1fr)_140px] items-center px-6 py-3 border-b border-border"
         >
           <Skeleton v-for="i in 6" :key="i" class="h-4" :class="i === 5 ? 'w-3/4' : 'w-20'" />
         </div>
@@ -261,7 +262,7 @@ watch([page], fetchLogs)
         v-for="log in logs"
         v-else
         :key="log.id"
-        class="grid grid-cols-[180px_120px_80px_180px_1fr_140px] items-center px-6 py-2.5 border-b border-border last:border-0 text-xs cursor-pointer transition-colors hover:bg-surface-2"
+        class="grid min-w-[900px] grid-cols-[180px_120px_80px_180px_minmax(14rem,1fr)_140px] items-center px-6 py-2.5 border-b border-border last:border-0 text-xs cursor-pointer transition-colors hover:bg-surface-2"
         @click="openDetail(log)"
       >
         <span class="text-muted-foreground font-mono">{{ formatTime(log.created_at ?? log.occurred_at) }}</span>
@@ -274,6 +275,7 @@ watch([page], fetchLogs)
           {{ log.target ?? (log.target_type ? `${log.target_type} #${log.target_id ?? ''}` : '—') }}
         </span>
         <span class="text-muted-foreground font-mono truncate">{{ log.ip ?? log.client_ip ?? '—' }}</span>
+      </div>
       </div>
 
       <!-- Pagination -->

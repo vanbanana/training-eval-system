@@ -192,22 +192,22 @@ const roleLabel = computed(
       ]"
     />
 
-    <div class="flex justify-between items-end">
-      <div>
+    <div class="tes-page-header">
+      <div class="min-w-0">
         <h1 class="text-2xl font-bold text-ink">账号设置</h1>
         <p class="mt-1.5 text-sm text-muted-foreground">管理个人信息、密码、通知偏好和外观</p>
       </div>
     </div>
 
-    <div v-if="loading" class="grid grid-cols-[200px_1fr] gap-5">
+    <div v-if="loading" class="tes-grid-sidebar-main">
       <Skeleton class="h-64" />
       <Skeleton class="h-96" />
     </div>
 
     <template v-else-if="account">
-      <Card class="overflow-hidden grid grid-cols-[220px_1fr]">
+      <Card class="overflow-hidden grid grid-cols-[minmax(13rem,14rem)_minmax(0,1fr)] max-lg:grid-cols-1">
         <!-- Side nav -->
-        <aside class="bg-surface-2 border-r border-border p-4">
+        <aside class="bg-surface-2 border-r border-border p-4 max-lg:border-r-0 max-lg:border-b">
           <div class="flex items-center gap-3 px-2 py-3 mb-2">
             <Avatar size="lg">{{ account.display_name.charAt(0) }}</Avatar>
             <div class="min-w-0">
@@ -218,7 +218,7 @@ const roleLabel = computed(
           </div>
 
           <Tabs v-model="activeTab" orientation="vertical">
-            <TabsList class="flex-col h-auto items-stretch !bg-transparent !p-0 !border-0 gap-1">
+            <TabsList class="flex-col h-auto items-start !bg-transparent !p-0 !border-0 gap-1 max-lg:flex-row max-lg:overflow-x-auto max-lg:pb-1 max-lg:[&>*]:shrink-0">
               <TabsTrigger value="profile" class="justify-start">
                 <User class="w-3.5 h-3.5" />
                 个人资料
@@ -240,7 +240,7 @@ const roleLabel = computed(
         </aside>
 
         <!-- Content -->
-        <div class="p-6">
+        <div class="min-w-0 p-6 max-sm:p-4">
           <!-- Profile -->
           <section v-if="activeTab === 'profile'" class="flex flex-col gap-5 max-w-lg">
             <div>
@@ -347,7 +347,7 @@ const roleLabel = computed(
               <p class="text-xs text-muted-foreground mt-1">主题选择会同步到所有页面</p>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-4">
               <button
                 class="p-5 border-2 rounded-lg text-left transition-colors flex flex-col gap-2"
                 :class="colorMode === 'light' ? 'border-primary bg-primary-soft' : 'border-border hover:border-border-strong'"

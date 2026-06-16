@@ -2,11 +2,11 @@ package dto
 
 // CreateTemplateRequest is the request for POST /api/templates.
 type CreateTemplateRequest struct {
-	Name        string                    `json:"name"`
-	Description string                    `json:"description"`
-	Visibility  string                    `json:"visibility,omitempty"`
-	CourseID    *int64                    `json:"course_id,omitempty"`
-	Items       []TemplateDimensionReq    `json:"items,omitempty"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Visibility  string                 `json:"visibility,omitempty"`
+	CourseID    *int64                 `json:"course_id,omitempty"`
+	Dimensions  []TemplateDimensionReq `json:"dimensions,omitempty"`
 }
 
 // TemplateDimensionReq is a dimension in the template request.
@@ -25,15 +25,15 @@ type CreateFromTaskRequest struct {
 
 // TemplateResponse is the response for a single template.
 type TemplateResponse struct {
-	ID          int64                    `json:"id"`
-	Name        string                   `json:"name"`
-	Description string                   `json:"description"`
-	Visibility  string                   `json:"visibility"`
-	OwnerID     *int64                   `json:"owner_id"`
-	CourseID    *int64                   `json:"course_id"`
-	CreatedAt   string                   `json:"created_at"`
-	UpdatedAt   string                   `json:"updated_at"`
-	Items       []TemplateDimensionResp  `json:"items"`
+	ID          int64                   `json:"id"`
+	Name        string                  `json:"name"`
+	Description string                  `json:"description"`
+	Visibility  string                  `json:"visibility"`
+	OwnerID     *int64                  `json:"owner_id"`
+	CourseID    *int64                  `json:"course_id"`
+	CreatedAt   string                  `json:"created_at"`
+	UpdatedAt   string                  `json:"updated_at"`
+	Dimensions  []TemplateDimensionResp `json:"dimensions"`
 }
 
 // TemplateDimensionResp is a dimension in the template response.

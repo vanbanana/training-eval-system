@@ -100,8 +100,13 @@ func (h *UsersHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user.DisplayName = req.DisplayName
-	user.Role = req.Role
+	// Partial update: only modify fields that were provided
+	if req.DisplayName != nil {
+		user.DisplayName = *req.DisplayName
+	}
+	if req.Role != nil {
+		user.Role = *req.Role
+	}
 
 	if err := h.svc.Update(r.Context(), user); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())

@@ -8,10 +8,11 @@ type CreateUserRequest struct {
 	Role        string `json:"role"`
 }
 
-// UpdateUserRequest is the request body for PUT /api/users/{id}.
+// UpdateUserRequest is the request body for PUT/PATCH /api/users/{id}.
+// Fields are pointers to support partial updates (nil = don't change).
 type UpdateUserRequest struct {
-	DisplayName string `json:"display_name"`
-	Role        string `json:"role"`
+	DisplayName *string `json:"display_name"`
+	Role        *string `json:"role"`
 }
 
 // ToggleStatusRequest is the request body for PATCH /api/users/{id}/toggle-status.

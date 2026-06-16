@@ -177,6 +177,12 @@ onMounted(async () => {
   if (editing.value) {
     await loadTaskForEdit(editId.value)
   }
+  // Deep-link: /teacher/tasks/new?template_id=<id> auto-applies that template.
+  const tplId = Number(route.query.template_id) || 0
+  if (tplId > 0) {
+    const tpl = templates.value.find((t) => t.id === tplId)
+    if (tpl) applyTemplateLocal(tpl)
+  }
 })
 
 function addDimension() {
@@ -346,10 +352,10 @@ async function doSubmit(status: 'draft' | 'published') {
       <Skeleton class="h-64" />
     </div>
 
-    <div v-else class="grid grid-cols-[1fr_380px] gap-5">
+    <div v-else class="tes-grid-main-aside">
       <!-- LEFT -->
       <div class="flex flex-col gap-5">
-        <Card class="overflow-hidden">
+        <Card class="tes-card-container overflow-hidden">
           <header class="flex items-center gap-2.5 px-6 py-4 border-b border-border">
             <span class="w-[22px] h-[22px] rounded-full bg-primary-soft text-primary grid place-items-center text-[11px] font-semibold">1</span>
             <span class="text-[15px] font-semibold text-ink">基本信息</span>
@@ -364,7 +370,7 @@ async function doSubmit(status: 'draft' | 'published') {
               <span class="text-[11px] text-muted-foreground">1-100 字符</span>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-4">
               <div class="space-y-2">
                 <Label>所属课程<span class="text-danger ml-0.5">*</span></Label>
                 <Select v-model="courseId">
@@ -423,7 +429,7 @@ async function doSubmit(status: 'draft' | 'published') {
           </div>
         </Card>
 
-        <Card class="overflow-hidden">
+        <Card class="tes-card-container overflow-hidden">
           <header class="flex items-center gap-2.5 px-6 py-4 border-b border-border">
             <span class="w-[22px] h-[22px] rounded-full bg-primary-soft text-primary grid place-items-center text-[11px] font-semibold">2</span>
             <span class="text-[15px] font-semibold text-ink">评价指标</span>
@@ -442,7 +448,8 @@ async function doSubmit(status: 'draft' | 'published') {
             </div>
           </header>
 
-          <div class="grid grid-cols-[60px_240px_1fr_120px_80px] items-center px-5 py-3.5 bg-surface-2 border-b border-border text-[11px] font-semibold text-muted-foreground tracking-wider">
+          <div class="tes-table-shell">
+          <div class="grid min-w-[820px] grid-cols-[60px_240px_minmax(18rem,1fr)_120px_80px] items-center px-5 py-3.5 bg-surface-2 border-b border-border text-[11px] font-semibold text-muted-foreground tracking-wider">
             <div></div>
             <div>指标名称</div>
             <div>评分依据</div>
@@ -453,7 +460,7 @@ async function doSubmit(status: 'draft' | 'published') {
           <div
             v-for="(d, i) in dimensions"
             :key="i"
-            class="grid grid-cols-[60px_240px_1fr_120px_80px] items-center px-5 py-3.5 border-b border-border last:border-b-0 transition-colors"
+            class="grid min-w-[820px] grid-cols-[60px_240px_minmax(18rem,1fr)_120px_80px] items-center px-5 py-3.5 border-b border-border last:border-b-0 transition-colors"
             :class="dragIndex === i ? 'bg-primary-soft/40' : ''"
             draggable="true"
             @dragstart="onDragStart(i, $event)"
@@ -480,6 +487,7 @@ async function doSubmit(status: 'draft' | 'published') {
                 <Trash2 class="w-3.5 h-3.5" />
               </Button>
             </div>
+          </div>
           </div>
 
           <button

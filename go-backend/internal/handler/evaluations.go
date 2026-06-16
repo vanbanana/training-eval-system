@@ -13,12 +13,13 @@ import (
 )
 
 type EvaluationsHandler struct {
-	svc     *service.EvaluationService
-	taskSvc *service.TaskService
+	svc       *service.EvaluationService
+	taskSvc   *service.TaskService
+	uploadSvc *service.UploadService
 }
 
-func NewEvaluationsHandler(svc *service.EvaluationService, taskSvc *service.TaskService) *EvaluationsHandler {
-	return &EvaluationsHandler{svc: svc, taskSvc: taskSvc}
+func NewEvaluationsHandler(svc *service.EvaluationService, taskSvc *service.TaskService, uploadSvc *service.UploadService) *EvaluationsHandler {
+	return &EvaluationsHandler{svc: svc, taskSvc: taskSvc, uploadSvc: uploadSvc}
 }
 
 func (h *EvaluationsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -57,9 +58,27 @@ func (h *EvaluationsHandler) Trigger(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid upload ID")
 		return
 	}
+
+	// Verify upload exists
+	upload, err := h.uploadSvc.GetByID(r.Context(), uploadID)
+	if err != nil || upload == nil {
+		Error(w, http.StatusNotFound, "Upload not found")
+		return
+	}
+
+	// Check for existing evaluation on this upload
+	existingParams := repository.EvalListParams{ListParams: repository.ListParams{Page: 1, PageSize: 1}}
+	existingParams.UploadID = &uploadID
+	existing, _, _ := h.svc.List(r.Context(), existingParams)
+	if len(existing) > 0 {
+		Error(w, http.StatusConflict, "Evaluation already triggered for this upload")
+		return
+	}
+
 	// Create a pending evaluation for this upload
 	claims := middleware.GetClaims(r.Context())
 	eval := &model.Evaluation{
+		TaskID:    upload.TaskID,
 		UploadID:  uploadID,
 		StudentID: claims.Sub,
 		Status:    "pending",
@@ -77,11 +96,28 @@ func (h *EvaluationsHandler) BulkAction(w http.ResponseWriter, r *http.Request) 
 		Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-	if req.Action == "confirm" {
-		if err := h.svc.BatchConfirm(r.Context(), req.EvaluationIDs); err != nil {
+	ctx := r.Context()
+	switch req.Action {
+	case "confirm":
+		if err := h.svc.BatchConfirm(ctx, req.EvaluationIDs); err != nil {
 			Error(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+	case "reject":
+		for _, id := range req.EvaluationIDs {
+			eval, err := h.svc.GetByID(ctx, id)
+			if err != nil {
+				continue
+			}
+			eval.Status = "rejected"
+			if req.Reason != "" {
+				eval.TeacherComment = req.Reason
+			}
+			_ = h.svc.Update(ctx, eval)
+		}
+	default:
+		Error(w, http.StatusBadRequest, "Unknown action: "+req.Action)
+		return
 	}
 	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Bulk action completed"})
 }

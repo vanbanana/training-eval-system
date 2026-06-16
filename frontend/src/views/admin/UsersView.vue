@@ -327,14 +327,14 @@ function downloadTemplate() {
     />
 
     <!-- Page Header -->
-    <div class="flex justify-between items-end">
-      <div>
-        <h1 class="text-2xl font-bold text-ink">用户与权限</h1>
+    <div class="tes-page-header">
+      <div class="min-w-0">
+        <h1 class="tes-clamp-title text-2xl font-bold text-ink">用户与权限</h1>
         <p class="mt-1.5 text-sm text-muted-foreground">
           管理学院教师、学生与管理员账号 · 支持批量导入与角色调整
         </p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="tes-page-actions">
         <Button variant="outline" @click="downloadTemplate">
           <Download class="w-4 h-4" />
           下载导入模板
@@ -351,13 +351,13 @@ function downloadTemplate() {
     </div>
 
     <!-- KPI Cards -->
-    <div class="grid grid-cols-4 gap-4">
+    <div class="tes-grid-kpi">
       <Card v-for="(kpi, i) in [
           { label: '系统总用户数', icon: Users, value: counts.all, hint: '含全部角色', positive: true },
           { label: '教师', icon: GraduationCap, value: counts.teacher, hint: '教师角色总数', positive: false },
           { label: '学生', icon: BookOpen, value: counts.student, hint: '在册学生', positive: false },
           { label: '已禁用账号', icon: Lock, value: counts.disabled, hint: '需关注', positive: false, warn: counts.disabled > 0 },
-        ]" :key="kpi.label" class="anim-in" :style="{ animationDelay: i * 50 + 'ms' }">
+        ]" :key="kpi.label" class="tes-card-container anim-in" :style="{ animationDelay: i * 50 + 'ms' }">
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">{{ kpi.label }}</span>
@@ -379,7 +379,7 @@ function downloadTemplate() {
     </div>
 
     <!-- Table Card -->
-    <Card class="overflow-hidden">
+    <Card class="tes-card-container overflow-hidden">
       <!-- Tabs -->
       <Tabs v-model="filterRole" class="px-2 pt-2 border-b border-border">
         <TabsList>
@@ -394,20 +394,21 @@ function downloadTemplate() {
       </Tabs>
 
       <!-- Toolbar -->
-      <div class="px-6 py-3.5 bg-surface-2 border-b border-border flex items-center gap-3">
-        <div class="relative w-[300px]">
+      <div class="px-6 py-3.5 bg-surface-2 border-b border-border flex flex-wrap items-center gap-3">
+        <div class="relative w-full sm:w-[300px]">
           <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input v-model="searchQuery" type="text" placeholder="搜索账号 / 姓名" class="pl-9" />
         </div>
         <span v-if="selected.size > 0" class="text-xs text-primary font-medium">
           已选 {{ selected.size }} 项
         </span>
-        <div class="flex-1"></div>
+        <div class="hidden sm:block flex-1"></div>
         <span class="text-xs text-muted-foreground">显示 {{ filtered.length }} 条</span>
       </div>
 
       <!-- Table -->
-      <div class="grid grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3 bg-surface-2 border-b border-border">
+      <div class="tes-table-shell">
+      <div class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3 bg-surface-2 border-b border-border">
         <Checkbox
           :model-value="allSelected ? true : someSelected ? 'indeterminate' : false"
           @update:model-value="(v) => allSelected = v === true"
@@ -426,7 +427,7 @@ function downloadTemplate() {
         <div
           v-for="n in 5"
           :key="n"
-          class="grid grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border"
+          class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border"
         >
           <Skeleton class="h-4 w-4" />
           <Skeleton class="h-8 w-3/4" />
@@ -452,7 +453,7 @@ function downloadTemplate() {
         v-for="(u, idx) in filtered"
         v-else
         :key="u.id"
-        class="grid grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors hover:bg-surface-2 anim-in"
+        class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors hover:bg-surface-2 anim-in"
         :class="!u.is_active ? 'opacity-60' : ''"
         :style="{ animationDelay: Math.min(idx * 20, 200) + 'ms' }"
       >
@@ -476,7 +477,7 @@ function downloadTemplate() {
         <div>
           <Badge :variant="roleBadgeVariant(u.role)">{{ roleLabel(u.role) }}</Badge>
         </div>
-        <div class="font-mono text-xs text-foreground">{{ u.username }}</div>
+        <div class="font-mono text-xs text-foreground break-all">{{ u.username }}</div>
         <div class="font-mono text-xs text-muted-foreground">{{ formatLastLogin(u.last_login_at) }}</div>
         <div>
           <Badge :variant="u.is_active ? 'success' : 'secondary'">
@@ -527,7 +528,9 @@ function downloadTemplate() {
       </div>
 
       <!-- Footer -->
-      <div class="flex justify-between items-center px-6 py-4 bg-surface-2 border-t border-border">
+      </div>
+
+      <div class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border-t border-border">
         <div class="text-xs text-muted-foreground">显示 {{ filtered.length }} 共 {{ counts.all }} 条</div>
       </div>
     </Card>

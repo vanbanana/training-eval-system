@@ -7,6 +7,8 @@ type CreateLLMConfigRequest struct {
 	APIKey     string `json:"api_key"`
 	ChatModel  string `json:"chat_model"`
 	EmbedModel string `json:"embed_model"`
+	// UseAPIKeyHeader selects the MiMo-style "api-key" header instead of "Authorization: Bearer".
+	UseAPIKeyHeader bool `json:"use_api_key_header,omitempty"`
 }
 
 // LLMConfigResponse is the response for a single LLM config (API key redacted).

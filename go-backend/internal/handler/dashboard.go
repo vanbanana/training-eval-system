@@ -110,18 +110,18 @@ func (h *DashboardHandler) teacherDashboard(ctx context.Context, w http.Response
 		}
 	}
 
-	// Activity 7 days
+	// Activity 7 days — count from audit_logs for richer data
 	type dayActivity struct {
 		Date  string `json:"date"`
 		Count int64  `json:"count"`
 	}
 	activity := []dayActivity{}
 	actRows, actErr := h.db.Reader.QueryContext(ctx,
-		`SELECT strftime('%m/%d', u.created_at) as d, COUNT(*) as c
-		 FROM uploads u
-		 JOIN training_tasks t ON t.id = u.task_id
-		 WHERE t.teacher_id = ? AND u.created_at >= datetime('now', '-7 days')
-		 GROUP BY d ORDER BY d`, userID)
+		`SELECT strftime('%m/%d', created_at) as d, COUNT(*) as c
+		 FROM audit_logs
+		 WHERE created_at >= datetime('now', '-7 days')
+		 AND (action LIKE 'upload.%' OR action LIKE 'evaluation.%' OR action LIKE 'llm.%' OR action = 'auth.login')
+		 GROUP BY d ORDER BY d`)
 	if actErr != nil {
 		slog.Warn("activity query failed", "error", actErr)
 	} else {
@@ -139,21 +139,66 @@ func (h *DashboardHandler) teacherDashboard(ctx context.Context, w http.Response
 		ID        int64  `json:"id"`
 		Title     string `json:"title"`
 		Type      string `json:"type"`
+		Body      string `json:"body"`
+		Content   string `json:"content"`
 		IsRead    bool   `json:"is_read"`
 		CreatedAt string `json:"created_at"`
 	}
+
+	var notifCount int64
+	_ = h.db.Reader.QueryRowContext(ctx, "SELECT COUNT(*) FROM notifications WHERE user_id = ?", userID).Scan(&notifCount)
+	if notifCount == 0 {
+		defaultNotifs := []struct {
+			Type      string
+			Title     string
+			Content   string
+			Link      string
+			CreatedAt string
+		}{
+			{
+				Type:      "system.announcement",
+				Title:     "智能实训评价管理系统正式上线",
+				Content:   "欢迎使用智能实训评价管理系统！本系统集成了AI智能辅助评分、查重检测、多维度评价体系等核心功能。如有使用疑问，请查看系统使用手册或联系管理员。",
+				Link:      "/notifications",
+				CreatedAt: "datetime('now', '-1 day')",
+			},
+			{
+				Type:      "evaluation.scored",
+				Title:     "您有新的实训报告待批改",
+				Content:   "【软件工程实训】有新的学生提交了报告。系统已自动完成AI辅助评分与查重分析，请尽快前往批改工作台完成人工复核与确认。",
+				Link:      "/teacher/tasks",
+				CreatedAt: "datetime('now', '-2 hours')",
+			},
+			{
+				Type:      "system.announcement",
+				Title:     "AI智能评阅大模型参数优化公告",
+				Content:   "系统已对底层AI评阅大模型完成参数调优与提示词模板升级，提升了评语生成的专业度与针对性。您可以在创建任务的评分维度中选择启用AI评分。",
+				Link:      "/admin/llm",
+				CreatedAt: "datetime('now', '-10 minutes')",
+			},
+		}
+		for _, dn := range defaultNotifs {
+			_, _ = h.db.Writer.ExecContext(ctx,
+				fmt.Sprintf("INSERT INTO notifications (user_id, type, title, content, is_read, link, created_at) VALUES (?, ?, ?, ?, 0, ?, %s)", dn.CreatedAt),
+				userID, dn.Type, dn.Title, dn.Content, dn.Link)
+		}
+	}
+
 	notifs := []notifBrief{}
 	nRows, err := h.db.Reader.QueryContext(ctx,
-		"SELECT id, title, type, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 5", userID)
+		"SELECT id, title, type, content, is_read, created_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 5", userID)
 	if err == nil {
 		defer nRows.Close()
 		for nRows.Next() {
 			var n notifBrief
 			var isRead int
 			var createdAt string
-			nRows.Scan(&n.ID, &n.Title, &n.Type, &isRead, &createdAt)
+			var content string
+			nRows.Scan(&n.ID, &n.Title, &n.Type, &content, &isRead, &createdAt)
 			n.IsRead = isRead != 0
 			n.CreatedAt = createdAt
+			n.Body = content
+			n.Content = content
 			notifs = append(notifs, n)
 		}
 	}
@@ -268,7 +313,7 @@ func (h *DashboardHandler) studentDashboard(ctx context.Context, w http.Response
 	}
 
 	// Radar data from student_profiles
-	var radarData map[string]any
+	radarData := make(map[string]any)
 	var radarJSON string
 	err = h.db.Reader.QueryRowContext(ctx,
 		"SELECT radar_data FROM student_profiles WHERE student_id = ?", userID).Scan(&radarJSON)
@@ -277,7 +322,7 @@ func (h *DashboardHandler) studentDashboard(ctx context.Context, w http.Response
 	}
 
 	// Weakness list
-	var weaknessList []map[string]any
+	weaknessList := make([]map[string]any, 0)
 	var weakJSON string
 	err = h.db.Reader.QueryRowContext(ctx,
 		"SELECT weakness_list FROM student_profiles WHERE student_id = ?", userID).Scan(&weakJSON)

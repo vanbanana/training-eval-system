@@ -17,6 +17,9 @@ type Pool struct {
 	cancel     context.CancelFunc
 	maxRetries int
 	workerCnt  int
+
+	mu     sync.RWMutex
+	closed bool
 }
 
 // NewPool creates a worker pool with the given number of workers and task buffer size.
@@ -42,6 +45,13 @@ func NewPool(workerCount, bufferSize int) *Pool {
 // Submit adds a task to the pool's queue. Returns error if pool is shutting down or queue is full.
 func (p *Pool) Submit(task *Task) error {
 	task.Status = StatusPending
+	// Hold the read lock for the duration of the send so Shutdown cannot close
+	// the channel concurrently (which would panic on send-to-closed-channel).
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if p.closed {
+		return fmt.Errorf("worker: pool is shut down")
+	}
 	select {
 	case <-p.ctx.Done():
 		return fmt.Errorf("worker: pool is shut down")
@@ -56,7 +66,16 @@ func (p *Pool) Submit(task *Task) error {
 func (p *Pool) Shutdown() {
 	slog.Info("worker pool shutting down")
 	p.cancel()
+
+	// Take the write lock so no Submit can be mid-send when we close the channel.
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return
+	}
+	p.closed = true
 	close(p.tasks)
+	p.mu.Unlock()
 
 	done := make(chan struct{})
 	go func() {

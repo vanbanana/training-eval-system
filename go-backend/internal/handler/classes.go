@@ -92,6 +92,10 @@ func (h *ClassesHandler) ToggleArchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cls.IsArchived = !cls.IsArchived
+	if err := h.svc.Update(r.Context(), cls); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	JSON(w, http.StatusOK, cls)
 }
 
@@ -110,4 +114,23 @@ func (h *ClassesHandler) BulkAddStudents(w http.ResponseWriter, r *http.Request)
 		_ = h.svc.AddMember(r.Context(), id, sid)
 	}
 	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Students added"})
+}
+
+// RemoveStudent removes a single student from a class.
+func (h *ClassesHandler) RemoveStudent(w http.ResponseWriter, r *http.Request) {
+	classID, err := PathInt64(r, "id")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid class ID")
+		return
+	}
+	studentID, err := PathInt64(r, "studentId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid student ID")
+		return
+	}
+	if err := h.svc.RemoveMember(r.Context(), classID, studentID); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Student removed"})
 }

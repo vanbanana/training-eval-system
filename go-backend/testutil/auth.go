@@ -37,3 +37,8 @@ func TeacherToken() string {
 func StudentToken() string {
 	return GenerateTestToken(3, "student1", "student")
 }
+
+// testMasterKey returns a fixed 32-byte AES key for tests.
+func testMasterKey() []byte {
+	return []byte("0123456789abcdef0123456789abcdef")
+}

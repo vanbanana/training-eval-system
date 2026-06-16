@@ -161,15 +161,11 @@ func (pc *ProfileComputer) ComputeProfile(ctx context.Context, studentID int64) 
 		}
 	}
 
-	radarJSON, _ := json.Marshal(radarData)
-	weakJSON, _ := json.Marshal(weaknessList)
-	trendJSON, _ := json.Marshal(scoreTrend)
-
 	profile := &model.StudentProfile{
 		StudentID:             studentID,
-		RadarData:             string(radarJSON),
-		WeaknessList:          string(weakJSON),
-		ScoreTrend:            string(trendJSON),
+		RadarData:             radarData,
+		WeaknessList:          weaknessList,
+		ScoreTrend:            scoreTrend,
 		SourceEvaluationCount: len(validEvals),
 		ComputedAt:            time.Now(),
 	}

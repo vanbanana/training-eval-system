@@ -124,6 +124,15 @@ func (s *UploadService) UpdateStatus(ctx context.Context, id int64, status strin
 	return s.repo.UpdateStatus(ctx, id, status)
 }
 
+func (s *UploadService) GetVerifyResult(ctx context.Context, uploadID int64) (*model.VerifyResult, error) {
+	return s.repo.GetVerifyResult(ctx, uploadID)
+}
+
+// GetParseResult returns the parse result for an upload.
+func (s *UploadService) GetParseResult(ctx context.Context, uploadID int64) (*model.ParseResult, error) {
+	return s.repo.GetParseResult(ctx, uploadID)
+}
+
 // validateFilename rejects path traversal attempts.
 func validateFilename(name string) error {
 	if strings.Contains(name, "..") ||

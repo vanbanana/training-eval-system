@@ -84,11 +84,7 @@ const triggering = ref<number | null>(null)
 
 // WebSocket 实时进度（stub - SSE 版本待接入）
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const uploadIds = computed(() => uploads.value.map((u) => u.id))
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getProgress = (_id: number): {status:string;progress:number}|null => null
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const hasActiveProgress = ref(false)
 const wsMessages = ref<{status:string;progress?:number}[]>([])
 
 // 当 WebSocket 报告解析完成时自动刷新数据
@@ -135,6 +131,8 @@ async function fetchAll() {
       const vr = await safeGet<VerifyResult>(
         `/api/uploads/${cur.id}/verify-result`,
         null as unknown as VerifyResult,
+        undefined,
+        { silent404: true },
       )
       // 404 = 该上传不需要核查/未生成；其他错误仅记录到控制台
       verifyResults.value[cur.id] = vr.error ? null : vr.data
@@ -280,11 +278,11 @@ function onUploadSuccess() {
         </div>
       </div>
 
-      <div class="grid grid-cols-[1fr_380px] gap-5 items-start">
+      <div class="tes-grid-main-aside">
         <!-- LEFT -->
         <div class="flex flex-col gap-5">
           <!-- Task description -->
-          <Card>
+          <Card class="tes-card-container">
             <header class="flex justify-between items-center px-6 py-4 border-b border-border">
               <div class="flex items-center gap-2.5">
                 <FileText class="w-4 h-4 text-primary" />
@@ -313,7 +311,7 @@ function onUploadSuccess() {
                   <PieChart class="w-3.5 h-3.5 text-muted-foreground" />
                   <span>评分指标</span>
                 </div>
-                <div class="grid grid-cols-4 gap-2.5">
+                <div class="tes-grid-kpi">
                   <div
                     v-for="d in task.dimensions"
                     :key="d.id"

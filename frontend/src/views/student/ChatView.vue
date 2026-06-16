@@ -10,7 +10,7 @@
  * - 增强输入框（附件上传占位、快捷问题）
  * - 会话管理（左侧列表）
  */
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
 import { renderMarkdown } from '@/lib/markdown'
@@ -75,7 +75,7 @@ const collapsedTools = ref<Set<number>>(new Set())
 async function fetchSessions() {
   try {
     const { data } = await axios.get('/api/chat/sessions')
-    sessions.value = data
+    sessions.value = Array.isArray(data) ? data : []
     if (sessions.value.length > 0 && !activeSessionId.value) {
       await loadSession(sessions.value[0].id)
     }
@@ -88,7 +88,7 @@ async function loadSession(id: number) {
   activeSessionId.value = id
   try {
     const { data } = await axios.get(`/api/chat/sessions/${id}/messages`)
-    messages.value = data.map((m: { id: number; role: string; content: string; created_at: string }) => ({
+    messages.value = (Array.isArray(data) ? data : []).map((m: { id: number; role: string; content: string; created_at: string }) => ({
       id: m.id,
       role: m.role as 'user' | 'assistant',
       content: m.content,
@@ -142,6 +142,15 @@ function scrollToBottom() {
 onMounted(fetchSessions)
 watch(messages, scrollToBottom, { deep: true })
 
+// Abort any in-flight SSE stream when the component unmounts.
+let streamAbort: AbortController | null = null
+onUnmounted(() => {
+  if (streamAbort) {
+    streamAbort.abort()
+    streamAbort = null
+  }
+})
+
 // ============ Send Message (SSE with structured events) ============
 async function send() {
   const msg = input.value.trim()
@@ -175,6 +184,7 @@ async function send() {
       try { token = JSON.parse(raw) } catch { token = raw }
     }
 
+    streamAbort = new AbortController()
     const response = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: {
@@ -182,6 +192,7 @@ async function send() {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ session_id: activeSessionId.value, message: msg }),
+      signal: streamAbort.signal,
     })
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -315,6 +326,7 @@ async function send() {
     aiMsg.isStreaming = false
   } finally {
     sending.value = false
+    streamAbort = null
     scrollToBottom()
   }
 }
@@ -405,9 +417,9 @@ function autoResize(e: Event) {
     </div>
 
     <!-- Chat Shell -->
-    <div class="grid grid-cols-[300px_1fr] gap-5 items-stretch h-[calc(100vh-220px)] min-h-[600px]">
+    <div class="tes-chat-shell">
       <!-- Left: Session List -->
-      <aside class="bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
+      <aside class="tes-chat-panel bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
         <div class="p-3 border-b border-border">
           <div class="flex items-center gap-2 h-9 px-3 bg-surface border border-border-strong rounded-md">
             <Search class="w-3.5 h-3.5 text-muted-foreground" />
@@ -433,7 +445,7 @@ function autoResize(e: Event) {
       </aside>
 
       <!-- Right: Chat Area -->
-      <section class="bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
+      <section class="tes-chat-panel bg-surface border border-border rounded-lg flex flex-col overflow-hidden">
         <!-- Chat Header -->
         <div class="px-6 py-4 border-b border-border flex justify-between items-center">
           <div class="flex flex-col gap-1">

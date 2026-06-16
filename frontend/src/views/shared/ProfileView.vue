@@ -102,12 +102,12 @@ const dimensionAverages = computed(() => {
       ]"
     />
 
-    <div class="flex justify-between items-end">
-      <div>
-        <h1 class="text-2xl font-bold text-ink">教学画像</h1>
+    <div class="tes-page-header">
+      <div class="min-w-0">
+        <h1 class="tes-clamp-title text-2xl font-bold text-ink">教学画像</h1>
         <p class="mt-1.5 text-sm text-muted-foreground">学校 / 课程级教学质量综合分析</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="tes-page-actions">
         <div class="space-y-1">
           <Label class="text-[11px] text-muted-foreground">时间范围</Label>
           <Select v-model="range">
@@ -123,8 +123,8 @@ const dimensionAverages = computed(() => {
       </div>
     </div>
 
-    <Card class="px-5 py-3.5 flex items-center gap-4">
-      <Tabs v-model="scope">
+    <Card class="tes-card-container px-5 py-3.5 flex flex-wrap items-center gap-4">
+      <Tabs v-model="scope" class="min-w-0">
         <TabsList>
           <TabsTrigger value="school">
             <Building2 class="w-3.5 h-3.5" />
@@ -137,7 +137,7 @@ const dimensionAverages = computed(() => {
         </TabsList>
       </Tabs>
 
-      <div v-if="scope === 'course'" class="flex items-center gap-2">
+      <div v-if="scope === 'course'" class="flex min-w-0 flex-wrap items-center gap-2">
         <Label class="text-xs">课程：</Label>
         <Select v-model="selectedCourseId">
           <SelectTrigger class="w-64"><SelectValue placeholder="选择课程" /></SelectTrigger>
@@ -150,7 +150,7 @@ const dimensionAverages = computed(() => {
       </div>
     </Card>
 
-    <div v-if="loading" class="grid grid-cols-3 gap-4">
+    <div v-if="loading" class="tes-grid-cards">
       <Skeleton v-for="n in 3" :key="n" class="h-32" />
     </div>
 
@@ -163,13 +163,13 @@ const dimensionAverages = computed(() => {
 
     <div v-else class="flex flex-col gap-5">
       <!-- KPIs -->
-      <div class="grid grid-cols-4 gap-4">
+      <div class="tes-grid-kpi">
         <Card v-for="(kpi, i) in [
             { label: '学生总数', value: totalStudents, color: 'text-ink' },
             { label: '评价总数', value: evalCount, color: 'text-ink' },
             { label: '平均分', value: avgScore, color: 'text-primary', decimals: 1 },
             { label: '完成率', value: completionRate, color: 'text-success', suffix: '%' },
-          ]" :key="kpi.label" class="p-5 anim-in" :style="{ animationDelay: i * 50 + 'ms' }">
+          ]" :key="kpi.label" class="tes-card-container p-5 anim-in" :style="{ animationDelay: i * 50 + 'ms' }">
           <div class="text-xs text-muted-foreground">{{ kpi.label }}</div>
           <div class="text-3xl font-bold mt-1" :class="kpi.color">
             <AnimatedNumber :value="kpi.value" :decimals="kpi.decimals ?? 0" :suffix="kpi.suffix ?? ''" />
@@ -178,7 +178,7 @@ const dimensionAverages = computed(() => {
       </div>
 
       <!-- Adoption rate -->
-      <Card v-if="adoptionRate > 0" class="p-6">
+      <Card v-if="adoptionRate > 0" class="tes-card-container p-6">
         <div class="flex justify-between items-center mb-3">
           <span class="text-sm font-semibold text-ink">教师采纳率</span>
           <span class="text-sm font-mono text-success">{{ adoptionRate.toFixed(1) }}%</span>
@@ -195,7 +195,7 @@ const dimensionAverages = computed(() => {
       </Card>
 
       <!-- Dimension Averages -->
-      <Card v-if="dimensionAverages.length > 0" class="overflow-hidden">
+      <Card v-if="dimensionAverages.length > 0" class="tes-card-container overflow-hidden">
         <header class="px-5 py-4 border-b border-border flex justify-between items-center">
           <span class="text-sm font-semibold text-ink">各维度平均分</span>
           <span class="text-xs text-muted-foreground">{{ dimensionAverages.length }} 个维度</span>
@@ -206,7 +206,7 @@ const dimensionAverages = computed(() => {
           class="px-5 py-3.5 border-b border-border last:border-b-0 flex items-center gap-3.5 anim-in"
           :style="{ animationDelay: Math.min(idx * 30, 200) + 'ms' }"
         >
-          <span class="w-[160px] text-sm text-ink font-medium shrink-0 truncate">{{ d.name }}</span>
+          <span class="w-[min(10rem,35vw)] text-sm text-ink font-medium shrink-0 truncate">{{ d.name }}</span>
           <div class="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
             <div
               class="h-full rounded-full transition-all duration-700"

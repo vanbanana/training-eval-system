@@ -21,16 +21,20 @@ func NewEvaluationService(repo repository.EvaluationRepo, taskRepo repository.Ta
 }
 
 // validEvalTransitions defines legal evaluation state machine transitions (requirement 13.4).
-// Flow: pending → scoring → scored → confirmed | rejected
+// Only DB-legal statuses are used here (evaluations.status CHECK: pending/scored/confirmed/rejected).
+// Flow: pending → scored → confirmed | rejected; rejected/scored → pending (resubmit/manual fallback).
 var validEvalTransitions = map[string][]string{
-	"pending":     {"scoring", "scored", "manual_required"},
-	"scoring":     {"scored", "manual_required"},
-	"scored":      {"confirmed", "rejected", "pending"}, // pending = resubmit
-	"manual_required": {"scored", "confirmed", "rejected"},
-	"rejected":    {"pending"}, // resubmission re-enters pipeline
+	"pending":  {"scored", "confirmed"},
+	"scored":   {"confirmed", "rejected", "pending"}, // pending = resubmit / manual fallback
+	"rejected": {"pending"},                          // resubmission re-enters pipeline
+	"confirmed": {},                                   // terminal
 }
 
 func (s *EvaluationService) checkTransition(current, next string) error {
+	if current == next {
+		// No status change (e.g. updating comment/score on the same status).
+		return nil
+	}
 	if allowed, ok := validEvalTransitions[current]; ok {
 		for _, a := range allowed {
 			if a == next {
@@ -57,7 +61,12 @@ func (s *EvaluationService) Create(ctx context.Context, e *model.Evaluation) err
 }
 
 func (s *EvaluationService) Update(ctx context.Context, e *model.Evaluation) error {
-	if err := s.checkTransition(e.Status, e.Status); err != nil {
+	// Look up the persisted status to validate the real transition (current -> new).
+	current, err := s.repo.GetByID(ctx, e.ID)
+	if err != nil {
+		return err
+	}
+	if err := s.checkTransition(current.Status, e.Status); err != nil {
 		return err
 	}
 	return s.repo.Update(ctx, e)

@@ -177,7 +177,42 @@ func (h *GradingHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid evaluation ID")
 		return
 	}
-	if err := h.evalSvc.BatchConfirm(r.Context(), []int64{id}); err != nil {
+
+	// Read optional teacher comment and score overrides from the request body.
+	var req dto.ConfirmRequest
+	_ = Decode(r, &req) // body is optional; ignore decode errors for backward compat
+
+	ctx := r.Context()
+	if req.TeacherComment != "" || len(req.ScoreOverrides) > 0 {
+		eval, err := h.evalSvc.GetByID(ctx, id)
+		if err != nil {
+			Error(w, http.StatusNotFound, "Evaluation not found")
+			return
+		}
+		if req.TeacherComment != "" {
+			eval.TeacherComment = req.TeacherComment
+		}
+		// Apply score overrides (dimension_id -> teacher_score)
+		for dimID, score := range req.ScoreOverrides {
+			for i, s := range eval.Scores {
+				if s.DimensionID == dimID {
+					val := score
+					eval.Scores[i].TeacherScore = &val
+					break
+				}
+			}
+		}
+		if len(req.ScoreOverrides) > 0 {
+			_ = h.evalSvc.SaveScores(ctx, id, eval.Scores)
+		}
+		if req.TeacherComment != "" {
+			// Persist comment via update (status stays scored until BatchConfirm below)
+			eval.TeacherComment = req.TeacherComment
+			_ = h.evalSvc.Update(ctx, eval)
+		}
+	}
+
+	if err := h.evalSvc.BatchConfirm(ctx, []int64{id}); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -190,12 +225,20 @@ func (h *GradingHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid evaluation ID")
 		return
 	}
+
+	// Read rejection reason from body.
+	var req dto.RejectRequest
+	_ = Decode(r, &req)
+
 	eval, err := h.evalSvc.GetByID(r.Context(), id)
 	if err != nil {
 		Error(w, http.StatusNotFound, "Evaluation not found")
 		return
 	}
 	eval.Status = "rejected"
+	if req.Reason != "" {
+		eval.TeacherComment = req.Reason
+	}
 	if err := h.evalSvc.Update(r.Context(), eval); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return

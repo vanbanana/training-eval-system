@@ -46,6 +46,7 @@ type EvalListParams struct {
 	ListParams
 	TaskID    *int64
 	StudentID *int64
+	UploadID  *int64
 	Status    *string
 }
 
@@ -85,6 +86,7 @@ type UploadRepo interface {
 	GetParseResult(ctx context.Context, uploadID int64) (*model.ParseResult, error)
 	SaveParseResult(ctx context.Context, pr *model.ParseResult) error
 	SaveVerifyResult(ctx context.Context, vr *model.VerifyResult) error
+	GetVerifyResult(ctx context.Context, uploadID int64) (*model.VerifyResult, error)
 }
 
 // EvaluationRepo defines data access for evaluations.
@@ -93,6 +95,7 @@ type EvaluationRepo interface {
 	List(ctx context.Context, params EvalListParams) ([]model.Evaluation, int64, error)
 	Create(ctx context.Context, e *model.Evaluation) error
 	Update(ctx context.Context, e *model.Evaluation) error
+	Delete(ctx context.Context, id int64) error
 	BatchConfirm(ctx context.Context, ids []int64) error
 	SaveScores(ctx context.Context, evalID int64, scores []model.DimensionScore) error
 	AppendHistory(ctx context.Context, h *model.EvaluationHistory) error

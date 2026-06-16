@@ -1,163 +1,175 @@
-# 智能实训评价管理系统 — 铁律
+# CLAUDE.md
 
-> Go 后端唯一。Python `backend/` 已废弃，所有后端工作只在 `go-backend/` 进行。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 技术栈
+# 智能实训评价管理系统
 
-| 层 | 选型 |
-|----|------|
-| 语言 | Go 1.25+, CGO_ENABLED=0 |
-| HTTP | go-chi/chi v5 |
-| 数据库 | modernc.org/sqlite (纯 Go, 零 CGO) |
-| 认证 | HMAC-SHA256 JWT + bcrypt |
-| 加密 | AES-256-GCM |
-| 异步 | goroutine worker pool + buffered channel |
-| 实时 | SSE (net/http 原生) |
-| LLM | net/http 直调 OpenAI 兼容 API |
-| 日志 | log/slog (JSON → stdout) |
-| 报表 | excelize + go-pdf/fpdf |
-| 测试 | 标准 testing + rapid (property-based) |
+基于 LLM Function Calling 的实训作业自动评价系统，部署目标为龙芯 LoongArch + 银河麒麟 V10/V11。
 
-## 架构分层
+## 代码库概览
 
-```
-cmd/server/main.go          # 入口：组装依赖 → 启动 HTTP
-internal/
-  config/                    # TES_ 环境变量配置 (.env 兜底)
-  store/                     # SQLite 连接池 (WAL, 分离读写) + 嵌入式迁移
-  model/                     # 领域模型 (纯 struct, 无行为)
-  repository/                # 数据访问接口 + SQL 实现
-  service/                   # 业务编排 (无 HTTP 感知)
-  handler/                   # HTTP 路由 → 参数解析 → 调用 service → JSON 响应
-  dto/                       # 请求/响应 DTO
-  middleware/                 # auth(JWT+角色), cors, trace, ratelimit, logger, security_headers
-  worker/                    # goroutine pool (异步任务)
-  sse/                       # SSE broker (实时推送)
-  llm/                       # LLM HTTP client + 熔断
-  similarity/                # SimHash + cosine 查重
-  crypto/                    # AES-256-GCM, bcrypt, JWT
-  apperr/                    # 统一应用错误
-  cache/                     # LRU + TTL 内存缓存
-  parser/                    # docx, pdf, OCR 文档解析
-  pipeline/                  # 评阅流水线 (解析→评分→验证→查重)
-  report/                    # PDF/Excel 报告生成
-  backup/                    # SQLite 在线备份 (VACUUM INTO)
-```
-
-## 铁律
-
-### 1. 依赖注入 — 显式构造函数模式
-
-- 每个组件通过 `NewXxx(dep1, dep2)` 构造函数创建
-- 依赖通过 interface 传递（定义在 `repository/interfaces.go` 或各包内）
-- `cmd/server/main.go` 是唯一的组装点
-- **禁止**全局变量、包级 `init()` 做业务初始化
-
-### 2. Context 贯穿
-
-- 所有 repository/service 方法第一个参数是 `context.Context`
-- Handler 从 `r.Context()` 获取，向下传递
-- 绝不使用 `context.Background()` 处理用户请求
-
-### 3. 错误处理
-
-- Repository: 用 `fmt.Errorf("repo: xxx: %w", err)` 包装
-- Service: 用 `fmt.Errorf("service: xxx: %w", err)` 包装
-- Handler: 调用 `Error(w, status, message)` 返回 JSON
-- 应用级错误类型定义在 `internal/apperr/`
-
-### 4. SQLite 特性
-
-- WAL 模式 (`PRAGMA journal_mode=WAL`)
-- 读写分离: `db.Writer` (1 conn) 和 `db.Reader` (4 conns)
-- 外键强制 (`PRAGMA foreign_keys=ON`)
-- 迁移用嵌入式 SQL (`internal/store/migrations/*.sql`)，启动时自动执行
-- 备份用 `VACUUM INTO`，在线执行不阻塞
-- 测试用 `:memory:` (shared cache)
-
-### 5. API 约定
-
-- `/healthz` — 健康检查 (公开)
-- `/api/auth/*` — 认证 (登录/刷新)
-- `/api/*` — 业务接口 (需 JWT)
-- 角色: `admin` / `teacher` / `student`
-- JSON 请求/响应，`Content-Type: application/json`
-- 分页参数: `page`, `page_size`, `search`, `sort_by`, `sort_dir`
-- 错误响应格式: `{"detail": "error message"}`
-
-### 6. 认证
-
-- JWT 验证中间件注入 `claims` 到 context
-- `GetClaims(ctx)` 提取 claims
-- `RequireRole(roles...)` 检查角色
-- 支持 token 刷新 (access + refresh 双 token)
-
-### 7. 日志
-
-- 只用 `log/slog`，JSON 格式输出到 stdout
-- 级别: `debug` / `info` / `warn` / `error`
-- 关键操作必须打日志（登录、评估、导入等）
-
-### 8. 测试
-
-- 单测: `go test ./... -count=1 -race`
-- Property-based: `pgregory.net/rapid`（用于 cache, config, crypto, similarity 等）
-- 集成测试: `testutil.SetupTestApp(t)` 创建完整内存应用
-- 测试用 `:memory:` SQLite，每次测试独立
-
-### 9. 代码风格
-
-- `gofmt -s -w .` 统一格式化
-- `go vet ./...` 零警告
-- 注释用英文描述意图（包级必须写 `// Package xxx ...`）
-- DTO json tag 用小写 snake_case
-- Go struct 字段用驼峰
-
-### 10. 配置
-
-- 全部通过 `TES_` 前缀环境变量，`.env` 文件兜底
-- 必填: `TES_JWT_SECRET` (≥32 字符), `TES_LLM_KEY_MASTER` (base64, 32 字节)
-- 默认值合理，dev 环境可开箱即用
-- `TES_ENV` 必须为 `dev` / `test` / `prod` 之一
-
-### 11. 构建部署
-
-- 目标: 龙芯 LoongArch + 银河麒麟 V10/V11
-- 交叉编译: `CGO_ENABLED=0 GOOS=linux GOARCH=loong64`
-- 输出: 单一静态 ELF 二进制 + `/dist` 前端静态文件
-- `make build` 本地构建, `make cross-compile` 交叉编译
+| 目录 | 技术栈 | 状态 |
+|------|--------|------|
+| `go-backend/` | Go 1.25+ / chi v5 / SQLite | **当前后端** — 所有后端工作在此 |
+| `frontend/` | Vue 3 + Vite + Tailwind CSS v4 + shadcn-vue | 当前前端 |
+| `backend/` | Python FastAPI | **已废弃** — 不移改 |
+| `frontend-preview/` | 纯 HTML/CSS | 设计视觉契约 — 前端实现以此为准 |
+| `docs/` | Markdown | 开发手册 + 设计文档 |
+| `designs/` | Pencil (.pen) | 设计稿源文件 |
 
 ## 常用命令
 
 ```bash
+# ───── Go 后端 ─────
 cd go-backend
+go run ./cmd/server                # 启动开发服务器
+go test ./... -count=1 -race       # 全部测试
+go test -run TestXxx ./pkg/...     # 单个测试
+go vet ./...                       # 静态分析
+gofmt -s -w .                      # 格式化
+make build                         # 构建二进制
+make cross-compile                 # LoongArch 交叉编译
 
-# 构建
-make build              # 本地
-make cross-compile      # LoongArch
-
-# 运行
-make run                # go run ./cmd/server
-
-# 测试
-make test               # go test ./... -count=1 -race
-make test-cover         # + 覆盖率报告
-
-# 代码质量
-make lint               # go vet + staticcheck
-make fmt                # gofmt -s -w .
-
-# 验证纯静态链接
-make verify-static
+# ───── Vue 前端 ─────
+cd frontend
+pnpm dev                           # 启动 dev server (vite)
+pnpm build                         # 生产构建 (vue-tsc + vite)
+pnpm typecheck                     # TypeScript 类型检查
 ```
+
+**注意:** Python backend 已废弃。对 "backend" 的引用一律理解为 `go-backend/`。
+
+## Go 后端架构
+
+### 依赖注入 + 显式构造函数
+
+`cmd/server/main.go` 是唯一组装点，按顺序：
+1. 加载配置 (`config.Load()`)
+2. 打开 SQLite (`store.Open()`)
+3. 初始化基础设施 (worker pool, SSE broker, account lockout)
+4. 初始化 Repositories (`repository.NewXxx(db)`)
+5. 初始化 Services (`service.NewXxx(repo...)`)
+6. 初始化 Handlers (`handler.NewXxx(svc)`)
+7. 构建 Router (`handler.NewRouter(cfg)`)
+8. 启动 HTTP server
+
+**禁止**全局变量、包级 `init()`、`context.Background()`（请求场景）、ORM 或 CGO。
+
+### 分层
+
+```
+handler/      — HTTP 路由 + 参数解析 → service → JSON (go-chi/chi v5)
+service/      — 业务编排 (无 HTTP 感知)
+repository/   — 数据访问接口 + raw SQL 实现
+model/        — 纯 struct 领域模型
+dto/          — 请求/响应 DTO (json tag = snake_case)
+middleware/   — auth(JWT+角色), CORS, trace, ratelimit, logger, security headers
+```
+
+### 基础设施层
+
+```
+store/        — SQLite 连接池 (WAL, 读写分离: Writer 1 conn + Reader 4 conns)
+               内嵌迁移: internal/store/migrations/*.sql 启动时自动执行
+config/       — TES_ 环境变量 (.env 兜底), 必填: TES_JWT_SECRET(≥32) + TES_LLM_KEY_MASTER
+crypto/       — AES-256-GCM, bcrypt, JWT (HMAC-SHA256)
+worker/       — goroutine pool + buffered channel (异步任务)
+sse/          — SSE broker (实时推送, 替代 WebSocket)
+cache/        — LRU + TTL 内存缓存
+```
+
+### 业务层
+
+```
+llm/          — net/http 直调 OpenAI 兼容 API (DeepSeek/通义/智谱/Moonshot/MiMo)
+pipeline/     — 评阅流水线: 解析 → 评分 → 验证 → 查重
+               含 ChatOrchestrator (上下文感知 AI 问答)
+parser/       — docx/pdf 解析, OCR 通过云端多模态 LLM (mimo-v2.5)
+similarity/   — SimHash + cosine 查重
+report/       — PDF (go-pdf/fpdf) + Excel (excelize) 报告生成
+backup/       — SQLite VACUUM INTO 在线备份
+```
+
+### API 路由约定 (handler/router.go)
+
+| 路由 | 访问 |
+|------|------|
+| `GET /healthz` | 公开 |
+| `POST /api/auth/login` + `/refresh` | 公开 |
+| `/api/*` | JWT 认证 |
+| `/api/users/*`, `/api/llm/*`, `/api/audit/*` | admin 角色 |
+| `/api/tasks/*` POST/PATCH/DELETE | admin + teacher |
+| `/api/grading/*`, `/api/similarity/*` | admin + teacher |
+| `/api/chat/*` | 全部认证用户 |
+
+角色: `admin` / `teacher` / `student`
+分页: `page`, `page_size`, `search`, `sort_by`, `sort_dir`
+错误格式: `{"detail": "error message"}`
+认证: access + refresh 双 token, `GetClaims(ctx)` / `RequireRole(roles...)`
+
+### 测试
+
+- `go test ./... -count=1 -race`
+- 集成测试通过 `testutil.SetupTestApp(t)` 创建完整内存 SQLite 应用
+- Property-based: `pgregory.net/rapid` (cache, config, crypto, similarity)
+
+## Vue 前端架构
+
+### 分层
+
+```
+src/
+  api/         — axios 客户端实例 (client.ts)
+  router/      — vue-router 路由配置 (index.ts)
+  stores/      — Pinia 状态管理 (auth.ts)
+  views/       — 按角色分: admin/ teacher/ student/ shared/ auth/
+  components/  — 通用组件 (shadcn-vue + 自定义)
+  composables/ — 可复用组合式函数
+```
+
+### 技术选型
+
+- Vue 3 + Vite 8 + TypeScript 6
+- Tailwind CSS v4 (`@tailwindcss/vite`)
+- shadcn-vue (基于 reka-ui + class-variance-authority)
+- Pinia 状态管理
+- vue-router 路由
+- @vueuse/core 工具函数
+- vee-validate + zod 表单校验
+- lucide-vue-next 图标
+
+### 设计稿 → 代码工作流
+
+1. 设计稿在 `designs/*.pen` (Pencil 项目)
+2. 翻译为 HTML 视觉契约存于 `frontend-preview/pages/XX-name.html`
+3. Vue 实现**必须**参照 HTML 而非直接拷贝 inline style
+4. 规范细节见 `docs/design/`:
+   - `01-design-tokens.md` — 颜色/字号/圆角/阴影变量
+   - `02-html-references.md` — 每个 View → HTML 文件的强约束映射 (**前端 Task 必读**)
+5. 完成后对比 HTML 静态页与 Vue 实现, 5px 以内偏差合格
+
+## 关键文档
+
+| 文档 | 说明 |
+|------|------|
+| `docs/handbook/00-INDEX.md` | 开发手册总目录 (12 篇) |
+| `.kiro/specs/training-evaluation-system/` | 需求 + 设计 + 任务 |
+| `docs/design/00-INDEX.md` | 设计 Token + HTML 参考映射 |
+| `docs/handbook/02-engineering-principles.md` | 编码红线, 写代码前必读 |
+| `docs/handbook/04-api-endpoints.md` | 全部 REST + SSE 端点 |
+| `docs/handbook/05-data-model.md` | ERD + 字段 + SQL |
 
 ## 禁止事项
 
-- ❌ 修改 Python `backend/` — 已废弃
-- ❌ 引入 CGO 依赖 — 必须保持 `CGO_ENABLED=0`
-- ❌ 使用 ORM — 直接用 SQL
-- ❌ 引入第三方 Web 框架 — chi v5 足够
-- ❌ 在 handler 里写业务逻辑 — 到 service 层
-- ❌ 在 service 里操作 HTTP — 只处理业务
+- ❌ 修改 `backend/` (Python, 已废弃)
+- ❌ 引入 CGO 依赖 (`CGO_ENABLED=0`)
+- ❌ 使用 ORM (直接用 SQL)
+- ❌ 引入第三方 Web 框架 (chi v5 足够)
+- ❌ handler 写业务逻辑 (到 service 层)
+- ❌ service 操作 HTTP 对象
 - ❌ 用 `context.Background()` 处理请求
 - ❌ 全局变量存业务状态
+
+## Git 分支
+
+当前分支 `feat/ui-polish-refinement`。主分支为 `main`。提交用 semantic commit 风格 (`feat:`, `fix:`, `docs:`, `refactor:` 等)。

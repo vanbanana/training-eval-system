@@ -10,8 +10,11 @@ import (
 	"time"
 
 	"github.com/smartedu/training-eval-system/internal/config"
+	"github.com/smartedu/training-eval-system/internal/crypto"
 	"github.com/smartedu/training-eval-system/internal/handler"
+	"github.com/smartedu/training-eval-system/internal/llm"
 	"github.com/smartedu/training-eval-system/internal/middleware"
+	"github.com/smartedu/training-eval-system/internal/model"
 	"github.com/smartedu/training-eval-system/internal/pipeline"
 	"github.com/smartedu/training-eval-system/internal/repository"
 	"github.com/smartedu/training-eval-system/internal/service"
@@ -31,6 +34,13 @@ func main() {
 	// 2. Setup structured logger
 	setupLogger(cfg.LogLevel)
 	slog.Info("starting training-eval-system", "env", cfg.Env, "listen", cfg.ListenAddr, "db", cfg.DBPath)
+
+	// 2b. Derive the AES master key used to encrypt stored LLM API keys.
+	masterKey, err := crypto.DeriveMasterKey(cfg.LLMKeyMaster)
+	if err != nil {
+		slog.Error("failed to derive master key", "error", err)
+		os.Exit(1)
+	}
 
 	// 3. Open database
 	db, err := store.Open(cfg.DBPath)
@@ -82,40 +92,83 @@ func main() {
 
 	slog.Info("services initialized", "worker_pool_size", cfg.WorkerCount)
 
-	// 7b. Initialize pipeline orchestrator
+	// 6b. Seed default admin user if no users exist
+	if seedDefaultAdmin(userSvc) {
+		slog.Info("seeded default admin user")
+	}
+
+	// 7b. Initialize LLM client if configured
+	var llmClient *llm.Client
+	if cfg.LLMAPIKey != "" {
+		llmClient = llm.NewClient(cfg.LLMBaseURL, cfg.LLMAPIKey, cfg.LLMModel, cfg.LLMEmbedModel)
+		llmClient.SetUseAPIKeyHeader(cfg.LLMUseAPIKeyHeader)
+		// Set OCR model: use mimo-v2.5 (multimodal) for OCR if using mimo-v2.5-pro (text-only)
+		if cfg.LLMOCRModel != "" {
+			llmClient.SetOCRModel(cfg.LLMOCRModel)
+			slog.Info("OCR model configured", "ocr_model", cfg.LLMOCRModel)
+		} else if cfg.LLMModel == "mimo-v2.5-pro" {
+			llmClient.SetOCRModel("mimo-v2.5")
+			slog.Info("Auto-detected OCR model", "ocr_model", "mimo-v2.5")
+		}
+		slog.Info("LLM client configured", "model", cfg.LLMModel, "base_url", cfg.LLMBaseURL)
+	} else {
+		slog.Warn("LLM API key not configured, scoring pipeline will not work")
+	}
+
+	// 7c. Initialize pipeline orchestrator
+	profileComputer := service.NewProfileComputer(evalRepo, profileRepo, taskRepo, pool)
+	if llmClient != nil {
+		profileComputer.SetLLMClient(llmClient)
+	}
+
 	orch := pipeline.NewOrchestrator(pipeline.OrchestratorDeps{
-		Pool:        pool,
-		Broker:      broker,
-		UploadRepo:  uploadRepo,
-		EvalRepo:    evalRepo,
-		SimRepo:     repository.NewSimilarityRepo(db),
-		TaskRepo:    taskRepo,
-		ProfileRepo: profileRepo,
-		LLMClient:   nil, // Will be initialized when LLM config is active
+		Pool:          pool,
+		Broker:        broker,
+		UploadRepo:    uploadRepo,
+		EvalRepo:      evalRepo,
+		SimRepo:       repository.NewSimilarityRepo(db),
+		TaskRepo:      taskRepo,
+		ProfileRepo:   profileRepo,
+		SystemCfgRepo: repository.NewSystemConfigRepo(db),
+		LLMClient:     llmClient,
+		OnScored:      profileComputer.TriggerRecompute,
 	})
 	_ = orch // used by handlers below
+
+	// Recover stuck pipeline tasks from previous run
+	go func() {
+		time.Sleep(2 * time.Second) // Wait for server to be ready
+		orch.RecoverStuck(context.Background())
+	}()
 
 	// 8. Initialize handlers
 	authHandler := handler.NewAuthHandler(authSvc)
 	usersHandler := handler.NewUsersHandler(userSvc)
 	tasksHandler := handler.NewTasksHandler(taskSvc)
-	uploadsHandler := handler.NewUploadsHandler(uploadSvc)
-	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc)
+	uploadsHandler := handler.NewUploadsHandler(uploadSvc, orch)
+	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc, uploadSvc)
 	gradingHandler := handler.NewGradingHandler(evalSvc, uploadSvc, userSvc, db)
 	coursesHandler := handler.NewCoursesHandler(courseSvc, classSvc)
 	classesHandler := handler.NewClassesHandler(classSvc, userSvc)
 	notificationsHandler := handler.NewNotificationsHandler(notifSvc)
-	chatHandler := handler.NewChatHandler(chatSvc, broker, nil, nil, uploadRepo, taskRepo, evalRepo) // LLM client + orchestrator set below if configured
-	similarityHandler := handler.NewSimilarityHandler()
+	// Wire the AI chat orchestrator + LLM client so context-aware chat works
+	// when an LLM is configured; otherwise chat falls back to the "not configured" message.
+	var chatOrch *pipeline.ChatOrchestrator
+	if llmClient != nil {
+		chatOrch = pipeline.NewChatOrchestrator(llmClient, evalRepo, uploadRepo, taskRepo, profileRepo)
+	}
+	chatHandler := handler.NewChatHandler(chatSvc, broker, llmClient, chatOrch, uploadRepo, taskRepo, evalRepo)
+	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
 	templatesHandler := handler.NewTemplatesHandler(templateSvc, taskSvc)
-	importsHandler := handler.NewImportsHandler()
+	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc)
 	dashboardHandler := handler.NewDashboardHandler(db)
 	reportsHandler := handler.NewReportsHandler(evalSvc, taskSvc, userSvc, db)
-	profilesHandler := handler.NewProfilesHandler(profileSvc, db, nil)
-	llmHandler := handler.NewLLMHandler(llmConfigSvc)
+	profilesHandler := handler.NewProfilesHandler(profileSvc, db, llmClient)
+	llmHandler := handler.NewLLMHandler(llmConfigSvc, masterKey)
 	auditHandler := handler.NewAuditHandler(auditSvc)
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
+	sseHandler := handler.NewSSEHandler(broker, cfg.JWTSecret)
 
 	// 9. Build router
 	router := handler.NewRouter(handler.RouterConfig{
@@ -141,6 +194,7 @@ func main() {
 		AuditHandler:         auditHandler,
 		AccountHandler:       accountHandler,
 		ParseHandler:         parseHandler,
+		SSEHandler:           sseHandler,
 	})
 
 	// 10. Start HTTP server
@@ -148,7 +202,7 @@ func main() {
 		Addr:         cfg.ListenAddr,
 		Handler:      router,
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 120 * time.Second,
+		WriteTimeout: 300 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -190,4 +244,20 @@ func setupLogger(level string) {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	slog.SetDefault(logger)
+}
+
+// seedDefaultAdmin creates the default admin user if no users exist.
+func seedDefaultAdmin(userSvc *service.UserService) bool {
+	ctx := context.Background()
+	users, _, err := userSvc.List(ctx, repository.ListParams{Page: 1, PageSize: 1})
+	if err != nil || len(users) > 0 {
+		return false
+	}
+	err = userSvc.Create(ctx, &model.User{
+		Username:    "admin",
+		DisplayName: "系统管理员",
+		Role:        "admin",
+		IsActive:    true,
+	}, "admin123")
+	return err == nil
 }

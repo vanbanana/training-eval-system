@@ -68,7 +68,7 @@ async function fetchNotifications() {
   loading.value = true
   try {
     const { data } = await axios.get('/api/notifications', { params: { limit: 100 } })
-    notifications.value = Array.isArray(data) ? data : data.items
+    notifications.value = Array.isArray(data) ? data : (data?.items ?? [])
     unreadCount.value = data.unread_count ?? notifications.value.filter((n: Notification) => !n.is_read).length
   } catch {
     toast({ description: '加载通知失败', variant: 'destructive' })

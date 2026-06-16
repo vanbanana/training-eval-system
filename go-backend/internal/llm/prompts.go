@@ -138,10 +138,15 @@ func BuildChatSystemPrompt(task *model.TrainingTask, eval *model.Evaluation, raw
 
 // ScoringToolSchema returns the Function Calling tool definition for submit_scores.
 func ScoringToolSchema(dims []model.Dimension) Tool {
-	// Build dimension_id enum
+	// Build dimension_id enum and description
 	dimIDs := make([]int64, 0, len(dims))
-	for _, d := range dims {
+	var dimDesc strings.Builder
+	for i, d := range dims {
 		dimIDs = append(dimIDs, d.ID)
+		if i > 0 {
+			dimDesc.WriteString(", ")
+		}
+		dimDesc.WriteString(fmt.Sprintf("%d=%s", d.ID, d.Name))
 	}
 
 	params := map[string]any{
@@ -154,7 +159,8 @@ func ScoringToolSchema(dims []model.Dimension) Tool {
 					"properties": map[string]any{
 						"dimension_id": map[string]any{
 							"type":        "integer",
-							"description": "评价维度 ID",
+							"enum":        dimIDs,
+							"description": fmt.Sprintf("评价维度 ID（%s）", dimDesc.String()),
 						},
 						"score": map[string]any{
 							"type":        "number",

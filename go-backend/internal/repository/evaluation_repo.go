@@ -22,9 +22,9 @@ func (r *SQLiteEvaluationRepo) GetByID(ctx context.Context, id int64) (*model.Ev
 	var e model.Evaluation
 	var createdAt, updatedAt sql.NullString
 	err := r.db.Reader.QueryRowContext(ctx,
-		`SELECT id, task_id, student_id, upload_id, status, total_score, teacher_comment, created_at, updated_at
+		`SELECT id, task_id, student_id, upload_id, status, total_score, objective_ratio, teacher_comment, overall_comment, created_at, updated_at
 		 FROM evaluations WHERE id=?`, id).Scan(
-		&e.ID, &e.TaskID, &e.StudentID, &e.UploadID, &e.Status, &e.TotalScore, &e.TeacherComment, &createdAt, &updatedAt)
+		&e.ID, &e.TaskID, &e.StudentID, &e.UploadID, &e.Status, &e.TotalScore, &e.ObjectiveRatio, &e.TeacherComment, &e.OverallComment, &createdAt, &updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("evaluation_repo: not found")
@@ -52,6 +52,10 @@ func (r *SQLiteEvaluationRepo) List(ctx context.Context, params EvalListParams) 
 		where += " AND student_id=?"
 		args = append(args, *params.StudentID)
 	}
+	if params.UploadID != nil {
+		where += " AND upload_id=?"
+		args = append(args, *params.UploadID)
+	}
 	if params.Status != nil {
 		where += " AND status=?"
 		args = append(args, *params.Status)
@@ -64,7 +68,7 @@ func (r *SQLiteEvaluationRepo) List(ctx context.Context, params EvalListParams) 
 	}
 
 	querySQL := fmt.Sprintf(
-		`SELECT id, task_id, student_id, upload_id, status, total_score, teacher_comment, created_at, updated_at
+		`SELECT id, task_id, student_id, upload_id, status, total_score, objective_ratio, teacher_comment, overall_comment, created_at, updated_at
 		 FROM evaluations WHERE %s ORDER BY id DESC LIMIT ? OFFSET ?`, where)
 	args = append(args, params.PageSize, params.Offset())
 
@@ -79,11 +83,14 @@ func (r *SQLiteEvaluationRepo) List(ctx context.Context, params EvalListParams) 
 		var e model.Evaluation
 		var createdAt, updatedAt sql.NullString
 		if err := rows.Scan(&e.ID, &e.TaskID, &e.StudentID, &e.UploadID, &e.Status,
-			&e.TotalScore, &e.TeacherComment, &createdAt, &updatedAt); err != nil {
+			&e.TotalScore, &e.ObjectiveRatio, &e.TeacherComment, &e.OverallComment, &createdAt, &updatedAt); err != nil {
 			return nil, 0, err
 		}
 		e.CreatedAt = parseTime(createdAt.String)
 		e.UpdatedAt = parseTime(updatedAt.String)
+		// Load dimension scores for each evaluation
+		scores, _ := r.getScores(ctx, e.ID)
+		e.Scores = scores
 		evals = append(evals, e)
 	}
 	return evals, total, rows.Err()
@@ -91,9 +98,9 @@ func (r *SQLiteEvaluationRepo) List(ctx context.Context, params EvalListParams) 
 
 func (r *SQLiteEvaluationRepo) Create(ctx context.Context, e *model.Evaluation) error {
 	res, err := r.db.Writer.ExecContext(ctx,
-		`INSERT INTO evaluations (task_id, student_id, upload_id, status, total_score, teacher_comment, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-		e.TaskID, e.StudentID, e.UploadID, e.Status, e.TotalScore, e.TeacherComment)
+		`INSERT INTO evaluations (task_id, student_id, upload_id, status, total_score, objective_ratio, teacher_comment, overall_comment, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+		e.TaskID, e.StudentID, e.UploadID, e.Status, e.TotalScore, e.ObjectiveRatio, e.TeacherComment, e.OverallComment)
 	if err != nil {
 		return fmt.Errorf("evaluation_repo: create: %w", err)
 	}
@@ -104,8 +111,18 @@ func (r *SQLiteEvaluationRepo) Create(ctx context.Context, e *model.Evaluation) 
 
 func (r *SQLiteEvaluationRepo) Update(ctx context.Context, e *model.Evaluation) error {
 	_, err := r.db.Writer.ExecContext(ctx,
-		`UPDATE evaluations SET status=?, total_score=?, teacher_comment=?, updated_at=datetime('now') WHERE id=?`,
-		e.Status, e.TotalScore, e.TeacherComment, e.ID)
+		`UPDATE evaluations SET status=?, total_score=?, objective_ratio=?, teacher_comment=?, overall_comment=?, updated_at=datetime('now') WHERE id=?`,
+		e.Status, e.TotalScore, e.ObjectiveRatio, e.TeacherComment, e.OverallComment, e.ID)
+	return err
+}
+
+func (r *SQLiteEvaluationRepo) Delete(ctx context.Context, id int64) error {
+	// Delete associated dimension scores first
+	_, _ = r.db.Writer.ExecContext(ctx, "DELETE FROM dimension_scores WHERE evaluation_id=?", id)
+	// Delete evaluation histories
+	_, _ = r.db.Writer.ExecContext(ctx, "DELETE FROM evaluation_histories WHERE evaluation_id=?", id)
+	// Delete the evaluation itself
+	_, err := r.db.Writer.ExecContext(ctx, "DELETE FROM evaluations WHERE id=?", id)
 	return err
 }
 

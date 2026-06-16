@@ -8,7 +8,7 @@ type Evaluation struct {
 	TaskID         int64     `json:"task_id"`
 	StudentID      int64     `json:"student_id"`
 	UploadID       int64     `json:"upload_id"`
-	Status          string    `json:"status"` // pending, scoring, scored, confirmed, rejected, manual_required
+	Status          string    `json:"status"` // pending, scored, confirmed, rejected
 	TotalScore      *float64  `json:"total_score"`
 	ObjectiveRatio  *float64  `json:"objective_ratio"`  // AI objective weight, default 0.6
 	TeacherComment  string    `json:"teacher_comment"`

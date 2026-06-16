@@ -21,20 +21,29 @@ type Client struct {
 	apiKey     string
 	model      string
 	embedModel string
+	ocrModel   string // separate model for multimodal OCR (e.g. mimo-v2.5 supports vision, mimo-v2.5-pro does not)
 	breaker    *CircuitBreaker
 	// MiMo-specific: use api-key header instead of Authorization: Bearer (optional, defaults to Bearer)
 	useAPIKeyHeader bool
+	// Concurrency limiter: max concurrent LLM requests to avoid API rate limiting
+	sem chan struct{}
+	// Separate concurrency limiter for OCR calls so they don't starve scoring
+	ocrSem chan struct{}
 }
 
 // NewClient creates a new LLM client.
 func NewClient(baseURL, apiKey, model, embedModel string) *Client {
+	maxConcurrent := 8 // concurrent LLM API calls; MiMo API supports higher concurrency
+	maxOCR := 4        // separate OCR concurrency so it doesn't starve scoring
 	return &Client{
-		httpClient: &http.Client{Timeout: 120 * time.Second},
-		baseURL:    baseURL,
-		apiKey:     apiKey,
-		model:      model,
-		embedModel: embedModel,
-		breaker:    NewCircuitBreaker(5, 30*time.Second),
+		httpClient:      &http.Client{Timeout: 120 * time.Second},
+		baseURL:         baseURL,
+		apiKey:          apiKey,
+		model:           model,
+		embedModel:      embedModel,
+		breaker:         NewCircuitBreaker(50, 30*time.Second), // higher threshold for batch workloads
+		sem:             make(chan struct{}, maxConcurrent),
+		ocrSem:          make(chan struct{}, maxOCR),
 	}
 }
 
@@ -50,6 +59,12 @@ func NewMiMoClient(apiKey, model string) *Client {
 // instead of the standard Authorization: Bearer header.
 func (c *Client) SetUseAPIKeyHeader(v bool) {
 	c.useAPIKeyHeader = v
+}
+
+// SetOCRModel sets the model to use for multimodal OCR calls.
+// If not set, falls back to the default model.
+func (c *Client) SetOCRModel(model string) {
+	c.ocrModel = model
 }
 
 // ChatMessage represents a message in the chat completion API.
@@ -271,6 +286,14 @@ func (c *Client) completeWithOpts(ctx context.Context, messages []ChatMessage, t
 		return nil, fmt.Errorf("llm: circuit breaker open: %w", err)
 	}
 
+	// Acquire concurrency slot
+	select {
+	case c.sem <- struct{}{}:
+		defer func() { <-c.sem }()
+	case <-ctx.Done():
+		return nil, fmt.Errorf("llm: context cancelled while waiting for concurrency slot: %w", ctx.Err())
+	}
+
 	req := ChatRequest{
 		Model:    c.model,
 		Messages: messages,
@@ -334,8 +357,16 @@ func (c *Client) doRequest(ctx context.Context, path string, body any) (*ChatRes
 
 	respBody, _ := io.ReadAll(resp.Body)
 
+	// Log the actual model used from the request body
+	var reqModel string
+	if chatReq, ok := body.(ChatRequest); ok && chatReq.Model != "" {
+		reqModel = chatReq.Model
+	} else {
+		reqModel = c.model
+	}
+
 	slog.Info("llm request completed",
-		"model", c.model,
+		"model", reqModel,
 		"endpoint", path,
 		"status", resp.StatusCode,
 		"duration_ms", duration.Milliseconds(),
@@ -362,6 +393,14 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float64, error)
 
 	if err := c.breaker.Allow(); err != nil {
 		return nil, fmt.Errorf("llm: circuit breaker open: %w", err)
+	}
+
+	// Acquire concurrency slot
+	select {
+	case c.sem <- struct{}{}:
+		defer func() { <-c.sem }()
+	case <-ctx.Done():
+		return nil, fmt.Errorf("llm: context cancelled while waiting for concurrency slot: %w", ctx.Err())
 	}
 
 	req := EmbeddingRequest{

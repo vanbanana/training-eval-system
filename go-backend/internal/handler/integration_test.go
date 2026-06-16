@@ -2,8 +2,10 @@ package handler_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -316,9 +318,12 @@ func TestReports_Auth_Required(t *testing.T) {
 
 func TestReports_Role_StudentCanAccessPersonal(t *testing.T) {
 	app := testutil.SetupTestApp(t)
-	// Students CAN access their personal report
+	// Students are NOT blocked by the role gate on the personal report route.
+	// With an empty test DB the evaluation does not exist, so the handler
+	// reaches its data lookup and returns 404 (not 401/403), proving the
+	// student passed authentication and authorization.
 	resp := doRequest(t, app.Server, "GET", "/api/reports/personal/1", testutil.StudentToken(), nil)
-	testutil.AssertStatus(t, resp, http.StatusOK)
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 func TestReports_Role_StudentCannotAccessStatistics(t *testing.T) {
@@ -331,8 +336,8 @@ func TestReports_Role_StudentCannotAccessStatistics(t *testing.T) {
 func TestReports_CSV_ContentType(t *testing.T) {
 	app := testutil.SetupTestApp(t)
 	resp := doRequest(t, app.Server, "GET", "/api/reports/task/1/csv", testutil.TeacherToken(), nil)
-	// Returns 400 when no scored evaluations exist for export
-	testutil.AssertStatus(t, resp, http.StatusBadRequest)
+	// With an empty test DB the task does not exist, so export returns 404.
+	testutil.AssertStatus(t, resp, http.StatusNotFound)
 }
 
 // ============================================================
@@ -602,5 +607,261 @@ func TestProperty_AdminRoleEnforcement(t *testing.T) {
 			t.Errorf("teacher route %s %s should return 403 for student, got %d", rt.method, rt.path, resp.StatusCode)
 		}
 		resp.Body.Close()
+	}
+}
+
+// ============================================================
+// Regression: teacher reject of a scored evaluation must succeed (not 500).
+// Previously EvaluationService.Update validated checkTransition(status,status)
+// which rejected rejected->rejected and returned HTTP 500.
+// ============================================================
+
+func TestGrading_RejectScoredEvaluation_OK(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	ctx := context.Background()
+	w := app.DB.Writer
+
+	// Seed minimal data: teacher(2), student(3), course, task, upload, scored evaluation.
+	if _, err := w.ExecContext(ctx, `INSERT INTO users (id,username,display_name,password_hash,role) VALUES (2,'teacher1','T','x','teacher'),(3,'student1','S','x','student')`); err != nil {
+		t.Fatalf("seed users: %v", err)
+	}
+	if _, err := w.ExecContext(ctx, `INSERT INTO courses (id,name,code) VALUES (1,'C','C1')`); err != nil {
+		t.Fatalf("seed course: %v", err)
+	}
+	if _, err := w.ExecContext(ctx, `INSERT INTO training_tasks (id,name,teacher_id,course_id,status) VALUES (1,'T',2,1,'published')`); err != nil {
+		t.Fatalf("seed task: %v", err)
+	}
+	if _, err := w.ExecContext(ctx, `INSERT INTO uploads (id,task_id,student_id,filename,file_type,file_size,storage_path,parse_status) VALUES (1,1,3,'f.pdf','pdf',100,'p','parsed')`); err != nil {
+		t.Fatalf("seed upload: %v", err)
+	}
+	if _, err := w.ExecContext(ctx, `INSERT INTO evaluations (id,task_id,student_id,upload_id,status,total_score) VALUES (1,1,3,1,'scored',80.0)`); err != nil {
+		t.Fatalf("seed evaluation: %v", err)
+	}
+
+	resp := doRequest(t, app.Server, "POST", "/api/grading/evaluations/1/reject", testutil.TeacherToken(), nil)
+	defer resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+}
+
+// Regression: confirming a scored evaluation must succeed.
+func TestGrading_ConfirmScoredEvaluation_OK(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	ctx := context.Background()
+	w := app.DB.Writer
+
+	w.ExecContext(ctx, `INSERT INTO users (id,username,display_name,password_hash,role) VALUES (2,'teacher1','T','x','teacher'),(3,'student1','S','x','student')`)
+	w.ExecContext(ctx, `INSERT INTO courses (id,name,code) VALUES (1,'C','C1')`)
+	w.ExecContext(ctx, `INSERT INTO training_tasks (id,name,teacher_id,course_id,status) VALUES (1,'T',2,1,'published')`)
+	w.ExecContext(ctx, `INSERT INTO uploads (id,task_id,student_id,filename,file_type,file_size,storage_path,parse_status) VALUES (1,1,3,'f.pdf','pdf',100,'p','parsed')`)
+	if _, err := w.ExecContext(ctx, `INSERT INTO evaluations (id,task_id,student_id,upload_id,status,total_score) VALUES (1,1,3,1,'scored',80.0)`); err != nil {
+		t.Fatalf("seed evaluation: %v", err)
+	}
+
+	resp := doRequest(t, app.Server, "POST", "/api/grading/evaluations/1/confirm", testutil.TeacherToken(), nil)
+	defer resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+}
+
+// ============================================================
+// Regression: previously-stub handlers must now hit the real data layer.
+// ============================================================
+
+func TestSimilarity_GetByTask_ReadsRepo(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	ctx := context.Background()
+	w := app.DB.Writer
+
+	w.ExecContext(ctx, `INSERT INTO users (id,username,display_name,password_hash,role) VALUES (2,'teacher1','T','x','teacher'),(3,'s','s','x','student')`)
+	w.ExecContext(ctx, `INSERT INTO courses (id,name,code) VALUES (1,'C','C1')`)
+	w.ExecContext(ctx, `INSERT INTO training_tasks (id,name,teacher_id,course_id,status) VALUES (1,'T',2,1,'published')`)
+	w.ExecContext(ctx, `INSERT INTO uploads (id,task_id,student_id,filename,file_type,file_size,storage_path,parse_status) VALUES (1,1,3,'a','pdf',1,'p1','parsed'),(2,1,3,'b','pdf',1,'p2','parsed')`)
+	if _, err := w.ExecContext(ctx, `INSERT INTO similarity_records (id,task_id,upload_a_id,upload_b_id,hamming_distance,cosine_similarity,state) VALUES (1,1,1,2,3,0.92,'suspect')`); err != nil {
+		t.Fatalf("seed similarity: %v", err)
+	}
+
+	resp := doRequest(t, app.Server, "GET", "/api/similarity/task/1", testutil.TeacherToken(), nil)
+	defer resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	var records []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&records); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("expected 1 similarity record from repo, got %d", len(records))
+	}
+}
+
+func TestSimilarity_UpdateDecision_Persists(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	ctx := context.Background()
+	w := app.DB.Writer
+
+	w.ExecContext(ctx, `INSERT INTO users (id,username,display_name,password_hash,role) VALUES (2,'teacher1','T','x','teacher'),(3,'s','s','x','student')`)
+	w.ExecContext(ctx, `INSERT INTO courses (id,name,code) VALUES (1,'C','C1')`)
+	w.ExecContext(ctx, `INSERT INTO training_tasks (id,name,teacher_id,course_id,status) VALUES (1,'T',2,1,'published')`)
+	w.ExecContext(ctx, `INSERT INTO uploads (id,task_id,student_id,filename,file_type,file_size,storage_path,parse_status) VALUES (1,1,3,'a','pdf',1,'p1','parsed'),(2,1,3,'b','pdf',1,'p2','parsed')`)
+	w.ExecContext(ctx, `INSERT INTO similarity_records (id,task_id,upload_a_id,upload_b_id,hamming_distance,state) VALUES (1,1,1,2,3,'suspect')`)
+
+	resp := doRequest(t, app.Server, "POST", "/api/similarity/1/decision", testutil.TeacherToken(), map[string]string{"action": "confirm"})
+	defer resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	var state string
+	app.DB.Reader.QueryRowContext(ctx, "SELECT state FROM similarity_records WHERE id=1").Scan(&state)
+	if state != "confirmed" {
+		t.Fatalf("expected state 'confirmed' persisted, got %q", state)
+	}
+}
+
+func TestParse_GetResult_ReadsRepo(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	ctx := context.Background()
+	w := app.DB.Writer
+
+	w.ExecContext(ctx, `INSERT INTO users (id,username,display_name,password_hash,role) VALUES (2,'teacher1','T','x','teacher'),(3,'s','s','x','student')`)
+	w.ExecContext(ctx, `INSERT INTO courses (id,name,code) VALUES (1,'C','C1')`)
+	w.ExecContext(ctx, `INSERT INTO training_tasks (id,name,teacher_id,course_id,status) VALUES (1,'T',2,1,'published')`)
+	w.ExecContext(ctx, `INSERT INTO uploads (id,task_id,student_id,filename,file_type,file_size,storage_path,parse_status) VALUES (1,1,3,'a','pdf',1,'p1','parsed')`)
+	if _, err := w.ExecContext(ctx, `INSERT INTO parse_results (upload_id,raw_text,parsed_at) VALUES (1,'hello world',datetime('now'))`); err != nil {
+		t.Fatalf("seed parse_result: %v", err)
+	}
+
+	resp := doRequest(t, app.Server, "GET", "/api/parse/1/result", testutil.TeacherToken(), nil)
+	defer resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+}
+
+func TestImports_DownloadTemplate_RealXLSX(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	resp := doRequest(t, app.Server, "GET", "/api/imports/template/user.xlsx", testutil.AdminToken(), nil)
+	defer resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+	body, _ := io.ReadAll(resp.Body)
+	// A real xlsx is a ZIP archive starting with "PK".
+	if len(body) < 2 || body[0] != 'P' || body[1] != 'K' {
+		t.Fatalf("expected a real xlsx (PK header), got %d bytes", len(body))
+	}
+}
+
+// Regression: template create+list must round-trip dimensions under the
+// "dimensions" key (previously backend used "items" and List dropped them).
+func TestTemplates_DimensionsRoundTrip(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	// Teacher token uses user id 2; owner_id FK requires the row to exist.
+	app.DB.Writer.ExecContext(context.Background(),
+		`INSERT INTO users (id,username,display_name,password_hash,role) VALUES (2,'teacher1','T','x','teacher')`)
+
+	createBody := map[string]any{
+		"name":        "Test Template",
+		"description": "desc",
+		"dimensions": []map[string]any{
+			{"name": "代码质量", "weight": 60, "order_index": 0},
+			{"name": "文档完整", "weight": 40, "order_index": 1},
+		},
+	}
+	resp := doRequest(t, app.Server, "POST", "/api/templates", testutil.TeacherToken(), createBody)
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+	resp.Body.Close()
+
+	listResp := doRequest(t, app.Server, "GET", "/api/templates", testutil.TeacherToken(), nil)
+	defer listResp.Body.Close()
+	testutil.AssertStatus(t, listResp, http.StatusOK)
+
+	var templates []struct {
+		Name       string `json:"name"`
+		Dimensions []struct {
+			Name   string `json:"name"`
+			Weight int    `json:"weight"`
+		} `json:"dimensions"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&templates); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(templates) != 1 {
+		t.Fatalf("expected 1 template, got %d", len(templates))
+	}
+	if len(templates[0].Dimensions) != 2 {
+		t.Fatalf("expected 2 dimensions round-tripped, got %d", len(templates[0].Dimensions))
+	}
+}
+
+// Regression: import users from a CSV must actually create users (was a stub).
+func TestImports_ImportUsers_CreatesUsers(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	// Admin token uses user id 1; import_jobs.operator_id FK requires the row.
+	app.DB.Writer.ExecContext(context.Background(),
+		`INSERT INTO users (id,username,display_name,password_hash,role) VALUES (1,'admin','A','x','admin')`)
+
+	csvData := "username,display_name,role,password\n" +
+		"newstudent1,新学生一,student,Pass@1234\n" +
+		"newteacher1,新教师一,teacher,Pass@1234\n"
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	fw, err := mw.CreateFormFile("file", "users.csv")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	fw.Write([]byte(csvData))
+	mw.Close()
+
+	req, _ := http.NewRequest("POST", app.Server.URL+"/api/imports/users", &buf)
+	req.Header.Set("Authorization", "Bearer "+testutil.AdminToken())
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	var result dto.ImportResultResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if result.SuccessCount != 2 {
+		t.Fatalf("expected 2 users created, got success=%d failed=%d", result.SuccessCount, result.FailedCount)
+	}
+
+	// Verify the users actually exist in the DB.
+	var count int
+	app.DB.Reader.QueryRowContext(context.Background(),
+		"SELECT COUNT(*) FROM users WHERE username IN ('newstudent1','newteacher1')").Scan(&count)
+	if count != 2 {
+		t.Fatalf("expected 2 users persisted, got %d", count)
+	}
+}
+
+// Regression: archiving a class must persist (was in-memory only) and
+// removing a student must hit the real repository.
+func TestClasses_ArchiveAndRemoveStudent(t *testing.T) {
+	app := testutil.SetupTestApp(t)
+	ctx := context.Background()
+	w := app.DB.Writer
+
+	w.ExecContext(ctx, `INSERT INTO users (id,username,display_name,password_hash,role) VALUES (2,'teacher1','T','x','teacher'),(3,'stu','S','x','student')`)
+	w.ExecContext(ctx, `INSERT INTO courses (id,name,code) VALUES (1,'C','C1')`)
+	w.ExecContext(ctx, `INSERT INTO classes (id,name,course_id,teacher_id,student_count,is_archived) VALUES (1,'Cls',1,2,0,0)`)
+	w.ExecContext(ctx, `INSERT INTO class_memberships (class_id,student_id) VALUES (1,3)`)
+
+	// Archive must persist.
+	resp := doRequest(t, app.Server, "PATCH", "/api/classes/1/archive", testutil.TeacherToken(), nil)
+	resp.Body.Close()
+	testutil.AssertStatus(t, resp, http.StatusOK)
+	var archived int
+	app.DB.Reader.QueryRowContext(ctx, "SELECT is_archived FROM classes WHERE id=1").Scan(&archived)
+	if archived != 1 {
+		t.Fatalf("expected class archived persisted, got is_archived=%d", archived)
+	}
+
+	// Remove student must delete the membership.
+	resp2 := doRequest(t, app.Server, "DELETE", "/api/classes/1/students/3", testutil.TeacherToken(), nil)
+	resp2.Body.Close()
+	testutil.AssertStatus(t, resp2, http.StatusOK)
+	var count int
+	app.DB.Reader.QueryRowContext(ctx, "SELECT COUNT(*) FROM class_memberships WHERE class_id=1 AND student_id=3").Scan(&count)
+	if count != 0 {
+		t.Fatalf("expected membership removed, got %d", count)
 	}
 }

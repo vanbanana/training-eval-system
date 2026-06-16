@@ -23,6 +23,14 @@ dist/
 *.log
 npm-debug.log*
 
+# Go
+go-backend/bin/
+go-backend/*.exe
+go-backend/*.log
+go-backend/coverage.out
+go-backend/coverage.html
+go-backend/data/
+
 # Environment
 .env
 .env.local
@@ -40,12 +48,25 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Project data
-/data/
-/backend/data/
-/backend/tes_dev.db
-/backend/tes_*.db
-
 # Build artifacts
 *.min.js
 *.min.css
+
+# Temp directories
+.tmp/
+e2e_test_output/
+
+# Dataset files
+数据集*/
+dataset/
+dataset_proper/
+数据集_extracted/
+
+# Python backend (deprecated)
+backend/data/
+backend/tes_dev.db
+backend/tes_*.db
+
+# Tool binaries
+tools/*/*.exe
+tools/*/*.exe~

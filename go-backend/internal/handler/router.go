@@ -41,6 +41,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	// Global middleware chain
 	r.Use(middleware.TraceMiddleware)
+	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestLogger)
 	r.Use(middleware.CORS(cfg.CORSOrigins))
 	r.Use(middleware.SecurityHeaders)
@@ -72,7 +73,6 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Use(middleware.RequireRole("admin"))
 				r.Get("/", cfg.UsersHandler.List)
 				r.Post("/", cfg.UsersHandler.Create)
-				r.Get("/{id}", cfg.UsersHandler.Get)
 				r.Put("/{id}", cfg.UsersHandler.Update)
 				r.Patch("/{id}", cfg.UsersHandler.Update)
 				r.Delete("/{id}", cfg.UsersHandler.Delete)
@@ -80,6 +80,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Patch("/{id}/toggle-active", cfg.UsersHandler.ToggleStatus)
 				r.Post("/{id}/reset-password", cfg.UsersHandler.ResetPassword)
 			})
+
+			// Allow teachers to look up individual students for profile display
+			r.Get("/users/{id}", cfg.UsersHandler.Get)
 
 			r.Route("/llm", func(r chi.Router) {
 				r.Use(middleware.RequireRole("admin"))
@@ -152,6 +155,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 					r.Use(middleware.RequireRole("admin", "teacher"))
 					r.Get("/task/{taskId}/csv", cfg.ReportsHandler.ExportCSV)
 					r.Get("/statistics/{taskId}", cfg.ReportsHandler.GetStatistics)
+					r.Get("/statistics/{taskId}/xlsx", cfg.ReportsHandler.ExportStatisticsXLSX)
 				})
 			})
 
@@ -185,6 +189,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Get("/{id}/students", cfg.ClassesHandler.GetStudents)
 				r.Patch("/{id}/archive", cfg.ClassesHandler.ToggleArchive)
 				r.Post("/{id}/students/bulk", cfg.ClassesHandler.BulkAddStudents)
+				r.Delete("/{id}/students/{studentId}", cfg.ClassesHandler.RemoveStudent)
 			})
 
 			r.Route("/notifications", func(r chi.Router) {

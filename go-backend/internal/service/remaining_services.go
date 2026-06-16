@@ -78,6 +78,11 @@ func (s *TemplateService) Delete(ctx context.Context, id int64) error {
 	return s.repo.Delete(ctx, id)
 }
 
+// SetItems replaces the dimension items for a template.
+func (s *TemplateService) SetItems(ctx context.Context, templateID int64, items []model.TemplateDimension) error {
+	return s.repo.SetItems(ctx, templateID, items)
+}
+
 // --- CourseService ---
 
 type CourseService struct {
@@ -128,6 +133,10 @@ func (s *ClassService) List(ctx context.Context, courseID *int64, teacherID *int
 
 func (s *ClassService) Create(ctx context.Context, c *model.Class) error {
 	return s.repo.Create(ctx, c)
+}
+
+func (s *ClassService) Update(ctx context.Context, c *model.Class) error {
+	return s.repo.Update(ctx, c)
 }
 
 func (s *ClassService) AddMember(ctx context.Context, classID, studentID int64) error {

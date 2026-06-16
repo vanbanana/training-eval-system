@@ -124,8 +124,8 @@ function scoreColor(score: number | null): string {
       <p class="mt-1.5 text-sm text-muted-foreground">查看所有历次评价 · 共 {{ counts.all }} 条记录</p>
     </div>
 
-    <Card class="px-5 py-3.5">
-      <div class="grid grid-cols-[1fr_180px_180px] gap-3 items-end">
+    <Card class="tes-card-container px-5 py-3.5">
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-3 items-end">
         <div class="space-y-1.5">
           <Label class="text-[11px] text-muted-foreground">搜索任务名</Label>
           <div class="relative">
@@ -160,8 +160,9 @@ function scoreColor(score: number | null): string {
       </div>
     </Card>
 
-    <Card class="overflow-hidden">
-      <div class="grid grid-cols-[80px_1fr_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border bg-surface-2 text-[11px] font-medium text-muted-foreground tracking-wider">
+    <Card class="tes-card-container overflow-hidden">
+      <div class="tes-table-shell">
+      <div class="grid min-w-[760px] grid-cols-[80px_minmax(16rem,1fr)_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border bg-surface-2 text-[11px] font-medium text-muted-foreground tracking-wider">
         <span>编号</span>
         <span>任务</span>
         <span class="text-center">综合分</span>
@@ -171,7 +172,7 @@ function scoreColor(score: number | null): string {
       </div>
 
       <template v-if="loading">
-        <div v-for="n in 5" :key="n" class="grid grid-cols-[80px_1fr_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border">
+        <div v-for="n in 5" :key="n" class="grid min-w-[760px] grid-cols-[80px_minmax(16rem,1fr)_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border">
           <Skeleton class="h-4 w-12" />
           <Skeleton class="h-4 w-3/4" />
           <Skeleton class="h-4 w-12 mx-auto" />
@@ -192,7 +193,7 @@ function scoreColor(score: number | null): string {
         v-for="(e, idx) in filtered"
         v-else
         :key="e.id"
-        class="grid grid-cols-[80px_1fr_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border last:border-0 text-sm hover:bg-surface-2 transition-colors anim-in"
+        class="grid min-w-[760px] grid-cols-[80px_minmax(16rem,1fr)_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border last:border-0 text-sm hover:bg-surface-2 transition-colors anim-in"
         :style="{ animationDelay: Math.min(idx * 25, 200) + 'ms' }"
       >
         <span class="text-xs text-muted-foreground font-mono">#{{ e.id }}</span>
@@ -215,6 +216,7 @@ function scoreColor(score: number | null): string {
         >
           查看
         </RouterLink>
+      </div>
       </div>
     </Card>
   </AppShell>

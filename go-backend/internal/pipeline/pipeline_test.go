@@ -83,15 +83,15 @@ func TestProperty_SimilarityOrdering(t *testing.T) {
 	})
 }
 
-// Property 6: Similarity threshold - suspect iff hamming < 10
+// Property 6: Similarity threshold - suspect iff hamming < HammingThreshold
 func TestProperty_SimilarityThreshold(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		dist := rapid.IntRange(0, 64).Draw(t, "distance")
 		shouldBeSuspect := dist < HammingThreshold
 
-		// The threshold constant is 10
-		if shouldBeSuspect != (dist < 10) {
-			t.Fatalf("dist=%d: shouldBeSuspect=%v but threshold check disagrees", dist, shouldBeSuspect)
+		// HammingThreshold = 3: distances 0,1,2 are suspect; 3+ are not
+		if shouldBeSuspect != (dist < HammingThreshold) {
+			t.Fatalf("dist=%d: shouldBeSuspect=%v but threshold=%d disagrees", dist, shouldBeSuspect, HammingThreshold)
 		}
 	})
 }

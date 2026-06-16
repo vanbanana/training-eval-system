@@ -90,7 +90,7 @@ function buildQpsFromAudit(items: AuditLog[]): {
     if (offsetH < 0 || offsetH >= HOURS) continue
     const idx = HOURS - 1 - offsetH
     if (idx < 0 || idx >= buckets.length) continue
-    if (/^llm\./i.test(log.action)) buckets[idx].llm += 1
+    if (/^llm\./i.test(log.action ?? '')) buckets[idx].llm += 1
     else buckets[idx].http += 1
   }
   return buckets
@@ -125,7 +125,8 @@ async function fetchAll() {
   }
 }
 
-function deriveLevel(action: string): LogRow['level'] {
+function deriveLevel(action: string | null | undefined): LogRow['level'] {
+  if (!action) return 'info'
   if (/error|fail|timeout/i.test(action)) return 'error'
   if (/warn|reject|denied|locked/i.test(action)) return 'warn'
   if (/debug/i.test(action)) return 'debug'
@@ -141,9 +142,9 @@ const uptimeText = computed(() => {
   return `在线 ${days} 天 ${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`
 })
 
-const cpuPct = computed(() => Math.round(data.value?.system_resources.cpu_percent ?? 0))
-const memPct = computed(() => Math.round(data.value?.system_resources.mem_percent ?? 0))
-const diskPct = computed(() => Math.round(data.value?.system_resources.disk_percent ?? 0))
+const cpuPct = computed(() => Math.round(data.value?.system_resources?.cpu_percent ?? 0))
+const memPct = computed(() => Math.round(data.value?.system_resources?.mem_percent ?? 0))
+const diskPct = computed(() => Math.round(data.value?.system_resources?.disk_percent ?? 0))
 
 function colorBar(pct: number): string {
   if (pct >= 85) return 'bg-danger'
@@ -170,8 +171,8 @@ async function refreshActivity() {
   const items = r.data.items ?? []
   const today = new Date().toISOString().slice(0, 10)
   const todays = items.filter((l) => l.created_at?.startsWith(today))
-  todayUploads.value = todays.filter((l) => l.action.startsWith('upload.')).length
-  todayLLMCalls.value = todays.filter((l) => l.action.startsWith('llm.')).length
+  todayUploads.value = todays.filter((l) => l.action?.startsWith('upload.')).length
+  todayLLMCalls.value = todays.filter((l) => l.action?.startsWith('llm.')).length
   todayErrors.value = todays.filter((l) => /error|fail|timeout/i.test(l.action)).length
 }
 
@@ -216,12 +217,12 @@ function bar(pct: number): string {
       ]"
     />
 
-    <div class="flex justify-between items-end">
-      <div>
-        <h1 class="text-2xl font-bold text-ink">运行总览 · 系统健康度</h1>
+    <div class="tes-page-header">
+      <div class="min-w-0">
+        <h1 class="tes-clamp-title text-2xl font-bold text-ink">运行总览 · 系统健康度</h1>
         <p class="mt-1.5 text-sm text-muted-foreground">实时监测系统资源、用户活跃与 LLM 服务调用</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="tes-page-actions">
         <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-success-soft rounded-pill">
           <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
           <span class="font-mono text-xs font-semibold text-success">{{ uptimeText }}</span>
@@ -254,11 +255,11 @@ function bar(pct: number): string {
     </div>
 
     <!-- KPI -->
-    <div v-if="loading" class="grid grid-cols-4 gap-[18px]">
+    <div v-if="loading" class="tes-grid-kpi">
       <Skeleton v-for="n in 4" :key="n" class="h-28" />
     </div>
-    <div v-else class="grid grid-cols-4 gap-[18px]">
-      <Card class="anim-in" :style="{ animationDelay: '0ms' }">
+    <div v-else class="tes-grid-kpi">
+      <Card class="tes-card-container anim-in" :style="{ animationDelay: '0ms' }">
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">在线用户</span>
@@ -273,7 +274,7 @@ function bar(pct: number): string {
           </div>
         </CardContent>
       </Card>
-      <Card class="anim-in" :style="{ animationDelay: '50ms' }">
+      <Card class="tes-card-container anim-in" :style="{ animationDelay: '50ms' }">
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">今日提交</span>
@@ -288,7 +289,7 @@ function bar(pct: number): string {
           </div>
         </CardContent>
       </Card>
-      <Card class="anim-in" :style="{ animationDelay: '100ms' }">
+      <Card class="tes-card-container anim-in" :style="{ animationDelay: '100ms' }">
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">LLM 调用</span>
@@ -303,7 +304,7 @@ function bar(pct: number): string {
           </div>
         </CardContent>
       </Card>
-      <Card class="anim-in" :style="{ animationDelay: '150ms' }">
+      <Card class="tes-card-container anim-in" :style="{ animationDelay: '150ms' }">
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">今日错误</span>
@@ -322,8 +323,8 @@ function bar(pct: number): string {
     </div>
 
     <!-- Resources -->
-    <div v-if="!loading" class="grid grid-cols-4 gap-[18px]">
-      <Card class="p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '50ms' }">
+    <div v-if="!loading" class="tes-grid-kpi">
+      <Card class="tes-card-container p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '50ms' }">
         <span class="text-sm font-medium text-muted-foreground">CPU 使用率</span>
         <span class="text-[32px] font-bold text-ink leading-none">{{ cpuPct }}%</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
@@ -334,7 +335,7 @@ function bar(pct: number): string {
           <span>实时</span>
         </div>
       </Card>
-      <Card class="p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '100ms' }">
+      <Card class="tes-card-container p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '100ms' }">
         <span class="text-sm font-medium text-muted-foreground">内存使用</span>
         <span class="text-[32px] font-bold text-ink leading-none">{{ memPct }}%</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
@@ -345,7 +346,7 @@ function bar(pct: number): string {
           <span>余量 {{ Math.max(0, 100 - memPct) }}%</span>
         </div>
       </Card>
-      <Card class="p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '150ms' }">
+      <Card class="tes-card-container p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '150ms' }">
         <span class="text-sm font-medium text-muted-foreground">磁盘使用</span>
         <span class="text-[32px] font-bold text-ink leading-none">{{ diskPct }}%</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
@@ -356,7 +357,7 @@ function bar(pct: number): string {
           <span>含备份分区</span>
         </div>
       </Card>
-      <Card class="p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '200ms' }">
+      <Card class="tes-card-container p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '200ms' }">
         <span class="text-sm font-medium text-muted-foreground">实体规模</span>
         <span class="text-[32px] font-bold text-ink leading-none">
           <AnimatedNumber :value="data?.task_count ?? 0" />
@@ -372,9 +373,9 @@ function bar(pct: number): string {
     </div>
 
     <!-- Chart + Log -->
-    <div v-if="!loading" class="grid grid-cols-[1fr_440px] gap-[18px]">
+    <div v-if="!loading" class="tes-grid-admin-chart">
       <!-- QPS Chart -->
-      <Card class="p-6">
+      <Card class="tes-card-container p-6">
         <div class="flex justify-between items-center mb-[18px]">
           <div>
             <div class="text-base font-semibold text-ink">近 10 小时调用数（按 1 小时聚合）</div>
@@ -391,10 +392,10 @@ function bar(pct: number): string {
             </span>
           </div>
         </div>
-        <div v-if="qpsSeries.length === 0 || maxQps <= 1" class="h-[140px] flex items-center justify-center text-sm text-muted-foreground">
+        <div v-if="qpsSeries.length === 0 || maxQps <= 1" class="tes-chart-area flex items-center justify-center text-sm text-muted-foreground">
           暂无审计日志数据
         </div>
-        <div v-else class="h-[140px] flex items-end justify-between gap-1">
+        <div v-else class="tes-chart-area flex items-end justify-between gap-1 overflow-x-auto">
           <div
             v-for="(p, idx) in qpsSeries"
             :key="idx"
@@ -414,7 +415,7 @@ function bar(pct: number): string {
       </Card>
 
       <!-- System Log -->
-      <Card class="overflow-hidden flex flex-col">
+      <Card class="tes-card-container overflow-hidden flex flex-col">
         <header class="px-5 py-[18px] border-b border-border flex justify-between items-center">
           <span class="text-sm font-semibold text-ink">系统日志</span>
           <button class="text-xs text-primary font-medium hover:underline" @click="router.push('/admin/audit')">

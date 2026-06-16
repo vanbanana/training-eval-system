@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -9,6 +10,9 @@ import (
 	"github.com/smartedu/training-eval-system/internal/service"
 	"github.com/smartedu/training-eval-system/internal/store"
 )
+
+// errNoScoredData indicates no scored evaluations are available.
+var errNoScoredData = errors.New("no scored evaluations available for export")
 
 type ReportsHandler struct {
 	evalSvc   *service.EvaluationService
@@ -22,9 +26,35 @@ func NewReportsHandler(evalSvc *service.EvaluationService, taskSvc *service.Task
 }
 
 func (h *ReportsHandler) GetPersonal(w http.ResponseWriter, r *http.Request) {
-	// Placeholder: return empty PDF
+	evalID, err := PathInt64(r, "evalId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid evaluation ID")
+		return
+	}
+
+	eval, err := h.evalSvc.GetByID(r.Context(), evalID)
+	if err != nil || eval == nil {
+		Error(w, http.StatusNotFound, "Evaluation not found")
+		return
+	}
+
+	data, err := h.buildReportData(r, eval.TaskID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	exporter := &report.PDFExporter{}
+	pdfBytes, err := exporter.ExportTaskReport(data)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=eval_%d_report.pdf", evalID))
 	w.WriteHeader(http.StatusOK)
+	w.Write(pdfBytes)
 }
 
 func (h *ReportsHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +66,12 @@ func (h *ReportsHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.buildReportData(r, taskID)
 	if err != nil {
-		Error(w, http.StatusBadRequest, err.Error())
+		if errors.Is(err, errNoScoredData) {
+			Error(w, http.StatusNotFound, "No scored evaluations available for export")
+			return
+		}
+		// Task not found or other error
+		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -54,6 +89,36 @@ func (h *ReportsHandler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 	w.Write(xlsxBytes)
 }
 
+func (h *ReportsHandler) ExportStatisticsXLSX(w http.ResponseWriter, r *http.Request) {
+	taskID, err := PathInt64(r, "taskId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid task ID")
+		return
+	}
+
+	data, err := h.buildReportData(r, taskID)
+	if err != nil {
+		if errors.Is(err, errNoScoredData) {
+			Error(w, http.StatusNotFound, "No scored evaluations available for export")
+			return
+		}
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	exporter := &report.ExcelExporter{}
+	xlsxBytes, err := exporter.ExportTaskReport(data)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=statistics.xlsx")
+	w.WriteHeader(http.StatusOK)
+	w.Write(xlsxBytes)
+}
+
 func (h *ReportsHandler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 	taskID, err := PathInt64(r, "taskId")
 	if err != nil {
@@ -63,7 +128,12 @@ func (h *ReportsHandler) GetStatistics(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.buildReportData(r, taskID)
 	if err != nil {
-		Error(w, http.StatusBadRequest, err.Error())
+		if errors.Is(err, errNoScoredData) {
+			Error(w, http.StatusNotFound, "No scored evaluations available for statistics")
+			return
+		}
+		// Task not found or other error
+		Error(w, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -86,7 +156,7 @@ func (h *ReportsHandler) buildReportData(r *http.Request, taskID int64) (*report
 
 	task, err := h.taskSvc.GetByID(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("task not found: %w", err)
 	}
 
 	dims, err := h.taskSvc.GetDimensions(ctx, taskID)
@@ -117,7 +187,7 @@ func (h *ReportsHandler) buildReportData(r *http.Request, taskID int64) (*report
 	}
 
 	if len(scored) == 0 {
-		return nil, fmt.Errorf("no scored evaluations available for export")
+		return nil, errNoScoredData
 	}
 
 	// Build dimension info

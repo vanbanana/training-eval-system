@@ -20,11 +20,11 @@ type SimilarityChecker struct {
 	broker     *sse.Broker
 }
 
-const hammingThreshold = 10
+const hammingThreshold = 3
 
 // HammingThreshold is the max hamming distance for similarity suspect (exported for tests).
 const HammingThreshold = hammingThreshold
-const cosineThresholdFlag = 0.80
+const cosineThresholdFlag = 0.85
 
 // OrderPair ensures a < b for the ordering invariant (exported for tests).
 func OrderPair(a, b int64) (int64, int64) {
@@ -104,9 +104,13 @@ func (sc *SimilarityChecker) Check(ctx context.Context, uploadID int64, taskID i
 			cosineSim = 1.0 - float64(dist)/64.0
 		}
 
+		// Hamming distance flagged this pair as a candidate. Use cosine similarity
+		// as a second gate: high cosine => genuine suspect; low cosine => treat as
+		// a non-match and record it as "ignored" (a valid state) so it is retained
+		// for audit but never raises an alert.
 		state := "suspect"
 		if cosineSim < cosineThresholdFlag {
-			state = "low_similarity"
+			state = "ignored"
 		}
 
 		record := &model.SimilarityRecord{

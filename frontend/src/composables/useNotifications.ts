@@ -5,7 +5,7 @@ export interface NotificationItem {
   id: number
   type: string
   title: string
-  body?: string
+  content?: string
   link?: string
   is_read: boolean
   created_at: string
@@ -47,7 +47,7 @@ async function markAsRead(id: number) {
 
 async function markAllRead() {
   try {
-    await axios.post('/api/notifications/mark-all-read')
+    await axios.post('/api/notifications/read-all')
     items.value = items.value.map((it) => ({ ...it, is_read: true }))
   } catch {
     // 忽略

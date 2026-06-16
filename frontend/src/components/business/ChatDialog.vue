@@ -9,7 +9,7 @@
  *
  * 后端：使用 /api/chat/stream（SSE 流式）；session_id 由后端首次响应自动分配
  */
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import {
   Sparkles,
   Send,
@@ -98,6 +98,7 @@ async function send(text?: string) {
       }
     }
 
+    streamAbort = new AbortController()
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: {
@@ -109,6 +110,7 @@ async function send(text?: string) {
         message: msg,
         evaluation_id: props.evaluationId ?? null,
       }),
+      signal: streamAbort.signal,
     })
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -141,6 +143,7 @@ async function send(text?: string) {
     aiMsg.content = `抱歉，AI 服务暂时不可用：${(e as Error).message}`
   } finally {
     sending.value = false
+    streamAbort = null
     scrollBottom()
   }
 }
@@ -150,6 +153,15 @@ function toggle() {
 }
 
 const showSuggestions = computed(() => messages.value.length === 1 && messages.value[0].role === 'assistant')
+
+// Abort any in-flight SSE stream when the dialog unmounts.
+let streamAbort: AbortController | null = null
+onUnmounted(() => {
+  if (streamAbort) {
+    streamAbort.abort()
+    streamAbort = null
+  }
+})
 
 onMounted(() => {
   reset()

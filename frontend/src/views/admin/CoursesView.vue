@@ -308,7 +308,7 @@ function exportCourses() {
     </Card>
 
     <!-- Loading -->
-    <div v-if="loading" class="grid grid-cols-3 gap-[18px]">
+    <div v-if="loading" class="tes-grid-cards">
       <Skeleton v-for="n in 6" :key="n" class="h-[280px] rounded-lg" />
     </div>
 
@@ -323,7 +323,7 @@ function exportCourses() {
     />
 
     <!-- Course Grid -->
-    <div v-else class="grid grid-cols-3 gap-[18px]">
+    <div v-else class="tes-grid-cards">
       <Card
         v-for="(course, idx) in filteredCourses"
         :key="course.id"
@@ -448,8 +448,8 @@ function exportCourses() {
         <div v-else-if="detailClasses.length === 0" class="text-center text-sm text-muted-foreground py-8">
           该课程下尚无班级
         </div>
-        <div v-else class="border border-border rounded-md overflow-hidden">
-          <div class="grid grid-cols-[1fr_120px_100px] px-4 py-2 bg-surface-2 text-[11px] font-semibold text-muted-foreground border-b border-border">
+        <div v-else class="tes-table-shell border border-border rounded-md">
+          <div class="grid min-w-[420px] grid-cols-[minmax(12rem,1fr)_120px_100px] px-4 py-2 bg-surface-2 text-[11px] font-semibold text-muted-foreground border-b border-border">
             <span>班级名称</span>
             <span>学生数</span>
             <span>状态</span>
@@ -457,7 +457,7 @@ function exportCourses() {
           <div
             v-for="cls in detailClasses"
             :key="cls.id"
-            class="grid grid-cols-[1fr_120px_100px] px-4 py-2.5 border-b border-border last:border-b-0 text-sm"
+            class="grid min-w-[420px] grid-cols-[minmax(12rem,1fr)_120px_100px] px-4 py-2.5 border-b border-border last:border-b-0 text-sm"
           >
             <span class="font-medium text-ink">{{ cls.name }}</span>
             <span>{{ cls.student_count }}</span>

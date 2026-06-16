@@ -164,7 +164,7 @@ async function fetchAll() {
       safeGet<TaskSummary>(`/api/grading/tasks/${taskId.value}/summary`, null as unknown as TaskSummary),
     ])
     task.value = taskRes.data
-    submissions.value = subsRes.data
+    submissions.value = Array.isArray(subsRes.data) ? subsRes.data : []
     if (!summaryRes.error) {
       taskSummary.value = summaryRes.data
     }
@@ -466,7 +466,7 @@ async function openDetail(s: Submission) {
   showDetail.value = true
   try {
     const evRes = await axios.get(`/api/evaluations/${s.evaluation_id}`)
-    detailEvaluation.value = evRes.data
+    detailEvaluation.value = { ...evRes.data, scores: evRes.data.scores ?? [] }
     // history 可降级（404=新评价无历史是常态）
     const histResult = await safeGet<HistoryItem[]>(
       `/api/evaluations/${s.evaluation_id}/history`,
@@ -562,9 +562,9 @@ function goToSimilarity(uploadId: number) {
     </div>
 
     <!-- Stats Bar -->
-    <Card>
-      <div class="flex items-stretch gap-6 px-5 py-5">
-        <div class="flex-1 flex flex-col gap-1.5 anim-in" :style="{ animationDelay: '0ms' }">
+    <Card class="tes-card-container">
+      <div class="tes-grid-kpi px-5 py-5">
+        <div class="flex min-w-0 flex-col gap-1.5 anim-in" :style="{ animationDelay: '0ms' }">
           <span class="text-[11px] font-semibold tracking-wider text-muted-foreground">批改进度</span>
           <div class="flex items-end gap-2">
             <span class="text-2xl font-bold text-ink leading-none">
@@ -576,8 +576,8 @@ function goToSimilarity(uploadId: number) {
             <div class="h-full bg-primary rounded-full transition-all duration-700" :style="{ width: `${stats.submitted > 0 ? 100 : 0}%` }"></div>
           </div>
         </div>
-        <div class="w-px bg-border self-stretch"></div>
-        <div class="flex-1 flex flex-col gap-1.5 anim-in" :style="{ animationDelay: '50ms' }">
+        <div class="hidden w-px bg-border self-stretch"></div>
+        <div class="flex min-w-0 flex-col gap-1.5 anim-in" :style="{ animationDelay: '50ms' }">
           <span class="text-[11px] font-semibold tracking-wider text-muted-foreground">已自动评分</span>
           <div class="flex items-end gap-2">
             <span class="text-2xl font-bold text-ink leading-none">
@@ -587,8 +587,8 @@ function goToSimilarity(uploadId: number) {
           </div>
           <span class="text-[11px] text-info">另有 {{ stats.aiPending }} 份待解析</span>
         </div>
-        <div class="w-px bg-border self-stretch"></div>
-        <div class="flex-1 flex flex-col gap-1.5 anim-in" :style="{ animationDelay: '100ms' }">
+        <div class="hidden w-px bg-border self-stretch"></div>
+        <div class="flex min-w-0 flex-col gap-1.5 anim-in" :style="{ animationDelay: '100ms' }">
           <span class="text-[11px] font-semibold tracking-wider text-muted-foreground">教师已确认</span>
           <div class="flex items-end gap-2">
             <span class="text-2xl font-bold text-success leading-none">
@@ -598,8 +598,8 @@ function goToSimilarity(uploadId: number) {
           </div>
           <span class="text-[11px] text-muted-foreground">确认率 {{ stats.confirmRate }}%</span>
         </div>
-        <div class="w-px bg-border self-stretch"></div>
-        <div class="flex-1 flex flex-col gap-1.5 anim-in" :style="{ animationDelay: '150ms' }">
+        <div class="hidden w-px bg-border self-stretch"></div>
+        <div class="flex min-w-0 flex-col gap-1.5 anim-in" :style="{ animationDelay: '150ms' }">
           <span class="text-[11px] font-semibold tracking-wider text-muted-foreground">疑似抄袭警告</span>
           <div class="flex items-end gap-2">
             <span class="text-2xl font-bold text-danger leading-none">
@@ -627,34 +627,35 @@ function goToSimilarity(uploadId: number) {
         </TabsList>
       </Tabs>
 
-      <div class="px-6 py-3.5 bg-surface-2 border-b border-border flex items-center gap-3">
-        <div class="relative w-[280px]">
+      <div class="px-6 py-3.5 bg-surface-2 border-b border-border flex flex-wrap items-center gap-3">
+        <div class="relative w-full sm:w-[280px]">
           <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input v-model="searchQuery" placeholder="按学号 / 姓名搜索" class="pl-9" />
         </div>
         <span v-if="selectedCount > 0" class="text-xs text-primary font-medium">已选 {{ selectedCount }} 项</span>
       </div>
 
-      <div class="grid grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3 bg-surface-2 border-b border-border">
-        <Checkbox
-          :model-value="allSelectedOnList ? true : someSelectedOnList ? 'indeterminate' : false"
-          @update:model-value="(v) => allSelectedOnList = v === true"
-          aria-label="全选"
-        />
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学生</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">提交时间</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">AI 客观分</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">教师主观分</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">综合得分</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
-      </div>
+      <div class="tes-table-shell">
+        <div class="grid min-w-[1160px] grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3 bg-surface-2 border-b border-border">
+          <Checkbox
+            :model-value="allSelectedOnList ? true : someSelectedOnList ? 'indeterminate' : false"
+            @update:model-value="(v) => allSelectedOnList = v === true"
+            aria-label="全选"
+          />
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学生</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">提交时间</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">AI 客观分</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">教师主观分</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">综合得分</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
+        </div>
 
       <template v-if="loading">
         <div
           v-for="n in 6"
           :key="n"
-          class="grid grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3.5 border-b border-border"
+          class="grid min-w-[1160px] grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3.5 border-b border-border"
         >
           <Skeleton class="h-4 w-4" />
           <Skeleton class="h-9 w-3/4" />
@@ -677,7 +678,7 @@ function goToSimilarity(uploadId: number) {
         v-for="s in filtered"
         v-else
         :key="s.upload_id"
-        class="grid grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors"
+        class="grid min-w-[1160px] grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors"
         :class="suspiciousUploadIds.has(s.upload_id) ? 'bg-danger-soft hover:bg-danger-soft/80' : 'hover:bg-surface-2'"
       >
         <Checkbox
@@ -688,7 +689,7 @@ function goToSimilarity(uploadId: number) {
 
         <div class="flex items-center gap-2.5">
           <Avatar size="sm" :class="suspiciousUploadIds.has(s.upload_id) ? '!bg-danger-soft !text-danger' : ''">
-            {{ s.student_name.charAt(0) }}
+            {{ (s.student_name || '?').charAt(0) }}
           </Avatar>
           <div class="flex flex-col gap-0.5 min-w-0">
             <span class="text-sm font-semibold text-ink truncate">{{ s.student_name }}</span>
@@ -752,6 +753,7 @@ function goToSimilarity(uploadId: number) {
           <Button variant="ghost" size="sm" class="h-7 px-2" @click="openDetail(s)">详情</Button>
           <Button v-if="s.evaluation_id && s.eval_status !== 'rejected'" variant="ghost" size="sm" class="h-7 px-2 text-danger hover:text-danger" @click="rejectEval(s)">打回</Button>
         </div>
+      </div>
       </div>
     </Card>
 
@@ -836,8 +838,8 @@ function goToSimilarity(uploadId: number) {
           <!-- Dimensions -->
           <div>
             <h4 class="text-sm font-semibold text-ink mb-2">维度评分</h4>
-            <div class="border border-border rounded-md overflow-hidden">
-              <div class="grid grid-cols-[1fr_60px_60px_60px_70px] px-3 py-2 bg-surface-2 text-[11px] font-semibold text-muted-foreground border-b border-border">
+            <div class="tes-table-shell border border-border rounded-md">
+              <div class="grid min-w-[460px] grid-cols-[minmax(12rem,1fr)_60px_60px_60px_70px] px-3 py-2 bg-surface-2 text-[11px] font-semibold text-muted-foreground border-b border-border">
                 <span>维度</span>
                 <span class="text-right">权重</span>
                 <span class="text-right">AI</span>
@@ -847,7 +849,7 @@ function goToSimilarity(uploadId: number) {
               <div
                 v-for="d in detailEvaluation.scores"
                 :key="d.dimension_id"
-                class="grid grid-cols-[1fr_60px_60px_60px_70px] px-3 py-2.5 border-b border-border last:border-b-0 text-sm"
+                class="grid min-w-[460px] grid-cols-[minmax(12rem,1fr)_60px_60px_60px_70px] px-3 py-2.5 border-b border-border last:border-b-0 text-sm"
               >
                 <span class="text-ink font-medium truncate">{{ d.dimension_name }}</span>
                 <span class="text-right text-muted-foreground font-mono">{{ d.weight }}%</span>

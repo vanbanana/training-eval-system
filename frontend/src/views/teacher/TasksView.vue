@@ -244,12 +244,12 @@ function notifyImportPlanned() {
     />
 
     <!-- Page Header -->
-    <div class="flex justify-between items-end">
-      <div>
-        <h1 class="text-2xl font-bold text-ink">实训任务</h1>
+    <div class="tes-page-header">
+      <div class="min-w-0">
+        <h1 class="tes-clamp-title text-2xl font-bold text-ink">实训任务</h1>
         <p class="mt-1.5 text-sm text-muted-foreground">创建、发布并跟踪所有实训任务的批改进度</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="tes-page-actions">
         <Button variant="outline" @click="notifyImportPlanned">
           <Upload class="w-4 h-4" />
           导入任务
@@ -262,8 +262,8 @@ function notifyImportPlanned() {
     </div>
 
     <!-- Toolbar -->
-    <Card class="px-5 py-3.5 flex justify-between items-center gap-4">
-      <Tabs v-model="statusFilter">
+    <Card class="tes-card-container px-5 py-3.5 flex flex-wrap justify-between items-center gap-4">
+      <Tabs v-model="statusFilter" class="min-w-0">
         <TabsList>
           <TabsTrigger value="all">全部 {{ statusCounts.all }}</TabsTrigger>
           <TabsTrigger value="published">已发布 {{ statusCounts.published }}</TabsTrigger>
@@ -272,8 +272,8 @@ function notifyImportPlanned() {
         </TabsList>
       </Tabs>
 
-      <div class="flex items-center gap-3">
-        <div class="relative w-[280px]">
+      <div class="flex min-w-0 flex-wrap items-center gap-3">
+        <div class="relative w-full sm:w-[280px]">
           <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input v-model="searchQuery" placeholder="搜索任务名称 / 课程" class="pl-9" />
         </div>
@@ -317,8 +317,9 @@ function notifyImportPlanned() {
     </div>
 
     <!-- Table -->
-    <Card class="overflow-hidden">
-      <div class="grid grid-cols-[40px_1fr_160px_160px_140px_120px_180px] items-center px-5 py-3.5 bg-surface-2 border-b border-border">
+    <Card class="tes-card-container overflow-hidden">
+      <div class="tes-table-shell">
+      <div class="grid min-w-[980px] grid-cols-[40px_minmax(18rem,1fr)_160px_160px_140px_120px_180px] items-center px-5 py-3.5 bg-surface-2 border-b border-border">
         <Checkbox
           :model-value="allSelectedOnPage ? true : someSelected ? 'indeterminate' : false"
           @update:model-value="(v) => allSelectedOnPage = v === true"
@@ -336,7 +337,7 @@ function notifyImportPlanned() {
         <div
           v-for="n in 6"
           :key="n"
-          class="grid grid-cols-[40px_1fr_160px_160px_140px_120px_180px] items-center px-5 py-4 border-b border-border"
+          class="grid min-w-[980px] grid-cols-[40px_minmax(18rem,1fr)_160px_160px_140px_120px_180px] items-center px-5 py-4 border-b border-border"
         >
           <Skeleton class="h-4 w-4" />
           <Skeleton class="h-10 w-3/4" />
@@ -360,7 +361,7 @@ function notifyImportPlanned() {
         v-for="(task, idx) in paginatedTasks"
         v-else
         :key="task.id"
-        class="grid grid-cols-[40px_1fr_160px_160px_140px_120px_180px] items-center px-5 py-4 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
+        class="grid min-w-[980px] grid-cols-[40px_minmax(18rem,1fr)_160px_160px_140px_120px_180px] items-center px-5 py-4 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
         :style="{ animationDelay: idx * 30 + 'ms' }"
       >
         <Checkbox
@@ -368,8 +369,8 @@ function notifyImportPlanned() {
           @update:model-value="(v) => toggleRow(task.id, v === true)"
           :aria-label="`选择 ${task.name}`"
         />
-        <div>
-          <div class="text-sm font-semibold text-ink">{{ task.name }}</div>
+        <div class="min-w-0">
+          <div class="tes-breakable text-sm font-semibold text-ink">{{ task.name }}</div>
           <div class="text-xs text-muted-foreground mt-1 line-clamp-1">{{ task.description || '暂无描述' }}</div>
         </div>
         <div class="text-sm text-foreground">{{ courseName(task.course_id) }}</div>
@@ -439,7 +440,9 @@ function notifyImportPlanned() {
       </div>
 
       <!-- Pagination -->
-      <div v-if="!loading && totalItems > 0" class="flex justify-between items-center px-6 py-4 bg-surface-2 border-t border-border">
+      </div>
+
+      <div v-if="!loading && totalItems > 0" class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border-t border-border">
         <div class="text-xs text-muted-foreground">
           显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
         </div>

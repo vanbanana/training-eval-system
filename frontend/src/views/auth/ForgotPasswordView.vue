@@ -48,15 +48,8 @@ async function step1Submit() {
   } catch (e) {
     const status = (e as { response?: { status?: number } })?.response?.status
     if (status === 404 || status === 405) {
-      // endpoint 还没实现：不挡住流程，给视觉演示
-      toast({
-        description: '后端找回密码接口尚在开发，请联系管理员重置（admin@example.edu）',
-        variant: 'warning',
-        duration: 8000,
-      })
-      // 演示流程：依然推进
-      email.value = `${username.value.slice(0, 4)}****@university.edu`
-      step.value = 2
+      // endpoint 还没实现：不推进流程，明确告知用户
+      errMsg.value = '找回密码功能暂未开放，请联系管理员重置密码（admin@example.edu）'
     } else {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       errMsg.value = msg ?? '请求失败，请稍后再试'
@@ -100,12 +93,7 @@ async function step3Submit() {
   } catch (e) {
     const status = (e as { response?: { status?: number } })?.response?.status
     if (status === 404 || status === 405) {
-      toast({
-        description: '后端重置密码接口尚未开放，本次仅作流程演示。请联系管理员手动重置',
-        variant: 'warning',
-        duration: 8000,
-      })
-      step.value = 4
+      errMsg.value = '重置密码功能暂未开放，请联系管理员手动重置'
     } else {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       errMsg.value = msg ?? '重置失败，请稍后再试'

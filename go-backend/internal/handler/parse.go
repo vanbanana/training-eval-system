@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/smartedu/training-eval-system/internal/dto"
 	"github.com/smartedu/training-eval-system/internal/service"
 )
 
@@ -13,11 +14,25 @@ func NewParseHandler(svc *service.UploadService) *ParseHandler {
 }
 
 func (h *ParseHandler) GetResult(w http.ResponseWriter, r *http.Request) {
-	_, err := PathInt64(r, "uploadId")
+	uploadID, err := PathInt64(r, "uploadId")
 	if err != nil {
 		Error(w, http.StatusBadRequest, "Invalid upload ID")
 		return
 	}
-	// Placeholder: return 404 until parse results are populated
-	Error(w, http.StatusNotFound, "Parse result not found")
+
+	pr, err := h.svc.GetParseResult(r.Context(), uploadID)
+	if err != nil || pr == nil {
+		Error(w, http.StatusNotFound, "Parse result not found")
+		return
+	}
+
+	JSON(w, http.StatusOK, dto.ParseResultResponse{
+		ID:                pr.ID,
+		UploadID:          pr.UploadID,
+		StructuredContent: pr.StructuredContent,
+		RawText:           pr.RawText,
+		SimHash:           pr.SimHash,
+		ErrorMessage:      pr.ErrorMessage,
+		ParsedAt:          pr.ParsedAt.Format("2006-01-02T15:04:05Z07:00"),
+	})
 }

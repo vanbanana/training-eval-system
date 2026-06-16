@@ -62,6 +62,8 @@ func (r *SQLiteTemplateRepo) List(ctx context.Context, ownerID *int64, courseID 
 		}
 		t.CreatedAt = parseTime(createdAt.String)
 		t.UpdatedAt = parseTime(updatedAt.String)
+		items, _ := r.getItems(ctx, t.ID)
+		t.Items = items
 		templates = append(templates, t)
 	}
 	return templates, rows.Err()
