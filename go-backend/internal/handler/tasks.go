@@ -236,5 +236,3 @@ func taskToResponse(t *model.TrainingTask) dto.TaskResponse {
 	}
 	return resp
 }
-
-

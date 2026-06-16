@@ -296,10 +296,10 @@ func (co *ChatOrchestrator) getDimensionDetail(tctx *ChatToolContext, args map[s
 			score = *s.AIScore
 		}
 		results = append(results, map[string]any{
-			"dimension":      name,
-			"score":          score,
-			"rationale":      s.Rationale,
-			"dimension_id":   s.DimensionID,
+			"dimension":    name,
+			"score":        score,
+			"rationale":    s.Rationale,
+			"dimension_id": s.DimensionID,
 		})
 	}
 
@@ -392,9 +392,9 @@ func (co *ChatOrchestrator) getDimensionHistory(ctx context.Context, tctx *ChatT
 						score = *s.AIScore
 					}
 					points = append(points, map[string]any{
-						"eval_id":  e.ID,
-						"score":    score,
-						"date":     e.CreatedAt.Format("2006-01-02"),
+						"eval_id": e.ID,
+						"score":   score,
+						"date":    e.CreatedAt.Format("2006-01-02"),
 					})
 					found = true
 					break

@@ -44,11 +44,11 @@ func (h *DashboardHandler) adminDashboard(ctx context.Context, w http.ResponseWr
 
 	JSON(w, http.StatusOK, map[string]any{
 		"role":                    "admin",
-		"user_count":             userCount,
-		"task_count":             taskCount,
-		"eval_count":             evalCount,
+		"user_count":              userCount,
+		"task_count":              taskCount,
+		"eval_count":              evalCount,
 		"monthly_active_students": 0,
-		"system_resources":       map[string]any{"cpu_percent": nil, "mem_percent": nil, "disk_percent": nil},
+		"system_resources":        map[string]any{"cpu_percent": nil, "mem_percent": nil, "disk_percent": nil},
 	})
 }
 
@@ -204,7 +204,7 @@ func (h *DashboardHandler) teacherDashboard(ctx context.Context, w http.Response
 	}
 
 	JSON(w, http.StatusOK, map[string]any{
-		"role":                  "teacher",
+		"role":                 "teacher",
 		"my_tasks":             myTasks,
 		"pending_grading":      pendingGrading,
 		"graded_this_week":     gradedWeek,
@@ -359,7 +359,7 @@ func (h *DashboardHandler) studentDashboard(ctx context.Context, w http.Response
 	}
 
 	JSON(w, http.StatusOK, map[string]any{
-		"role":                  "student",
+		"role":                 "student",
 		"pending_tasks":        pendingTasks,
 		"pending_task_count":   len(pendingTasks),
 		"latest_score":         latestScore,

@@ -125,11 +125,11 @@ func TestPDF_EmptyData(t *testing.T) {
 
 func TestComputeDistribution_AllRanges(t *testing.T) {
 	students := []StudentReportRow{
-		{TotalScore: 0}, {TotalScore: 30}, {TotalScore: 59.9},     // 0-59
-		{TotalScore: 60}, {TotalScore: 69.9},                       // 60-69
-		{TotalScore: 70}, {TotalScore: 79},                         // 70-79
-		{TotalScore: 80}, {TotalScore: 89.9},                       // 80-89
-		{TotalScore: 90}, {TotalScore: 100},                        // 90-100
+		{TotalScore: 0}, {TotalScore: 30}, {TotalScore: 59.9}, // 0-59
+		{TotalScore: 60}, {TotalScore: 69.9}, // 60-69
+		{TotalScore: 70}, {TotalScore: 79}, // 70-79
+		{TotalScore: 80}, {TotalScore: 89.9}, // 80-89
+		{TotalScore: 90}, {TotalScore: 100}, // 90-100
 	}
 	dist := ComputeDistribution(students)
 	if dist.Range0to59 != 3 {

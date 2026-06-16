@@ -36,14 +36,14 @@ func NewClient(baseURL, apiKey, model, embedModel string) *Client {
 	maxConcurrent := 8 // concurrent LLM API calls; MiMo API supports higher concurrency
 	maxOCR := 4        // separate OCR concurrency so it doesn't starve scoring
 	return &Client{
-		httpClient:      &http.Client{Timeout: 120 * time.Second},
-		baseURL:         baseURL,
-		apiKey:          apiKey,
-		model:           model,
-		embedModel:      embedModel,
-		breaker:         NewCircuitBreaker(50, 30*time.Second), // higher threshold for batch workloads
-		sem:             make(chan struct{}, maxConcurrent),
-		ocrSem:          make(chan struct{}, maxOCR),
+		httpClient: &http.Client{Timeout: 120 * time.Second},
+		baseURL:    baseURL,
+		apiKey:     apiKey,
+		model:      model,
+		embedModel: embedModel,
+		breaker:    NewCircuitBreaker(50, 30*time.Second), // higher threshold for batch workloads
+		sem:        make(chan struct{}, maxConcurrent),
+		ocrSem:     make(chan struct{}, maxOCR),
 	}
 }
 
@@ -198,17 +198,17 @@ type FunctionCall struct {
 // ChatRequest is the request body for chat completions.
 // Supports MiMo-specific fields: max_completion_tokens, thinking.
 type ChatRequest struct {
-	Model               string        `json:"model"`
-	Messages            []ChatMessage `json:"messages"`
-	Temperature         float64       `json:"temperature,omitempty"`
-	MaxTokens           int           `json:"max_tokens,omitempty"`           // standard OpenAI
-	MaxCompletionTokens int           `json:"max_completion_tokens,omitempty"` // MiMo preferred
-	Stream              bool          `json:"stream,omitempty"`
-	Tools               []Tool        `json:"tools,omitempty"`
-	TopP                float64       `json:"top_p,omitempty"`
-	Stop                any           `json:"stop,omitempty"`
-	FrequencyPenalty    float64       `json:"frequency_penalty,omitempty"`
-	PresencePenalty     float64       `json:"presence_penalty,omitempty"`
+	Model               string          `json:"model"`
+	Messages            []ChatMessage   `json:"messages"`
+	Temperature         float64         `json:"temperature,omitempty"`
+	MaxTokens           int             `json:"max_tokens,omitempty"`            // standard OpenAI
+	MaxCompletionTokens int             `json:"max_completion_tokens,omitempty"` // MiMo preferred
+	Stream              bool            `json:"stream,omitempty"`
+	Tools               []Tool          `json:"tools,omitempty"`
+	TopP                float64         `json:"top_p,omitempty"`
+	Stop                any             `json:"stop,omitempty"`
+	FrequencyPenalty    float64         `json:"frequency_penalty,omitempty"`
+	PresencePenalty     float64         `json:"presence_penalty,omitempty"`
 	Thinking            *ThinkingConfig `json:"thinking,omitempty"` // MiMo thinking mode
 }
 

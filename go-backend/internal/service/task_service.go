@@ -21,8 +21,8 @@ func NewTaskService(repo repository.TaskRepo, notifSvc *NotificationService) *Ta
 
 // validTaskTransitions defines legal state machine transitions (requirement 13.3).
 var validTaskTransitions = map[string][]string{
-	"":        {"draft"},
-	"draft":   {"published"},
+	"":          {"draft"},
+	"draft":     {"published"},
 	"published": {"closed"},
 }
 

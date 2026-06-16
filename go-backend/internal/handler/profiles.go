@@ -87,7 +87,10 @@ func (h *ProfilesHandler) computeSchoolProfile(ctx context.Context) dto.SchoolPr
 	}
 
 	// Score distribution
-	type bucket struct{ label string; min, max float64 }
+	type bucket struct {
+		label    string
+		min, max float64
+	}
 	buckets := []bucket{{"0-59", 0, 59}, {"60-69", 60, 69}, {"70-79", 70, 79}, {"80-89", 80, 89}, {"90-100", 90, 100}}
 	distribution := make([]int, len(buckets))
 	for i, b := range buckets {
@@ -167,7 +170,10 @@ func (h *ProfilesHandler) computeCourseProfile(ctx context.Context, courseID int
 	}
 
 	// Score distribution
-	type bucket struct{ label string; min, max float64 }
+	type bucket struct {
+		label    string
+		min, max float64
+	}
 	buckets := []bucket{{"0-59", 0, 59}, {"60-69", 60, 69}, {"70-79", 70, 79}, {"80-89", 80, 89}, {"90-100", 90, 100}}
 	distribution := make([]int, len(buckets))
 	for i, b := range buckets {

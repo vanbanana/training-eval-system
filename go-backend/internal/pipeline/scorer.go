@@ -18,11 +18,11 @@ const DefaultObjectiveRatio = 0.6
 
 // Scorer handles LLM-based evaluation scoring via Function Calling.
 type Scorer struct {
-	client         *llm.Client
-	evalRepo       repository.EvaluationRepo
-	taskRepo       repository.TaskRepo
-	systemCfgRepo  repository.SystemConfigRepo
-	broker         *sse.Broker
+	client        *llm.Client
+	evalRepo      repository.EvaluationRepo
+	taskRepo      repository.TaskRepo
+	systemCfgRepo repository.SystemConfigRepo
+	broker        *sse.Broker
 }
 
 // SetSystemConfigRepo sets the system config repository for reading runtime config.
@@ -134,9 +134,9 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 
 	// Publish SSE
 	data, _ := json.Marshal(map[string]any{
-		"evaluation_id":  evalID,
-		"upload_id":      eval.UploadID,
-		"total_score":    totalScore,
+		"evaluation_id":   evalID,
+		"upload_id":       eval.UploadID,
+		"total_score":     totalScore,
 		"objective_ratio": objRatio,
 	})
 	s.broker.Publish(sse.Event{

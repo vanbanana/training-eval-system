@@ -108,7 +108,12 @@ func (f *FakeLLM) WithDelay(ms int) *FakeLLM {
 
 // Complete returns the next preset response. Implements the LLM calling interface.
 // If WithCallRecorder was used, records the call.
-func (f *FakeLLM) Complete(ctx interface{ Deadline() (t1 interface{}, ok bool); Done() <-chan struct{}; Err() error; Value(key any) any }, messages []llm.ChatMessage, tools []llm.Tool) (*llm.ChatResponse, error) {
+func (f *FakeLLM) Complete(ctx interface {
+	Deadline() (t1 interface{}, ok bool)
+	Done() <-chan struct{}
+	Err() error
+	Value(key any) any
+}, messages []llm.ChatMessage, tools []llm.Tool) (*llm.ChatResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

@@ -430,7 +430,9 @@ func login(srv *httptest.Server, username, password string) string {
 		b, _ := io.ReadAll(resp.Body)
 		log.Fatalf("login %d: %s", resp.StatusCode, string(b))
 	}
-	var result struct{ AccessToken string `json:"access_token"` }
+	var result struct {
+		AccessToken string `json:"access_token"`
+	}
 	json.NewDecoder(resp.Body).Decode(&result)
 	return result.AccessToken
 }

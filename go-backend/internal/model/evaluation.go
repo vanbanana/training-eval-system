@@ -8,11 +8,11 @@ type Evaluation struct {
 	TaskID         int64     `json:"task_id"`
 	StudentID      int64     `json:"student_id"`
 	UploadID       int64     `json:"upload_id"`
-	Status          string    `json:"status"` // pending, scored, confirmed, rejected
-	TotalScore      *float64  `json:"total_score"`
-	ObjectiveRatio  *float64  `json:"objective_ratio"`  // AI objective weight, default 0.6
-	TeacherComment  string    `json:"teacher_comment"`
-	OverallComment  string    `json:"overall_comment"`  // System-level comment (e.g. failure reason)
+	Status         string    `json:"status"` // pending, scored, confirmed, rejected
+	TotalScore     *float64  `json:"total_score"`
+	ObjectiveRatio *float64  `json:"objective_ratio"` // AI objective weight, default 0.6
+	TeacherComment string    `json:"teacher_comment"`
+	OverallComment string    `json:"overall_comment"` // System-level comment (e.g. failure reason)
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 

@@ -12,12 +12,12 @@ import (
 
 // Claims represents the JWT payload.
 type Claims struct {
-	Sub      int64  `json:"sub"`                 // user ID
+	Sub      int64  `json:"sub"` // user ID
 	Username string `json:"username"`
 	Role     string `json:"role"`
-	Type     string `json:"type"`                // "access" or "refresh"
-	Exp      int64  `json:"exp"`                 // expiration (unix timestamp)
-	Iat      int64  `json:"iat"`                 // issued at (unix timestamp)
+	Type     string `json:"type"` // "access" or "refresh"
+	Exp      int64  `json:"exp"`  // expiration (unix timestamp)
+	Iat      int64  `json:"iat"`  // issued at (unix timestamp)
 }
 
 // IsExpired returns true if the token has expired.

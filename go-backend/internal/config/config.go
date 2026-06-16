@@ -34,11 +34,11 @@ type Config struct {
 	DevToken        string        // dev/test only debug token
 
 	// LLM provider settings
-	LLMBaseURL   string // default "https://api.xiaomimimo.com/v1"
-	LLMAPIKey    string // LLM API key (MiMo: passed via api-key header)
-	LLMModel     string // default "mimo-v2.5-pro"
+	LLMBaseURL    string // default "https://api.xiaomimimo.com/v1"
+	LLMAPIKey     string // LLM API key (MiMo: passed via api-key header)
+	LLMModel      string // default "mimo-v2.5-pro"
 	LLMEmbedModel string // embedding model name (can be empty)
-	LLMOCRModel  string // OCR model name for multimodal image recognition (e.g. "mimo-v2.5")
+	LLMOCRModel   string // OCR model name for multimodal image recognition (e.g. "mimo-v2.5")
 
 	// Use api-key header instead of Authorization: Bearer (MiMo style)
 	LLMUseAPIKeyHeader bool // default true

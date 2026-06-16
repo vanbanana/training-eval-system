@@ -114,12 +114,12 @@ func (sc *SimilarityChecker) Check(ctx context.Context, uploadID int64, taskID i
 		}
 
 		record := &model.SimilarityRecord{
-			TaskID:          taskID,
-			UploadAID:       aID,
-			UploadBID:       bID,
+			TaskID:           taskID,
+			UploadAID:        aID,
+			UploadBID:        bID,
 			HammingDistance:  dist,
 			CosineSimilarity: &cosineSim,
-			State:           state,
+			State:            state,
 		}
 
 		if err := sc.simRepo.Create(ctx, record); err != nil {

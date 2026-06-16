@@ -31,8 +31,8 @@ func toTemplateResponse(t *model.EvalTemplate) dto.TemplateResponse {
 	return dto.TemplateResponse{
 		ID: t.ID, Name: t.Name, Description: t.Description, Visibility: t.Visibility,
 		OwnerID: t.OwnerID, CourseID: t.CourseID,
-		CreatedAt: t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt: t.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:  t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:  t.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Dimensions: dims,
 	}
 }

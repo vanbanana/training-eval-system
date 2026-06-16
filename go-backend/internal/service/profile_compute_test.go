@@ -89,8 +89,8 @@ func TestComputeRadarData_Basic(t *testing.T) {
 // Unit test: weakness list
 func TestComputeWeaknessList_Basic(t *testing.T) {
 	radarData := map[string]float64{
-		"代码规范": 85,
-		"文档质量": 55,
+		"代码规范":  85,
+		"文档质量":  55,
 		"并发正确性": 42,
 	}
 	weaknesses := ComputeWeaknessList(radarData)

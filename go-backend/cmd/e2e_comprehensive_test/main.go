@@ -19,9 +19,13 @@ func main() {
 		log.Fatal("MIMO_API_KEY not set")
 	}
 	modelName := os.Getenv("MIMO_MODEL")
-	if modelName == "" { modelName = "mimo-v2.5-pro" }
+	if modelName == "" {
+		modelName = "mimo-v2.5-pro"
+	}
 	baseURL := os.Getenv("MIMO_BASE_URL")
-	if baseURL == "" { baseURL = "https://token-plan-cn.xiaomimimo.com/v1" }
+	if baseURL == "" {
+		baseURL = "https://token-plan-cn.xiaomimimo.com/v1"
+	}
 
 	client := llm.NewClient(baseURL, apiKey, modelName, "")
 	client.SetUseAPIKeyHeader(true)
@@ -160,7 +164,9 @@ func main() {
 
 func truncate(s string, max int) string {
 	r := []rune(s)
-	if len(r) <= max { return s }
+	if len(r) <= max {
+		return s
+	}
 	return string(r[:max]) + "..."
 }
 

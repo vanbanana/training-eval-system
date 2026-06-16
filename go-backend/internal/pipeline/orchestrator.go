@@ -337,14 +337,14 @@ func (o *Orchestrator) RecoverStuck(ctx context.Context) {
 		// Check for evaluations with scored or confirmed status
 		scoredStatus := "scored"
 		scoredEvals, _, _ := o.evalRepo.List(ctx, repository.EvalListParams{
-			UploadID:  &u.ID,
-			Status:    &scoredStatus,
+			UploadID:   &u.ID,
+			Status:     &scoredStatus,
 			ListParams: repository.ListParams{Page: 1, PageSize: 1},
 		})
 		confirmedStatus := "confirmed"
 		confirmedEvals, _, _ := o.evalRepo.List(ctx, repository.EvalListParams{
-			UploadID:  &u.ID,
-			Status:    &confirmedStatus,
+			UploadID:   &u.ID,
+			Status:     &confirmedStatus,
 			ListParams: repository.ListParams{Page: 1, PageSize: 1},
 		})
 
@@ -355,8 +355,8 @@ func (o *Orchestrator) RecoverStuck(ctx context.Context) {
 		// Check for pending evaluations (created but scoring never ran)
 		pendingStatus := "pending"
 		pendingEvals, _, _ := o.evalRepo.List(ctx, repository.EvalListParams{
-			UploadID:  &u.ID,
-			Status:    &pendingStatus,
+			UploadID:   &u.ID,
+			Status:     &pendingStatus,
 			ListParams: repository.ListParams{Page: 1, PageSize: 100},
 		})
 

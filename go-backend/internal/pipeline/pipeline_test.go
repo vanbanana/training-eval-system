@@ -431,4 +431,3 @@ var _ = model.Evaluation{}
 func floatPtr(v float64) *float64 {
 	return &v
 }
-

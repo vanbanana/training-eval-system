@@ -24,9 +24,9 @@ func NewEvaluationService(repo repository.EvaluationRepo, taskRepo repository.Ta
 // Only DB-legal statuses are used here (evaluations.status CHECK: pending/scored/confirmed/rejected).
 // Flow: pending → scored → confirmed | rejected; rejected/scored → pending (resubmit/manual fallback).
 var validEvalTransitions = map[string][]string{
-	"pending":  {"scored", "confirmed"},
-	"scored":   {"confirmed", "rejected", "pending"}, // pending = resubmit / manual fallback
-	"rejected": {"pending"},                          // resubmission re-enters pipeline
+	"pending":   {"scored", "confirmed"},
+	"scored":    {"confirmed", "rejected", "pending"}, // pending = resubmit / manual fallback
+	"rejected":  {"pending"},                          // resubmission re-enters pipeline
 	"confirmed": {},                                   // terminal
 }
 

@@ -245,9 +245,15 @@ func (h *EvaluationsHandler) evalToFullDTO(ctx context.Context, e *model.Evaluat
 	// Enrich with dimension metadata
 	dims, err := h.taskSvc.GetDimensions(ctx, e.TaskID)
 	if err == nil {
-		dimMap := make(map[int64]struct{ Name string; Weight int })
+		dimMap := make(map[int64]struct {
+			Name   string
+			Weight int
+		})
 		for _, d := range dims {
-			dimMap[d.ID] = struct{ Name string; Weight int }{d.Name, d.Weight}
+			dimMap[d.ID] = struct {
+				Name   string
+				Weight int
+			}{d.Name, d.Weight}
 		}
 		for i, s := range resp.Scores {
 			if info, ok := dimMap[s.DimensionID]; ok {

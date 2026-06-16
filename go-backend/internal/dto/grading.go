@@ -2,16 +2,16 @@ package dto
 
 // SubmissionResponse is a single submission in the grading list.
 type SubmissionResponse struct {
-	UploadID           int64    `json:"upload_id"`
-	StudentID          int64    `json:"student_id"`
-	StudentName        string   `json:"student_name"`
-	Filename           string   `json:"filename"`
-	ParseStatus        string   `json:"parse_status"`
-	EvaluationID       *int64   `json:"evaluation_id"`
-	EvalStatus         *string  `json:"eval_status"`
-	TotalScore         *float64 `json:"total_score"`
-	SubmittedAt        string   `json:"submitted_at"`
-	ScoringInProgress  bool     `json:"scoring_in_progress"`
+	UploadID          int64    `json:"upload_id"`
+	StudentID         int64    `json:"student_id"`
+	StudentName       string   `json:"student_name"`
+	Filename          string   `json:"filename"`
+	ParseStatus       string   `json:"parse_status"`
+	EvaluationID      *int64   `json:"evaluation_id"`
+	EvalStatus        *string  `json:"eval_status"`
+	TotalScore        *float64 `json:"total_score"`
+	SubmittedAt       string   `json:"submitted_at"`
+	ScoringInProgress bool     `json:"scoring_in_progress"`
 }
 
 // TaskSummaryResponse is the response for GET /api/grading/tasks/{id}/summary.
@@ -33,8 +33,8 @@ type TaskSummaryResponse struct {
 
 // ConfirmRequest is the request body for POST /api/grading/evaluations/{id}/confirm.
 type ConfirmRequest struct {
-	TeacherComment string             `json:"teacher_comment"`
-	ScoreOverrides map[int64]float64  `json:"score_overrides"`
+	TeacherComment string            `json:"teacher_comment"`
+	ScoreOverrides map[int64]float64 `json:"score_overrides"`
 }
 
 // RejectRequest is the request body for POST /api/grading/evaluations/{id}/reject.

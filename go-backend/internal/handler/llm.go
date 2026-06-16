@@ -53,7 +53,7 @@ func (h *LLMHandler) Create(w http.ResponseWriter, r *http.Request) {
 	c := &model.LLMConfig{
 		Provider: req.Provider, BaseURL: req.BaseURL,
 		APIKeyEncrypted: encryptedKey,
-		ChatModel: req.ChatModel, EmbedModel: req.EmbedModel, IsActive: true,
+		ChatModel:       req.ChatModel, EmbedModel: req.EmbedModel, IsActive: true,
 	}
 	if err := h.svc.Create(r.Context(), c); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())

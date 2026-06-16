@@ -14,11 +14,11 @@ import (
 
 // AuthService handles authentication operations.
 type AuthService struct {
-	userRepo  repository.UserRepo
-	auditRepo repository.AuditRepo
-	lockout   *middleware.AccountLockout
-	jwtSecret string
-	accessTTL time.Duration
+	userRepo   repository.UserRepo
+	auditRepo  repository.AuditRepo
+	lockout    *middleware.AccountLockout
+	jwtSecret  string
+	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 

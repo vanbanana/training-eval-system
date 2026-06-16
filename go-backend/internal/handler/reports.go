@@ -15,10 +15,10 @@ import (
 var errNoScoredData = errors.New("no scored evaluations available for export")
 
 type ReportsHandler struct {
-	evalSvc   *service.EvaluationService
-	taskSvc   *service.TaskService
-	userSvc   *service.UserService
-	db        *store.DB
+	evalSvc *service.EvaluationService
+	taskSvc *service.TaskService
+	userSvc *service.UserService
+	db      *store.DB
 }
 
 func NewReportsHandler(evalSvc *service.EvaluationService, taskSvc *service.TaskService, userSvc *service.UserService, db *store.DB) *ReportsHandler {
@@ -176,11 +176,19 @@ func (h *ReportsHandler) buildReportData(r *http.Request, taskID int64) (*report
 
 	// Filter to scored/confirmed only
 	var scored []int64
-	evalMap := make(map[int64]struct{ studentID int64; totalScore float64; comment string })
+	evalMap := make(map[int64]struct {
+		studentID  int64
+		totalScore float64
+		comment    string
+	})
 	for _, e := range evals {
 		if (e.Status == "scored" || e.Status == "confirmed") && e.TotalScore != nil {
 			scored = append(scored, e.ID)
-			evalMap[e.ID] = struct{ studentID int64; totalScore float64; comment string }{
+			evalMap[e.ID] = struct {
+				studentID  int64
+				totalScore float64
+				comment    string
+			}{
 				studentID: e.StudentID, totalScore: *e.TotalScore, comment: e.TeacherComment,
 			}
 		}

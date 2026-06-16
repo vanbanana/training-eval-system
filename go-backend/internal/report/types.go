@@ -25,10 +25,10 @@ type StudentReportRow struct {
 
 // ScoreDistribution holds the count of students in each score range.
 type ScoreDistribution struct {
-	Range0to59  int
-	Range60to69 int
-	Range70to79 int
-	Range80to89 int
+	Range0to59   int
+	Range60to69  int
+	Range70to79  int
+	Range80to89  int
 	Range90to100 int
 }
 

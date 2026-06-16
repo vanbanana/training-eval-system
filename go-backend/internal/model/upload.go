@@ -39,9 +39,9 @@ type VerifyResult struct {
 	ID                int64     `json:"id"`
 	UploadID          int64     `json:"upload_id"`
 	MatchRate         *float64  `json:"match_rate"`
-	Checkpoints       any       `json:"checkpoints"`        // JSON array
-	MissingItems      any       `json:"missing_items"`      // JSON array
-	LogicIssues       any       `json:"logic_issues"`       // JSON array
+	Checkpoints       any       `json:"checkpoints"`   // JSON array
+	MissingItems      any       `json:"missing_items"` // JSON array
+	LogicIssues       any       `json:"logic_issues"`  // JSON array
 	OverallConfidence *int      `json:"overall_confidence"`
 	ErrorMessage      string    `json:"error_message"`
 	VerifiedAt        time.Time `json:"verified_at"`

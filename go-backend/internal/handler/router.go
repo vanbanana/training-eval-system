@@ -31,7 +31,7 @@ type RouterConfig struct {
 	LLMHandler           *LLMHandler
 	AuditHandler         *AuditHandler
 	AccountHandler       *AccountHandler
-	SSEHandler          *SSEHandler
+	SSEHandler           *SSEHandler
 	ParseHandler         *ParseHandler
 }
 
