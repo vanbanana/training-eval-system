@@ -391,8 +391,8 @@ func TestBuildChatSystemPrompt(t *testing.T) {
 
 func TestChatToolSchemas(t *testing.T) {
 	schemas := ChatToolSchemas()
-	if len(schemas) != 7 {
-		t.Fatalf("expected 7 tools, got %d", len(schemas))
+	if len(schemas) != 8 {
+		t.Fatalf("expected 8 tools, got %d", len(schemas))
 	}
 	for _, s := range schemas {
 		if s.Type != "function" {

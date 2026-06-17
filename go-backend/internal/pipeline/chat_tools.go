@@ -47,6 +47,9 @@ type ChatOrchestrator struct {
 	uploadRepo  repository.UploadRepo
 	taskRepo    repository.TaskRepo
 	profileRepo repository.ProfileRepo
+	// OnToolCall is an optional callback invoked when a tool is dispatched.
+	// The handler uses it to emit SSE progress events to the frontend.
+	OnToolCall func(toolName string)
 }
 
 // NewChatOrchestrator creates a chat orchestrator.
@@ -85,12 +88,13 @@ const toolCallTimeout = 15 * time.Second
 // have all tools fail.
 const maxConsecutiveFailedRounds = 2
 
-// ChatToolSchemas returns all 7 registered chat tools as OpenAI function definitions.
+// ChatToolSchemas returns all 8 registered chat tools as OpenAI function definitions.
 func ChatToolSchemas() []llm.Tool {
 	return []llm.Tool{
 		toolGetParseSegment(),
 		toolGetDimensionDetail(),
 		toolGetClassStatistics(),
+		toolGetDimensionClassStatistics(),
 		toolGetDimensionHistory(),
 		toolGetExcellentSampleSummary(),
 		toolGetWeaknessList(),
@@ -101,13 +105,14 @@ func ChatToolSchemas() []llm.Tool {
 // toolRequiredParams maps tool names to their required parameter names,
 // used for argument validation before dispatch.
 var toolRequiredParams = map[string][]string{
-	"get_parse_segment":             {"topic"},
-	"get_dimension_detail":          {"dimension_name"},
-	"get_dimension_history":         {"dimension_name"},
-	"get_excellent_sample_summary":  {},
-	"get_weakness_list":             {},
-	"get_class_statistics":          {},
-	"get_learning_resources":        {"keyword"},
+	"get_parse_segment":                {"topic"},
+	"get_dimension_detail":             {"dimension_name"},
+	"get_dimension_history":            {"dimension_name"},
+	"get_dimension_class_statistics":   {"dimension_name"},
+	"get_excellent_sample_summary":     {},
+	"get_weakness_list":                {},
+	"get_class_statistics":             {},
+	"get_learning_resources":           {"keyword"},
 }
 
 // DispatchTool dispatches a tool call by name with argument validation.
@@ -138,6 +143,8 @@ func (co *ChatOrchestrator) DispatchTool(ctx context.Context, name string, args 
 		return co.getDimensionDetail(tctx, args)
 	case "get_class_statistics":
 		return co.getClassStatistics(ctx, tctx, args)
+	case "get_dimension_class_statistics":
+		return co.getDimensionClassStatistics(ctx, tctx, args)
 	case "get_dimension_history":
 		return co.getDimensionHistory(ctx, tctx, args)
 	case "get_excellent_sample_summary":
@@ -274,6 +281,11 @@ func (co *ChatOrchestrator) Run(
 
 		for _, tc := range choice.Message.ToolCalls {
 			slog.Info("chat tool called", "tool", tc.Function.Name, "round", round+1)
+
+			// Fire callback for frontend progress events
+			if co.OnToolCall != nil {
+				co.OnToolCall(tc.Function.Name)
+			}
 
 			var args map[string]any
 			if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
@@ -548,6 +560,91 @@ func (co *ChatOrchestrator) getClassStatistics(ctx context.Context, tctx *ChatTo
 	}
 }
 
+// getDimensionClassStatistics returns per-dimension class mean/median/p75 for a specific dimension.
+func (co *ChatOrchestrator) getDimensionClassStatistics(ctx context.Context, tctx *ChatToolContext, args map[string]any) *ToolResult {
+	if tctx.Task == nil {
+		return &ToolResult{Success: false, Error: "no task context"}
+	}
+
+	dimName, _ := args["dimension_name"].(string)
+	if dimName == "" {
+		return &ToolResult{Success: false, Error: "dimension_name is required"}
+	}
+
+	// Find the dimension ID by name
+	var targetDimID int64
+	for _, d := range tctx.Dimensions {
+		if strings.Contains(strings.ToLower(d.Name), strings.ToLower(dimName)) {
+			targetDimID = d.ID
+			break
+		}
+	}
+	if targetDimID == 0 {
+		return &ToolResult{Success: false, Error: fmt.Sprintf("dimension %q not found in task", dimName)}
+	}
+
+	params := repository.EvalListParams{
+		ListParams: repository.ListParams{Page: 1, PageSize: 1000},
+	}
+	params.TaskID = &tctx.Task.ID
+	evals, _, err := co.evalRepo.List(ctx, params)
+	if err != nil {
+		return &ToolResult{Success: false, Error: fmt.Sprintf("query failed: %v", err)}
+	}
+
+	var scores []float64
+	for _, e := range evals {
+		if e.Status == "rejected" || e.Scores == nil {
+			continue
+		}
+		for _, s := range e.Scores {
+			if s.DimensionID == targetDimID {
+				score := 0.0
+				if s.TeacherScore != nil {
+					score = *s.TeacherScore
+				} else if s.AIScore != nil {
+					score = *s.AIScore
+				}
+				if score > 0 {
+					scores = append(scores, score)
+				}
+				break
+			}
+		}
+	}
+
+	if len(scores) == 0 {
+		return &ToolResult{Success: false, Error: fmt.Sprintf("no scores found for dimension %q", dimName)}
+	}
+
+	sort.Float64s(scores)
+	n := len(scores)
+	mean := average(scores)
+	median := scores[n/2]
+	if n%2 == 0 {
+		median = (scores[n/2-1] + scores[n/2]) / 2
+	}
+	p75Idx := int(math.Ceil(float64(n)*0.75)) - 1
+	if p75Idx < 0 {
+		p75Idx = 0
+	}
+	if p75Idx >= n {
+		p75Idx = n - 1
+	}
+	p75 := scores[p75Idx]
+
+	return &ToolResult{
+		Success: true,
+		Data: map[string]any{
+			"dimension": dimName,
+			"count":     n,
+			"mean":      math.Round(mean*10) / 10,
+			"median":    math.Round(median*10) / 10,
+			"p75":       math.Round(p75*10) / 10,
+		},
+	}
+}
+
 func (co *ChatOrchestrator) getDimensionHistory(ctx context.Context, tctx *ChatToolContext, args map[string]any) *ToolResult {
 	if tctx.StudentID == 0 {
 		return &ToolResult{Success: false, Error: "no student context"}
@@ -714,6 +811,16 @@ func toolGetClassStatistics() llm.Tool {
 	return makeTool("get_class_statistics", "查询当前任务在班级范围内的统计（不暴露他人姓名）", map[string]any{
 		"type":       "object",
 		"properties": map[string]any{},
+	})
+}
+
+func toolGetDimensionClassStatistics() llm.Tool {
+	return makeTool("get_dimension_class_statistics", "查询当前任务某个具体维度在班级范围内的均分、中位数、P75（用于维度级对比）", map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"dimension_name": map[string]any{"type": "string", "description": "评价维度名称"},
+		},
+		"required": []string{"dimension_name"},
 	})
 }
 

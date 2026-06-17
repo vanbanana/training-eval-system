@@ -207,17 +207,35 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	// If orchestrator is available, use it for tool-augmented response
 	if h.orchestrator != nil && h.llmClient != nil && tctx != nil {
+		// Set callback to emit tool_call progress events to frontend
+		h.orchestrator.OnToolCall = func(toolName string) {
+			evt, _ := json.Marshal(map[string]string{"type": "tool_call", "name": toolName})
+			fmt.Fprintf(w, "data: %s\n\n", evt)
+			if hasFlusher {
+				flusher.Flush()
+			}
+		}
+
 		resp, err := h.orchestrator.Run(r.Context(), history, req.Message, tctx)
 		if err != nil {
 			slog.Error("chat orchestrator failed", "error", err.Error())
 			// Fall through to basic streaming
 		} else if resp != nil && len(resp.Choices) > 0 && resp.Choices[0].Message.Content != "" {
-			// Stream the response token by token (unnamed events; type is in JSON body)
+			// Pseudo-stream: send content in small chunks for better UX
 			content := resp.Choices[0].Message.Content
-			tokenJSON, _ := json.Marshal(map[string]string{"type": "text", "content": content})
-			fmt.Fprintf(w, "data: %s\n\n", tokenJSON)
-			if hasFlusher {
-				flusher.Flush()
+			chunkSize := 40
+			for i := 0; i < len(content); i += chunkSize {
+				end := i + chunkSize
+				if end > len(content) {
+					end = len(content)
+				}
+				chunk := content[i:end]
+				tokenJSON, _ := json.Marshal(map[string]string{"type": "text", "content": chunk})
+				fmt.Fprintf(w, "data: %s\n\n", tokenJSON)
+				if hasFlusher {
+					flusher.Flush()
+				}
+				time.Sleep(30 * time.Millisecond)
 			}
 			fmt.Fprintf(w, "data: {\"type\":\"done\"}\n\n")
 			if hasFlusher {
