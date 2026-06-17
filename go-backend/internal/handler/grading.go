@@ -1,9 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
+	"github.com/smartedu/training-eval-system/internal/middleware"
+	"github.com/smartedu/training-eval-system/internal/model"
+	"github.com/smartedu/training-eval-system/internal/pipeline"
+	"github.com/smartedu/training-eval-system/internal/llm"
 	"github.com/smartedu/training-eval-system/internal/repository"
 	"github.com/smartedu/training-eval-system/internal/service"
 	"github.com/smartedu/training-eval-system/internal/store"
@@ -14,6 +19,8 @@ type GradingHandler struct {
 	uploadSvc *service.UploadService
 	userSvc   *service.UserService
 	db        *store.DB
+	orch      *pipeline.Orchestrator
+	llmClient *llm.Client
 }
 
 func NewGradingHandler(evalSvc *service.EvaluationService, uploadSvc *service.UploadService, userSvc *service.UserService, db *store.DB) *GradingHandler {
@@ -259,4 +266,103 @@ func (h *GradingHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		"total_score": eval.TotalScore,
 		"status":      eval.Status,
 	})
+}
+
+// AutoScore triggers AI scoring for unscored submissions (T3.1).
+func (h *GradingHandler) AutoScore(w http.ResponseWriter, r *http.Request) {
+	taskID, err := PathInt64(r, "id")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid task ID")
+		return
+	}
+	var req struct {
+		Mode      string    `json:"mode"`
+		UploadIDs []int64   `json:"upload_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	if req.Mode == "" {
+		req.Mode = "unscored"
+	}
+	ctx := r.Context()
+
+	// Find all uploads for this task
+	params := repository.UploadListParams{
+		ListParams: repository.ListParams{Page: 1, PageSize: 1000},
+	}
+	params.TaskID = &taskID
+	uploads, _, err := h.uploadSvc.List(ctx, params)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Get existing evaluations for this task
+	evalParams := repository.EvalListParams{
+		ListParams: repository.ListParams{Page: 1, PageSize: 1000},
+	}
+	evalParams.TaskID = &taskID
+	evals, _, _ := h.evalSvc.List(ctx, evalParams)
+
+	// Map existing evaluations by upload_id
+	existingEval := make(map[int64]string)
+	for _, e := range evals {
+		existingEval[e.UploadID] = e.Status
+	}
+
+	// Filter uploads to score
+	result := dto.AutoScoreResponse{
+		TaskID: taskID,
+		Items:  make([]dto.AutoScoreItem, 0),
+	}
+	for _, u := range uploads {
+		if req.Mode == "selected" {
+			found := false
+			for _, id := range req.UploadIDs {
+				if id == u.ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+		if u.ParseStatus != "parsed" {
+			result.Skipped++
+			result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "skipped", Reason: "not_parsed"})
+			continue
+		}
+		status, exists := existingEval[u.ID]
+		if exists && (status == "scored" || status == "confirmed") {
+			result.Skipped++
+			result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "skipped", Reason: "already_scored"})
+			continue
+		}
+		if exists && status == "pending" {
+			result.Skipped++
+			result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "skipped", Reason: "already_queued"})
+			continue
+		}
+
+		// Create pending evaluation
+		_ = middleware.GetClaims(ctx)
+		eval := &model.Evaluation{
+			TaskID:    taskID,
+			UploadID:  u.ID,
+			StudentID: u.StudentID,
+			Status:    "pending",
+		}
+		if err := h.evalSvc.Create(ctx, eval); err != nil {
+			result.Failed++
+			result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "failed", Reason: err.Error()})
+			continue
+		}
+		result.Queued++
+		result.Requested++
+		result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "queued"})
+	}
+	JSON(w, http.StatusOK, result)
 }

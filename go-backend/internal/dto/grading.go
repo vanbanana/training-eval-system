@@ -41,3 +41,20 @@ type ConfirmRequest struct {
 type RejectRequest struct {
 	Reason string `json:"reason"`
 }
+
+// AutoScoreItem is a single result in the auto-score response.
+type AutoScoreItem struct {
+	UploadID int64  `json:"upload_id"`
+	Status   string `json:"status"`
+	Reason   string `json:"reason,omitempty"`
+}
+
+// AutoScoreResponse is the response for POST /api/grading/tasks/{id}/auto-score.
+type AutoScoreResponse struct {
+	TaskID    int64           `json:"task_id"`
+	Requested int             `json:"requested"`
+	Queued    int             `json:"queued"`
+	Skipped   int             `json:"skipped"`
+	Failed    int             `json:"failed"`
+	Items     []AutoScoreItem `json:"items"`
+}
