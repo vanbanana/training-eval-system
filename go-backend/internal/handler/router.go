@@ -33,7 +33,6 @@ type RouterConfig struct {
 	AccountHandler       *AccountHandler
 	SSEHandler           *SSEHandler
 	ParseHandler         *ParseHandler
-	AgentHandler         *AgentHandler
 }
 
 // NewRouter creates the chi router with all routes and middleware.
@@ -230,17 +229,6 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 			// SSE endpoint for real-time events (replaces WebSocket)
 			r.Get("/sse/events", cfg.SSEHandler.Events)
-
-			// Agent API — unified AI agent for all roles
-			if cfg.AgentHandler != nil {
-				r.Route("/agent", func(r chi.Router) {
-					r.Get("/sessions", cfg.AgentHandler.ListSessions)
-					r.Post("/sessions", cfg.AgentHandler.CreateSession)
-					r.Get("/sessions/{id}/messages", cfg.AgentHandler.GetMessages)
-					r.Delete("/sessions/{id}", cfg.AgentHandler.DeleteSession)
-					r.Post("/stream", cfg.AgentHandler.Stream)
-				})
-			}
 		})
 	})
 
