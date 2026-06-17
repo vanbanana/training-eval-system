@@ -44,6 +44,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 	classRepo := repository.NewClassRepo(db)
 	notifRepo := repository.NewNotificationRepo(db)
 	chatRepo := repository.NewChatRepo(db)
+	agentRepo := repository.NewAgentRepo(db)
 	templateRepo := repository.NewTemplateRepo(db)
 	profileRepo := repository.NewProfileRepo(db)
 	llmConfigRepo := repository.NewLLMConfigRepo(db)
@@ -60,6 +61,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 	uploadSvc := service.NewUploadService(uploadRepo, taskRepo, t.TempDir(), 50)
 	evalSvc := service.NewEvaluationService(evalRepo, taskRepo)
 	chatSvc := service.NewChatService(chatRepo)
+	agentSvc := service.NewAgentService(agentRepo)
 	courseSvc := service.NewCourseService(courseRepo)
 	classSvc := service.NewClassService(classRepo)
 	templateSvc := service.NewTemplateService(templateRepo)
@@ -78,6 +80,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 	classesHandler := handler.NewClassesHandler(classSvc, userSvc)
 	notificationsHandler := handler.NewNotificationsHandler(notifSvc)
 	chatHandler := handler.NewChatHandler(chatSvc, broker, nil, nil, uploadRepo, taskRepo, evalRepo)
+	agentHandler := handler.NewAgentHandler(agentSvc, nil, evalRepo, uploadRepo, taskRepo, classRepo, courseRepo, nil)
 	templatesHandler := handler.NewTemplatesHandler(templateSvc, taskSvc)
 	dashboardHandler := handler.NewDashboardHandler(db)
 	reportsHandler := handler.NewReportsHandler(evalSvc, taskSvc, userSvc, db)
@@ -87,7 +90,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
 	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
-	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc)
+	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc, taskSvc)
 	sseHandler := handler.NewSSEHandler(broker, TestJWTSecret)
 
 	// Router
@@ -104,6 +107,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 		ClassesHandler:       classesHandler,
 		NotificationsHandler: notificationsHandler,
 		ChatHandler:          chatHandler,
+		AgentHandler:         agentHandler,
 		SimilarityHandler:    similarityHandler,
 		TemplatesHandler:     templatesHandler,
 		ImportsHandler:       importsHandler,

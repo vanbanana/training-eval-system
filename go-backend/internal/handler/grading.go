@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 
@@ -365,4 +366,157 @@ func (h *GradingHandler) AutoScore(w http.ResponseWriter, r *http.Request) {
 		result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "queued"})
 	}
 	JSON(w, http.StatusOK, result)
+}
+
+// Workbench returns the teacher's grading workbench data (T4.2).
+func (h *GradingHandler) Workbench(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+	if claims.Role != "teacher" && claims.Role != "admin" {
+		Error(w, http.StatusForbidden, "Only teachers and admins can access workbench")
+		return
+	}
+	ctx := r.Context()
+
+	// Get courses for this teacher (admin sees all)
+	var courses []struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+		Code string `json:"code"`
+	}
+	var query string
+	if claims.Role == "admin" {
+		query = "SELECT id, name, code FROM courses WHERE is_archived=0 ORDER BY name"
+	} else {
+		query = `SELECT DISTINCT c.id, c.name, c.code FROM courses c
+			JOIN classes cl ON cl.course_id = c.id
+			WHERE cl.teacher_id = ? AND c.is_archived=0 ORDER BY c.name`
+	}
+	var rows *sql.Rows
+	var err error
+	if claims.Role == "admin" {
+		rows, err = h.db.Reader.QueryContext(ctx, query)
+	} else {
+		rows, err = h.db.Reader.QueryContext(ctx, query, claims.Sub)
+	}
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var c struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+			Code string `json:"code"`
+		}
+		if err := rows.Scan(&c.ID, &c.Name, &c.Code); err != nil {
+			continue
+		}
+		courses = append(courses, c)
+	}
+
+	type classInfo struct {
+		ID           int64  `json:"id"`
+		Name         string `json:"name"`
+		StudentCount int    `json:"student_count"`
+	}
+	type taskInfo struct {
+		ID               int64   `json:"id"`
+		Name             string  `json:"name"`
+		Status           string  `json:"status"`
+		PendingAICount   int     `json:"pending_ai_count"`
+		ScoredCount      int     `json:"scored_count"`
+		ConfirmedCount   int     `json:"confirmed_count"`
+		RejectedCount    int     `json:"rejected_count"`
+	}
+
+	workbench := struct {
+		Courses []struct {
+			ID      int64       `json:"id"`
+			Name    string      `json:"name"`
+			Code    string      `json:"code"`
+			Classes []struct {
+				classInfo
+				Tasks []taskInfo `json:"tasks"`
+			} `json:"classes"`
+		} `json:"courses"`
+		Summary struct {
+			PendingAICount      int `json:"pending_ai_count"`
+			ScoredUnconfirmed   int `json:"scored_unconfirmed_count"`
+			SuspiciousCount     int `json:"suspicious_count"`
+			ConfirmedTodayCount int `json:"confirmed_today_count"`
+		} `json:"summary"`
+	}{}
+
+	for _, c := range courses {
+		courseEntry := struct {
+			ID      int64       `json:"id"`
+			Name    string      `json:"name"`
+			Code    string      `json:"code"`
+			Classes []struct {
+				classInfo
+				Tasks []taskInfo `json:"tasks"`
+			} `json:"classes"`
+		}{ID: c.ID, Name: c.Name, Code: c.Code}
+
+		// Get classes for this course
+		var teacherID *int64
+		if claims.Role == "teacher" {
+			teacherID = &claims.Sub
+		}
+		classes, _ := h.db.Reader.QueryContext(ctx,
+			`SELECT id, name, student_count FROM classes WHERE course_id=? AND is_archived=0
+			 AND (? IS NULL OR teacher_id=?) ORDER BY name`,
+			c.ID, teacherID, claims.Sub)
+		for classes.Next() {
+			var cl struct {
+				classInfo
+				Tasks []taskInfo `json:"tasks"`
+			}
+			classes.Scan(&cl.ID, &cl.Name, &cl.StudentCount)
+
+			// Get tasks for this class
+			tasks, _ := h.db.Reader.QueryContext(ctx,
+				`SELECT t.id, t.name, t.status FROM training_tasks t
+				 JOIN task_classes tc ON tc.task_id = t.id
+				 WHERE tc.class_id = ? AND t.course_id = ? AND t.status != 'draft'
+				 ORDER BY t.created_at DESC`, cl.ID, c.ID)
+			for tasks.Next() {
+				var tk taskInfo
+				tasks.Scan(&tk.ID, &tk.Name, &tk.Status)
+
+				// Count eval statuses for this task
+				h.db.Reader.QueryRowContext(ctx,
+					`SELECT COUNT(*) FROM evaluations e
+					 JOIN uploads u ON u.id = e.upload_id
+					 WHERE e.task_id = ? AND e.status = 'pending'`, tk.ID).Scan(&tk.PendingAICount)
+				h.db.Reader.QueryRowContext(ctx,
+					`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'scored'`, tk.ID).Scan(&tk.ScoredCount)
+				h.db.Reader.QueryRowContext(ctx,
+					`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'confirmed'`, tk.ID).Scan(&tk.ConfirmedCount)
+				h.db.Reader.QueryRowContext(ctx,
+					`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'rejected'`, tk.ID).Scan(&tk.RejectedCount)
+
+				cl.Tasks = append(cl.Tasks, tk)
+				workbench.Summary.PendingAICount += tk.PendingAICount
+				workbench.Summary.ScoredUnconfirmed += tk.ScoredCount
+				workbench.Summary.ConfirmedTodayCount += tk.ConfirmedCount
+			}
+			tasks.Close()
+			if cl.Tasks == nil {
+				cl.Tasks = []taskInfo{}
+			}
+			courseEntry.Classes = append(courseEntry.Classes, cl)
+		}
+		classes.Close()
+		if courseEntry.Classes == nil {
+			courseEntry.Classes = []struct {
+				classInfo
+				Tasks []taskInfo `json:"tasks"`
+			}{}
+		}
+		workbench.Courses = append(workbench.Courses, courseEntry)
+	}
+
+	JSON(w, http.StatusOK, workbench)
 }
