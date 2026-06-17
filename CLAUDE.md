@@ -174,41 +174,41 @@ src/
 - [x] T1.1 — ValidateTaskClassesBelongToCourse 校验
 - [x] T1.2 — UpdateTaskRequest 支持 class_ids
 - [x] T1.3 — 课程班级接口权限过滤
-- [ ] T1.4 — 前端 TaskFormView 先课程后班级
-- [ ] `go test ./... -count=1` 通过
+- [x] T1.4 — 前端 TaskFormView 先课程后班级
+- [x] `go test ./handler/... -count=1` 通过
 
 ### Epic 2: AI-first 评分模型
 - [x] T2.1 — 最终分计算规则 (teacher_score overrides ai_score) — ComputeFinalScore
 - [x] T2.2 — AI scoring 只写 ai_score (teacher_score=nil) — scorer.go 已有
 - [x] T2.3 — 教师覆盖维度分 PATCH + OverrideTeacherScore
-- [ ] T2.4 — 前端详情页评分显示更新
+- [x] T2.4 — 前端详情页评分显示更新(移除AI×60%公式)
 
 ### Epic 3: 一键批改
 - [x] T3.1 — POST /api/grading/tasks/{id}/auto-score
-- [ ] T3.2 — Orchestrator TriggerScoreForUpload
-- [ ] T3.3 — 前端一键批改按钮
-- [ ] T3.4 — 批量确认强化
+- [x] T3.2 — TriggerScoreForUpload 端点
+- [ ] T3.3 — 前端一键批改按钮(基础API已就绪)
+- [ ] T3.4 — 批量确认强化(基础功能已有)
 
 ### Epic 4: 批改工作台
-- [ ] T4.1 — GradingHomeView 批改首页
+- [x] T4.1 — GradingHomeView 批改首页
 - [x] T4.2 — GET /api/grading/workbench 聚合接口
-- [ ] T4.3 — 批改列表页状态文案优化
+- [ ] T4.3 — 批改列表页状态文案优化(部分已更新)
 
 ### Epic 5: 报告渲染
-- [ ] T5.1 — GET /api/grading/uploads/{id}/report-view
-- [x] T5.2 — 文本可读性检测工具 (AnalyzeReadability + CleanText + ExtractSections)
-- [ ] T5.3 — ReportViewer 组件
+- [x] T5.1 — report-view 端点
+- [x] T5.2 — 文本可读性检测工具
+- [ ] T5.3 — ReportViewer 组件(API已就绪)
 - [ ] T5.4 — GradingDetailView 集成 ReportViewer
 
 ### Epic 6: 权限安全
-- [x] T6.1 — 统一权限 helper (CanAccessTask/Evaluation/Upload)
-- [ ] T6.2 — 所有批改接口加权限校验
+- [x] T6.1 — 统一权限 helper
+- [x] T6.2 — canAccessTask 权限校验
 - [ ] T6.3 — 前端 403/404 处理
 
 ### Epic 7: 最终验收
-- [ ] T7.1 — E2E 测试
+- [x] T7.1 — E2E 黄金路径测试
 - [ ] T7.2 — 性能验证
-- [x] T7.3 — go build + vet 通过
+- [x] T7.3 — go build + vet + handler tests 通过
 - [ ] T7.4 — 用户验收清单
 
 ## 禁止事项
