@@ -93,7 +93,7 @@ async function fetchAll() {
     teacherComment.value = ev.teacher_comment ?? ''
     subjScores.value = {}
     for (const d of ev.scores ?? []) {
-      subjScores.value[d.dimension_id] = d.subj_score ?? d.obj_score
+      subjScores.value[d.dimension_id] = d.teacher_score ?? undefined
     }
 
     // 拉解析文本（左栏）
@@ -156,32 +156,22 @@ function goNext() {
   if (nextEvalId.value) router.push(`/teacher/evaluations/${nextEvalId.value}`)
 }
 
-const previewSubjTotal = computed(() => {
+const previewFinalTotal = computed(() => {
   if (!evaluation.value?.scores) return 0
   return Math.round(
     evaluation.value.scores.reduce((sum, d) => {
-      const subj = subjScores.value[d.dimension_id] ?? d.obj_score
-      return sum + subj * (d.weight / 100)
+      const dimSubj = subjScores.value[d.dimension_id]
+      const adoptedScore = dimSubj !== undefined ? dimSubj : d.obj_score;
+      return sum + adoptedScore * (d.weight / 100);
     }, 0),
-  )
-})
-
-const previewObjTotal = computed(() => {
-  if (!evaluation.value?.scores) return 0
-  return Math.round(
-    evaluation.value.scores.reduce((s, d) => s + d.obj_score * (d.weight / 100), 0),
-  )
-})
-
-const previewFinalTotal = computed(() =>
-  Math.round(previewObjTotal.value * 0.6 + previewSubjTotal.value * 0.4),
-)
+  );
+});
 
 async function submitConfirm() {
   if (!evaluation.value) return
   const ok = await confirm({
     title: '确认评价',
-    description: `综合分将记为 ${previewFinalTotal.value}（AI×60% + 教师×40%）。确认提交？`,
+    description: `最终分将记为 ${previewFinalTotal.value}（AI 默认，教师覆盖后生效）。确认提交？`,
   })
   if (!ok) return
   submitting.value = true
@@ -226,7 +216,7 @@ async function saveDraft() {
         const newVal = subjScores.value[d.dimension_id]
         if (newVal !== undefined && newVal !== d.subj_score) {
           return axios.patch(`/api/evaluations/${evalId.value}/dimensions/${d.dimension_id}`, {
-            subj_score: newVal,
+            teacher_score: newVal,
             comment: d.comment ?? '',
           })
         }
@@ -333,8 +323,7 @@ function openHistory() {
             <span class="text-2xl font-bold text-primary num-tabular">{{ previewFinalTotal }}</span>
           </header>
           <div class="px-5 py-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-xs text-muted-foreground">
-            <div>AI 客观分（×60%）：<span class="text-ink font-semibold">{{ previewObjTotal }}</span></div>
-            <div>教师主观分（×40%）：<span class="text-ink font-semibold">{{ previewSubjTotal }}</span></div>
+            <div>最终分（AI 默认，教师覆盖后生效）：<span class="text-ink font-semibold">{{ previewFinalTotal }}</span></div>
           </div>
         </Card>
 
