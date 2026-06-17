@@ -50,7 +50,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/teacher/grading',
-    redirect: '/teacher/tasks',
+    component: () => import('@/views/teacher/GradingHomeView.vue'),
   },
   {
     path: '/teacher/reports',
