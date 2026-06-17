@@ -210,3 +210,17 @@ func (r *SQLiteTaskRepo) SetDimensions(ctx context.Context, taskID int64, dims [
 	}
 	return nil
 }
+
+// EnsureTaskHasClasses returns an error if the task has no associated classes.
+func (r *SQLiteTaskRepo) EnsureTaskHasClasses(ctx context.Context, taskID int64) error {
+	var count int
+	err := r.db.Reader.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM task_classes WHERE task_id=?", taskID).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("task_repo: check classes: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("task has no associated classes, cannot publish")
+	}
+	return nil
+}

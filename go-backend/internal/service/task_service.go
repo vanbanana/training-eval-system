@@ -10,16 +10,34 @@ import (
 
 // TaskService handles training task operations.
 type TaskService struct {
-	repo     repository.TaskRepo
-	notifSvc *NotificationService
+	repo      repository.TaskRepo
+	classRepo repository.ClassRepo
+	notifSvc  *NotificationService
 }
 
 // NewTaskService creates a new task service.
-func NewTaskService(repo repository.TaskRepo, notifSvc *NotificationService) *TaskService {
-	return &TaskService{repo: repo, notifSvc: notifSvc}
+func NewTaskService(repo repository.TaskRepo, classRepo repository.ClassRepo, notifSvc *NotificationService) *TaskService {
+	return &TaskService{repo: repo, classRepo: classRepo, notifSvc: notifSvc}
 }
 
-// validTaskTransitions defines legal state machine transitions (requirement 13.3).
+// ValidateTaskClassesBelongToCourse checks that all classIDs belong to the given course.
+func (s *TaskService) ValidateTaskClassesBelongToCourse(ctx context.Context, courseID int64, classIDs []int64) error {
+	for _, cid := range classIDs {
+		cls, err := s.classRepo.GetByID(ctx, cid)
+		if err != nil {
+			return fmt.Errorf("task_service: class %d: %w", cid, err)
+		}
+		if cls.IsArchived {
+			return fmt.Errorf("task_service: class %d is archived", cid)
+		}
+		if cls.CourseID != courseID {
+			return fmt.Errorf("task_service: class %d belongs to course %d, not course %d", cid, cls.CourseID, courseID)
+		}
+	}
+	return nil
+}
+
+// validTaskTransitions defines legal state machine transitions.
 var validTaskTransitions = map[string][]string{
 	"":          {"draft"},
 	"draft":     {"published"},
@@ -53,7 +71,6 @@ func (s *TaskService) Create(ctx context.Context, t *model.TrainingTask) error {
 }
 
 func (s *TaskService) Update(ctx context.Context, t *model.TrainingTask) error {
-	// Only allow status change through Publish/Close
 	return s.repo.Update(ctx, t)
 }
 
@@ -68,7 +85,25 @@ func (s *TaskService) Delete(ctx context.Context, id int64) error {
 	return s.repo.Delete(ctx, id)
 }
 
-// Publish transitions a task from draft to published (requirement 4).
+// SetClasses validates class-course ownership then sets task classes.
+func (s *TaskService) SetClasses(ctx context.Context, taskID int64, classIDs []int64) error {
+	task, err := s.repo.GetByID(ctx, taskID)
+	if err != nil {
+		return err
+	}
+	if len(classIDs) > 0 {
+		if err := s.ValidateTaskClassesBelongToCourse(ctx, task.CourseID, classIDs); err != nil {
+			return err
+		}
+	} else {
+		if task.Status == "published" || task.Status == "closed" {
+			return fmt.Errorf("task_service: cannot clear classes on a %s task", task.Status)
+		}
+	}
+	return s.repo.SetClasses(ctx, taskID, classIDs)
+}
+
+// Publish transitions a task from draft to published.
 func (s *TaskService) Publish(ctx context.Context, id int64) error {
 	task, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -77,10 +112,13 @@ func (s *TaskService) Publish(ctx context.Context, id int64) error {
 	if err := s.checkTransition(task.Status, "published"); err != nil {
 		return err
 	}
+	if err := s.repo.EnsureTaskHasClasses(ctx, id); err != nil {
+		return fmt.Errorf("task_service: %w", err)
+	}
 	return s.repo.UpdateStatus(ctx, id, "published")
 }
 
-// Close transitions a task from published to closed (requirement 4).
+// Close transitions a task from published to closed.
 func (s *TaskService) Close(ctx context.Context, id int64) error {
 	task, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -92,15 +130,10 @@ func (s *TaskService) Close(ctx context.Context, id int64) error {
 	return s.repo.UpdateStatus(ctx, id, "closed")
 }
 
-func (s *TaskService) SetClasses(ctx context.Context, taskID int64, classIDs []int64) error {
-	return s.repo.SetClasses(ctx, taskID, classIDs)
-}
-
 func (s *TaskService) SetDimensions(ctx context.Context, taskID int64, dims []model.Dimension) error {
 	return s.repo.SetDimensions(ctx, taskID, dims)
 }
 
-// GetDimensions returns the dimensions for a given task.
 func (s *TaskService) GetDimensions(ctx context.Context, taskID int64) ([]model.Dimension, error) {
 	return s.repo.GetDimensions(ctx, taskID)
 }

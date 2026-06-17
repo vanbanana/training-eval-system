@@ -22,6 +22,7 @@ type RouterConfig struct {
 	ClassesHandler       *ClassesHandler
 	NotificationsHandler *NotificationsHandler
 	ChatHandler          *ChatHandler
+	AgentHandler         *AgentHandler
 	SimilarityHandler    *SimilarityHandler
 	TemplatesHandler     *TemplatesHandler
 	ImportsHandler       *ImportsHandler
@@ -222,6 +223,17 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Delete("/sessions/{id}", cfg.ChatHandler.DeleteSession)
 				r.Post("/stream", cfg.ChatHandler.Stream)
 			})
+
+			// Unified agent API (role-aware, all authenticated users)
+			if cfg.AgentHandler != nil {
+				r.Route("/agent", func(r chi.Router) {
+					r.Get("/sessions", cfg.AgentHandler.ListSessions)
+					r.Post("/sessions", cfg.AgentHandler.CreateSession)
+					r.Get("/sessions/{id}/messages", cfg.AgentHandler.GetMessages)
+					r.Delete("/sessions/{id}", cfg.AgentHandler.DeleteSession)
+					r.Post("/stream", cfg.AgentHandler.Stream)
+				})
+			}
 
 			r.Get("/dashboard", cfg.DashboardHandler.Get)
 

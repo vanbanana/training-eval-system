@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -242,18 +243,22 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 				flusher.Flush()
 			}
 
-			// Save assistant message
+			// Save assistant message (WithoutCancel survives client disconnect)
 			if req.SessionID > 0 {
+				saveContent := content
+				if len([]rune(saveContent)) > 500 {
+					saveContent = string([]rune(saveContent)[:497]) + "..."
+				}
 				asstMsg := &model.ChatMessage{
 					SessionID: req.SessionID,
 					Role:      "assistant",
-					Content:   content,
+					Content:   saveContent,
 				}
 				if resp.Usage != nil {
 					asstMsg.PromptTokens = resp.Usage.PromptTokens
 					asstMsg.CompletionTokens = resp.Usage.CompletionTokens
 				}
-				_ = h.svc.SendMessage(r.Context(), studentID, asstMsg)
+				_ = h.svc.SendMessage(context.WithoutCancel(r.Context()), studentID, asstMsg)
 			}
 			return
 		}
@@ -294,15 +299,19 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save assistant response
+	// Save assistant response (WithoutCancel survives client disconnect)
 	if req.SessionID > 0 && result != nil {
+		saveContent := result.Content
+		if len([]rune(saveContent)) > 500 {
+			saveContent = string([]rune(saveContent)[:497]) + "..."
+		}
 		asstMsg := &model.ChatMessage{
 			SessionID:        req.SessionID,
 			Role:             "assistant",
-			Content:          result.Content,
+			Content:          saveContent,
 			PromptTokens:     result.PromptTokens,
 			CompletionTokens: result.CompletionTokens,
 		}
-		_ = h.svc.SendMessage(r.Context(), studentID, asstMsg)
+		_ = h.svc.SendMessage(context.WithoutCancel(r.Context()), studentID, asstMsg)
 	}
 }

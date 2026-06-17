@@ -86,7 +86,7 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, auditRepo, lockout, testJWTSecret, time.Hour, 7*24*time.Hour)
 	userSvc := service.NewUserService(userRepo)
 	notifSvc := service.NewNotificationService(notifRepo, broker)
-	taskSvc := service.NewTaskService(taskRepo, notifSvc)
+	taskSvc := service.NewTaskService(taskRepo, classRepo, notifSvc)
 	uploadSvc := service.NewUploadService(uploadRepo, taskRepo, "./data/e2e_uploads", 50)
 	evalSvc := service.NewEvaluationService(evalRepo, taskRepo)
 	chatSvc := service.NewChatService(chatRepo)

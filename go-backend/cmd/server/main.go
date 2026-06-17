@@ -79,7 +79,7 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, auditRepo, lockout, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo)
 	notifSvc := service.NewNotificationService(notifRepo, broker)
-	taskSvc := service.NewTaskService(taskRepo, notifSvc)
+	taskSvc := service.NewTaskService(taskRepo, classRepo, notifSvc)
 	uploadSvc := service.NewUploadService(uploadRepo, taskRepo, cfg.UploadRoot, cfg.MaxUploadSizeMB)
 	evalSvc := service.NewEvaluationService(evalRepo, taskRepo)
 	chatSvc := service.NewChatService(chatRepo)
@@ -156,6 +156,8 @@ func main() {
 	var chatOrch *pipeline.ChatOrchestrator
 	if llmClient != nil {
 		chatOrch = pipeline.NewChatOrchestrator(llmClient, evalRepo, uploadRepo, taskRepo, profileRepo)
+		chatOrch.SetClassRepo(classRepo)
+		chatOrch.SetCourseRepo(courseRepo)
 	}
 	chatHandler := handler.NewChatHandler(chatSvc, broker, llmClient, chatOrch, uploadRepo, taskRepo, evalRepo)
 	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)

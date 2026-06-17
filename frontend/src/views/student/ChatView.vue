@@ -72,7 +72,7 @@ const collapsedTools = ref<Set<number>>(new Set())
 // ============ Session Management ============
 async function fetchSessions() {
   try {
-    const { data } = await axios.get('/api/chat/sessions')
+    const { data } = await axios.get('/api/agent/sessions')
     sessions.value = Array.isArray(data) ? data : []
     if (sessions.value.length > 0 && !activeSessionId.value) {
       await loadSession(sessions.value[0].id)
@@ -85,7 +85,7 @@ async function fetchSessions() {
 async function loadSession(id: number) {
   activeSessionId.value = id
   try {
-    const { data } = await axios.get(`/api/chat/sessions/${id}/messages`)
+    const { data } = await axios.get(`/api/agent/sessions/${id}/messages`)
     messages.value = (Array.isArray(data) ? data : []).map((m: { id: number; role: string; content: string; created_at: string }) => ({
       id: m.id,
       role: m.role as 'user' | 'assistant',
@@ -101,7 +101,7 @@ async function loadSession(id: number) {
 
 async function newSession() {
   try {
-    const { data } = await axios.post('/api/chat/sessions', { title: '新对话' })
+    const { data } = await axios.post('/api/agent/sessions', { title: '新对话', agent_role: 'student' })
     sessions.value.unshift({
       id: data.id,
       title: data.title ?? '新对话',
@@ -120,7 +120,7 @@ async function deleteSession() {
   if (!activeSessionId.value) return
   if (!confirm('删除当前会话？此操作不可撤销。')) return
   try {
-    await axios.delete(`/api/chat/sessions/${activeSessionId.value}`)
+    await axios.delete(`/api/agent/sessions/${activeSessionId.value}`)
     sessions.value = sessions.value.filter((s) => s.id !== activeSessionId.value)
     activeSessionId.value = null
     messages.value = []
@@ -183,16 +183,25 @@ async function send() {
     }
 
     streamAbort = new AbortController()
-    const response = await fetch('/api/chat/stream', {
+    const response = await fetch('/api/agent/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ session_id: activeSessionId.value, message: msg }),
+      body: JSON.stringify({ session_id: activeSessionId.value, message: msg, agent_role: 'student' }),
       signal: streamAbort.signal,
     })
 
+    if (response.status === 401) {
+      window.location.href = '/login'
+      return
+    }
+    if (response.status === 429) {
+      const errBody = await response.json().catch(() => null)
+      const errMsg = errBody?.message ?? '请求过于频繁，请稍后再试'
+      throw new Error(errMsg)
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
     // 更新 session ID

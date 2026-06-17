@@ -74,6 +74,7 @@ type TaskRepo interface {
 	SetClasses(ctx context.Context, taskID int64, classIDs []int64) error
 	GetDimensions(ctx context.Context, taskID int64) ([]model.Dimension, error)
 	SetDimensions(ctx context.Context, taskID int64, dims []model.Dimension) error
+	EnsureTaskHasClasses(ctx context.Context, taskID int64) error
 }
 
 // UploadRepo defines data access for file uploads.
@@ -203,4 +204,21 @@ type LLMConfigRepo interface {
 	Create(ctx context.Context, c *model.LLMConfig) error
 	Update(ctx context.Context, c *model.LLMConfig) error
 	Delete(ctx context.Context, id int64) error
+}
+
+// AgentRepo defines data access for role-aware agent sessions and messages.
+type AgentRepo interface {
+	GetSession(ctx context.Context, id int64) (*model.AgentSession, error)
+	ListSessions(ctx context.Context, ownerID int64) ([]model.AgentSession, error)
+	CreateSession(ctx context.Context, s *model.AgentSession) error
+	DeleteSession(ctx context.Context, id int64) error
+	GetMessages(ctx context.Context, sessionID int64, limit int) ([]model.AgentMessage, error)
+	CreateMessage(ctx context.Context, m *model.AgentMessage) error
+	CountTodayMessages(ctx context.Context, ownerID int64) (int, error)
+	CountSessionMessages(ctx context.Context, sessionID int64) (int, error)
+	UpdateSessionContext(ctx context.Context, sessionID int64, contextJSON string) error
+	// Legacy chat_sessions backward compatibility
+	ListLegacySessions(ctx context.Context, ownerID int64) ([]model.AgentSession, error)
+	GetLegacySession(ctx context.Context, id int64) (*model.AgentSession, error)
+	GetLegacyMessages(ctx context.Context, sessionID int64, limit int) ([]model.AgentMessage, error)
 }

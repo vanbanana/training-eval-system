@@ -13,6 +13,7 @@ import (
 
 	"github.com/smartedu/training-eval-system/internal/llm"
 	"github.com/smartedu/training-eval-system/internal/model"
+	"github.com/smartedu/training-eval-system/internal/repository"
 )
 
 // --- inline mock (avoids testutil → handler → pipeline cycle) ---
@@ -417,5 +418,261 @@ func TestToolRequiredParams(t *testing.T) {
 		if _, ok := toolRequiredParams[s.Function.Name]; !ok {
 			t.Errorf("tool %s not in toolRequiredParams map", s.Function.Name)
 		}
+	}
+}
+
+// ============================================================
+// T2.2 — Tool-level permission and data isolation tests
+// ============================================================
+
+// mockEvalRepo is a minimal EvaluationRepo mock for tool tests.
+type mockEvalRepo struct {
+	evals []model.Evaluation
+}
+
+func (m *mockEvalRepo) GetByID(_ context.Context, _ int64) (*model.Evaluation, error) {
+	return nil, errors.New("not implemented")
+}
+func (m *mockEvalRepo) List(_ context.Context, params EvalListParams) ([]model.Evaluation, int64, error) {
+	var filtered []model.Evaluation
+	for _, e := range m.evals {
+		if params.StudentID != nil && e.StudentID != *params.StudentID {
+			continue
+		}
+		if params.TaskID != nil && e.TaskID != *params.TaskID {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	return filtered, int64(len(filtered)), nil
+}
+func (m *mockEvalRepo) Create(_ context.Context, _ *model.Evaluation) error {
+	return errors.New("not implemented")
+}
+func (m *mockEvalRepo) Update(_ context.Context, _ *model.Evaluation) error {
+	return errors.New("not implemented")
+}
+func (m *mockEvalRepo) Delete(_ context.Context, _ int64) error {
+	return errors.New("not implemented")
+}
+func (m *mockEvalRepo) BatchConfirm(_ context.Context, _ []int64) error {
+	return errors.New("not implemented")
+}
+func (m *mockEvalRepo) SaveScores(_ context.Context, _ int64, _ []model.DimensionScore) error {
+	return errors.New("not implemented")
+}
+func (m *mockEvalRepo) AppendHistory(_ context.Context, _ *model.EvaluationHistory) error {
+	return errors.New("not implemented")
+}
+func (m *mockEvalRepo) GetHistory(_ context.Context, _ int64) ([]model.EvaluationHistory, error) {
+	return nil, errors.New("not implemented")
+}
+
+// EvalListParams type alias for the mock (pipeline imports repository already)
+type EvalListParams = repository.EvalListParams
+
+// TestT22_Tool01_GetParseSegmentNormal verifies get_parse_segment returns the
+// student's own text fragment when the topic matches raw text.
+func TestT22_Tool01_GetParseSegmentNormal(t *testing.T) {
+	co := NewChatOrchestrator(nil, nil, nil, nil, nil)
+	tctx := newTestCtx()
+
+	result := co.DispatchTool(context.Background(), "get_parse_segment",
+		map[string]any{"topic": "数据库"}, tctx)
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+	dataMap, ok := result.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map data, got %T", result.Data)
+	}
+	segments, ok := dataMap["segments"].([]map[string]any)
+	if !ok || len(segments) == 0 {
+		t.Fatal("expected non-empty segments")
+	}
+	text, _ := segments[0]["text"].(string)
+	if !strings.Contains(text, "数据库") {
+		t.Errorf("segment text should contain topic '数据库', got: %s", text)
+	}
+}
+
+// TestT22_Tool02_GetParseSegmentNoContext verifies get_parse_segment returns
+// Success=false with a descriptive error when ParseResult is nil.
+func TestT22_Tool02_GetParseSegmentNoContext(t *testing.T) {
+	co := NewChatOrchestrator(nil, nil, nil, nil, nil)
+	tctx := &ChatToolContext{
+		StudentID:   1,
+		ParseResult: nil, // no evaluation context
+	}
+
+	result := co.DispatchTool(context.Background(), "get_parse_segment",
+		map[string]any{"topic": "数据库"}, tctx)
+
+	if result.Success {
+		t.Fatal("expected failure when ParseResult is nil")
+	}
+	if !strings.Contains(result.Error, "no parsed content") {
+		t.Errorf("expected 'no parsed content' error, got: %s", result.Error)
+	}
+}
+
+// TestT22_Tool03_GetClassStatisticsAnonymized verifies get_class_statistics
+// returns only anonymous aggregate data (mean/median/p75) and never includes
+// username, display_name, or student_id fields.
+func TestT22_Tool03_GetClassStatisticsAnonymized(t *testing.T) {
+	taskID := int64(100)
+	score1, score2, score3 := 80.0, 90.0, 70.0
+	repo := &mockEvalRepo{
+		evals: []model.Evaluation{
+			{ID: 1, TaskID: taskID, StudentID: 1, Status: "graded", TotalScore: &score1},
+			{ID: 2, TaskID: taskID, StudentID: 2, Status: "graded", TotalScore: &score2},
+			{ID: 3, TaskID: taskID, StudentID: 3, Status: "graded", TotalScore: &score3},
+		},
+	}
+	co := NewChatOrchestrator(nil, repo, nil, nil, nil)
+	tctx := &ChatToolContext{
+		StudentID: 1,
+		Task:      &model.TrainingTask{ID: taskID, Name: "Test Task"},
+	}
+
+	result := co.DispatchTool(context.Background(), "get_class_statistics",
+		map[string]any{}, tctx)
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	// Serialize result data to JSON and verify no PII fields
+	dataJSON, err := json.Marshal(result.Data)
+	if err != nil {
+		t.Fatalf("marshal data: %v", err)
+	}
+	dataStr := string(dataJSON)
+
+	for _, forbidden := range []string{"username", "display_name", "student_id", "name"} {
+		if strings.Contains(strings.ToLower(dataStr), forbidden) {
+			t.Errorf("class statistics contains forbidden field %q in: %s", forbidden, dataStr)
+		}
+	}
+
+	// Verify aggregate fields are present
+	dataMap := result.Data.(map[string]any)
+	for _, key := range []string{"count", "mean", "median", "p75"} {
+		if _, ok := dataMap[key]; !ok {
+			t.Errorf("expected aggregate field %q in result", key)
+		}
+	}
+}
+
+// TestT22_Tool04_GetDimensionHistoryOnlyOwnData verifies get_dimension_history
+// only queries evals for the current student (StudentID in context) and does not
+// include other students' data.
+func TestT22_Tool04_GetDimensionHistoryOnlyOwnData(t *testing.T) {
+	studentA := int64(1)
+	studentB := int64(2)
+	scoreA, scoreB := 85.0, 95.0
+	repo := &mockEvalRepo{
+		evals: []model.Evaluation{
+			{ID: 1, StudentID: studentA, Status: "graded", Scores: []model.DimensionScore{
+				{DimensionID: 1, TeacherScore: &scoreA},
+			}},
+			{ID: 2, StudentID: studentB, Status: "graded", Scores: []model.DimensionScore{
+				{DimensionID: 1, TeacherScore: &scoreB},
+			}},
+		},
+	}
+	co := NewChatOrchestrator(nil, repo, nil, nil, nil)
+	tctx := &ChatToolContext{
+		StudentID: studentA,
+		Dimensions: []model.Dimension{
+			{ID: 1, Name: "代码质量"},
+		},
+	}
+
+	result := co.DispatchTool(context.Background(), "get_dimension_history",
+		map[string]any{"dimension_name": "代码质量"}, tctx)
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	dataMap := result.Data.(map[string]any)
+	scores, ok := dataMap["scores"].([]map[string]any)
+	if !ok {
+		t.Fatalf("expected scores slice, got %T", dataMap["scores"])
+	}
+
+	// Should only contain student A's score (85), not student B's (95)
+	for _, s := range scores {
+		score, _ := s["score"].(float64)
+		if score == scoreB {
+			t.Errorf("dimension history contains student B's score (%v), should only have student A's", score)
+		}
+	}
+	if len(scores) != 1 {
+		t.Errorf("expected exactly 1 score entry for student A, got %d", len(scores))
+	}
+}
+
+// TestT22_Tool05_ToolParamFuzz verifies that tools handle malformed parameters
+// (numeric, null, excessively long strings) without panicking and return
+// structured errors.
+func TestT22_Tool05_ToolParamFuzz(t *testing.T) {
+	co := NewChatOrchestrator(nil, nil, nil, nil, nil)
+	tctx := newTestCtx()
+
+	tests := []struct {
+		name     string
+		tool     string
+		args     map[string]any
+		wantFail bool
+	}{
+		{
+			name:     "dimension_name as number",
+			tool:     "get_dimension_detail",
+			args:     map[string]any{"dimension_name": float64(12345)},
+			wantFail: true, // type assertion to string fails → empty name → not found
+		},
+		{
+			name:     "dimension_name as null",
+			tool:     "get_dimension_detail",
+			args:     map[string]any{"dimension_name": nil},
+			wantFail: true, // required param validation catches nil
+		},
+		{
+			name:     "dimension_name excessively long",
+			tool:     "get_dimension_detail",
+			args:     map[string]any{"dimension_name": strings.Repeat("A", 10000)},
+			wantFail: true, // dimension not found → error
+		},
+		{
+			name:     "topic as number",
+			tool:     "get_parse_segment",
+			args:     map[string]any{"topic": float64(42)},
+			wantFail: false, // topic type assertion fails → empty string → returns full text
+		},
+		{
+			name:     "keyword as null",
+			tool:     "get_learning_resources",
+			args:     map[string]any{"keyword": nil},
+			wantFail: true, // required param validation catches nil
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Must not panic
+			result := co.DispatchTool(context.Background(), tc.tool, tc.args, tctx)
+			if result == nil {
+				t.Fatal("DispatchTool returned nil result")
+			}
+			if tc.wantFail && result.Success {
+				t.Errorf("expected failure for %s, got success", tc.name)
+			}
+			if tc.wantFail && result.Error == "" {
+				t.Errorf("expected error message for %s, got empty", tc.name)
+			}
+		})
 	}
 }
