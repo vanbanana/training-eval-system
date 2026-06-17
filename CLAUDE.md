@@ -178,9 +178,9 @@ src/
 - [ ] `go test ./... -count=1` 通过
 
 ### Epic 2: AI-first 评分模型
-- [ ] T2.1 — 最终分计算规则 (teacher_score overrides ai_score)
-- [ ] T2.2 — AI scoring 只写 ai_score (teacher_score=nil)
-- [ ] T2.3 — 教师覆盖维度分 PATCH 接口
+- [x] T2.1 — 最终分计算规则 (teacher_score overrides ai_score) — ComputeFinalScore
+- [x] T2.2 — AI scoring 只写 ai_score (teacher_score=nil) — scorer.go 已有
+- [x] T2.3 — 教师覆盖维度分 PATCH + OverrideTeacherScore
 - [ ] T2.4 — 前端详情页评分显示更新
 
 ### Epic 3: 一键批改
