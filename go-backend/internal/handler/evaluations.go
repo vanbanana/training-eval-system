@@ -97,29 +97,55 @@ func (h *EvaluationsHandler) BulkAction(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	ctx := r.Context()
+	var affected, failed int
+
 	switch req.Action {
 	case "confirm":
 		if err := h.svc.BatchConfirm(ctx, req.EvaluationIDs); err != nil {
-			Error(w, http.StatusInternalServerError, err.Error())
-			return
+			// BatchConfirm is all-or-nothing; on failure, fall back to per-item processing
+			// so we can still report partial success rather than failing the whole batch.
+			for _, id := range req.EvaluationIDs {
+				eval, gErr := h.svc.GetByID(ctx, id)
+				if gErr != nil {
+					failed++
+					continue
+				}
+				eval.Status = "confirmed"
+				if uErr := h.svc.Update(ctx, eval); uErr != nil {
+					failed++
+				} else {
+					affected++
+				}
+			}
+		} else {
+			affected = len(req.EvaluationIDs)
 		}
 	case "reject":
 		for _, id := range req.EvaluationIDs {
 			eval, err := h.svc.GetByID(ctx, id)
 			if err != nil {
+				failed++
 				continue
 			}
 			eval.Status = "rejected"
 			if req.Reason != "" {
 				eval.TeacherComment = req.Reason
 			}
-			_ = h.svc.Update(ctx, eval)
+			if err := h.svc.Update(ctx, eval); err != nil {
+				failed++
+			} else {
+				affected++
+			}
 		}
 	default:
 		Error(w, http.StatusBadRequest, "Unknown action: "+req.Action)
 		return
 	}
-	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Bulk action completed"})
+	JSON(w, http.StatusOK, map[string]any{
+		"message":  "Bulk action completed",
+		"affected": affected,
+		"failed":   failed,
+	})
 }
 
 func (h *EvaluationsHandler) UpdateDimensionScore(w http.ResponseWriter, r *http.Request) {

@@ -51,3 +51,27 @@ func ComputeDistribution(students []StudentReportRow) ScoreDistribution {
 	}
 	return dist
 }
+
+// ProfileReportData holds data for generating a student ability profile PDF.
+type ProfileReportData struct {
+	StudentName           string
+	StudentID             int64
+	RadarData             map[string]float64 // dimension name → average score
+	WeaknessList          []ProfileWeakness
+	ScoreTrend            []ProfileTrendPoint
+	SourceEvaluationCount int
+	ComputedAt            string
+}
+
+// ProfileWeakness represents one weak dimension with optional suggestion.
+type ProfileWeakness struct {
+	Name       string
+	Score      float64
+	Suggestion string
+}
+
+// ProfileTrendPoint represents one data point in the score trend.
+type ProfileTrendPoint struct {
+	Period string
+	Score  float64
+}

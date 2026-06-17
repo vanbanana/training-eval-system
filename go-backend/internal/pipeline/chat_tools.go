@@ -10,11 +10,18 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/smartedu/training-eval-system/internal/llm"
 	"github.com/smartedu/training-eval-system/internal/model"
 	"github.com/smartedu/training-eval-system/internal/repository"
 )
+
+// LLMCompleter is the interface for LLM completion calls.
+// Both *llm.Client (production) and test mocks satisfy this.
+type LLMCompleter interface {
+	Complete(ctx context.Context, messages []llm.ChatMessage, tools []llm.Tool) (*llm.ChatResponse, error)
+}
 
 // ChatToolContext holds all context needed by chat tools.
 type ChatToolContext struct {
@@ -35,7 +42,7 @@ type ToolResult struct {
 
 // ChatOrchestrator manages the Function Calling loop for AI chat.
 type ChatOrchestrator struct {
-	client      *llm.Client
+	client      LLMCompleter
 	evalRepo    repository.EvaluationRepo
 	uploadRepo  repository.UploadRepo
 	taskRepo    repository.TaskRepo
@@ -44,7 +51,7 @@ type ChatOrchestrator struct {
 
 // NewChatOrchestrator creates a chat orchestrator.
 func NewChatOrchestrator(
-	client *llm.Client,
+	client LLMCompleter,
 	evalRepo repository.EvaluationRepo,
 	uploadRepo repository.UploadRepo,
 	taskRepo repository.TaskRepo,
@@ -65,6 +72,19 @@ const MaxToolRounds = 5
 // MaxToolResultBytes limits tool result size.
 const MaxToolResultBytes = 8 * 1024
 
+// llmMaxRetries is the max number of LLM call retries per round.
+const llmMaxRetries = 2
+
+// llmRetryBaseDelay is the base delay for exponential backoff between retries.
+const llmRetryBaseDelay = 1 * time.Second
+
+// toolCallTimeout is the max duration for a single tool execution.
+const toolCallTimeout = 15 * time.Second
+
+// maxConsecutiveFailedRounds aborts the loop if this many consecutive rounds
+// have all tools fail.
+const maxConsecutiveFailedRounds = 2
+
 // ChatToolSchemas returns all 7 registered chat tools as OpenAI function definitions.
 func ChatToolSchemas() []llm.Tool {
 	return []llm.Tool{
@@ -78,8 +98,39 @@ func ChatToolSchemas() []llm.Tool {
 	}
 }
 
-// DispatchTool dispatches a tool call by name.
+// toolRequiredParams maps tool names to their required parameter names,
+// used for argument validation before dispatch.
+var toolRequiredParams = map[string][]string{
+	"get_parse_segment":             {"topic"},
+	"get_dimension_detail":          {"dimension_name"},
+	"get_dimension_history":         {"dimension_name"},
+	"get_excellent_sample_summary":  {},
+	"get_weakness_list":             {},
+	"get_class_statistics":          {},
+	"get_learning_resources":        {"keyword"},
+}
+
+// DispatchTool dispatches a tool call by name with argument validation.
 func (co *ChatOrchestrator) DispatchTool(ctx context.Context, name string, args map[string]any, tctx *ChatToolContext) *ToolResult {
+	// Validate required parameters
+	if required, ok := toolRequiredParams[name]; ok {
+		for _, param := range required {
+			v, exists := args[param]
+			if !exists || v == nil {
+				return &ToolResult{
+					Success: false,
+					Error:   fmt.Sprintf("工具 %s 缺少必填参数 %q，请提供该参数后重试", name, param),
+				}
+			}
+			if s, ok := v.(string); ok && s == "" {
+				return &ToolResult{
+					Success: false,
+					Error:   fmt.Sprintf("工具 %s 的参数 %q 不能为空，请提供有效值", name, param),
+				}
+			}
+		}
+	}
+
 	switch name {
 	case "get_parse_segment":
 		return co.getParseSegment(tctx, args)
@@ -100,7 +151,57 @@ func (co *ChatOrchestrator) DispatchTool(ctx context.Context, name string, args 
 	}
 }
 
-// Run executes the chat orchestrator loop: send message → check tool_calls → dispatch → repeat.
+// retryLLMCall calls Complete with exponential backoff retry.
+// Retries on transient errors (network, timeout, 5xx); gives up immediately
+// on permanent errors (4xx except 429).
+func (co *ChatOrchestrator) retryLLMCall(
+	ctx context.Context,
+	messages []llm.ChatMessage,
+	tools []llm.Tool,
+) (*llm.ChatResponse, error) {
+	var lastErr error
+	for attempt := 0; attempt <= llmMaxRetries; attempt++ {
+		if attempt > 0 {
+			delay := llmRetryBaseDelay * (1 << (attempt - 1)) // 1s, 2s
+			slog.Warn("llm retry",
+				"attempt", attempt+1,
+				"delay_ms", delay.Milliseconds(),
+				"error", lastErr.Error(),
+			)
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("context cancelled during retry backoff: %w", ctx.Err())
+			case <-time.After(delay):
+			}
+		}
+
+		resp, err := co.client.Complete(ctx, messages, tools)
+		if err == nil {
+			if attempt > 0 {
+				slog.Info("llm retry succeeded", "attempt", attempt+1)
+			}
+			return resp, nil
+		}
+		lastErr = err
+
+		errMsg := err.Error()
+		// Non-retryable: 4xx errors except 429 (rate limit)
+		if strings.Contains(errMsg, "status 4") && !strings.Contains(errMsg, "status 429") {
+			slog.Error("llm non-retryable error", "error", errMsg)
+			return nil, err
+		}
+
+		slog.Warn("llm call failed, will retry",
+			"attempt", attempt+1,
+			"max_retries", llmMaxRetries,
+			"error", errMsg,
+		)
+	}
+	return nil, fmt.Errorf("llm call failed after %d attempts: %w", llmMaxRetries+1, lastErr)
+}
+
+// Run executes the robust chat orchestrator loop with retry, tool timeout,
+// consecutive-error circuit breaking, and enhanced error feedback.
 func (co *ChatOrchestrator) Run(
 	ctx context.Context,
 	history []llm.ChatMessage,
@@ -124,13 +225,29 @@ func (co *ChatOrchestrator) Run(
 
 	tools := ChatToolSchemas()
 
+	// Track repeated tool failures across rounds for circuit breaking
+	consecutiveFailedRounds := 0
+	// Track which tools have failed twice in a row (to warn LLM)
+	repeatedFailures := map[string]int{}
+
 	for round := 0; round < MaxToolRounds; round++ {
-		resp, err := co.client.Complete(ctx, messages, tools)
+		// --- LLM call with retry ---
+		resp, err := co.retryLLMCall(ctx, messages, tools)
 		if err != nil {
+			slog.Error("chat orchestrator: all LLM retries exhausted", "round", round+1, "error", err.Error())
+			// Graceful degradation: if we already have conversation context,
+			// return a fallback message instead of failing.
+			if round > 0 {
+				return co.fallbackResponse(ctx, messages)
+			}
 			return nil, fmt.Errorf("chat orchestrator: LLM call failed: %w", err)
 		}
 
 		if len(resp.Choices) == 0 {
+			slog.Warn("chat orchestrator: empty LLM response", "round", round+1)
+			if round > 0 {
+				return co.fallbackResponse(ctx, messages)
+			}
 			return nil, fmt.Errorf("chat orchestrator: empty response")
 		}
 
@@ -146,23 +263,51 @@ func (co *ChatOrchestrator) Run(
 			return resp, nil
 		}
 
-		// Process tool calls
+		// --- Process tool calls ---
 		messages = append(messages, llm.ChatMessage{
 			Role:      "assistant",
 			ToolCalls: choice.Message.ToolCalls,
 		})
+
+		roundToolFailures := 0
+		roundToolTotal := len(choice.Message.ToolCalls)
 
 		for _, tc := range choice.Message.ToolCalls {
 			slog.Info("chat tool called", "tool", tc.Function.Name, "round", round+1)
 
 			var args map[string]any
 			if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
+				slog.Warn("tool argument parse failed", "tool", tc.Function.Name, "error", err.Error())
 				args = map[string]any{}
 			}
 
-			result := co.DispatchTool(ctx, tc.Function.Name, args, tctx)
+			// Dispatch with per-tool timeout
+			toolCtx, toolCancel := context.WithTimeout(ctx, toolCallTimeout)
+			result := co.DispatchTool(toolCtx, tc.Function.Name, args, tctx)
+			toolCancel()
+
 			if result == nil {
-				result = &ToolResult{Success: false, Error: "tool returned nil"}
+				result = &ToolResult{Success: false, Error: "tool returned nil result"}
+			}
+
+			// Track per-tool failure counts for repeated-failure warning
+			if !result.Success {
+				roundToolFailures++
+				repeatedFailures[tc.Function.Name]++
+			} else {
+				repeatedFailures[tc.Function.Name] = 0
+			}
+
+			// Enhanced error feedback: when a tool fails, prepend a clear
+			// instruction so the LLM knows to try something else.
+			if !result.Success {
+				hint := fmt.Sprintf("工具调用失败（%s）。", tc.Function.Name)
+				if repeatedFailures[tc.Function.Name] >= 2 {
+					hint += "该工具已多次失败，请不要再次调用它，尝试其他方式回答用户问题。"
+				} else {
+					hint += "请检查参数是否正确，或尝试使用其他工具。"
+				}
+				result.Error = hint + " 错误详情：" + result.Error
 			}
 
 			resultJSON, _ := json.Marshal(result)
@@ -177,15 +322,59 @@ func (co *ChatOrchestrator) Run(
 				ToolCallID: tc.ID,
 			})
 		}
+
+		// --- Consecutive-round failure tracking ---
+		if roundToolFailures == roundToolTotal {
+			consecutiveFailedRounds++
+			slog.Warn("all tools failed in round",
+				"round", round+1,
+				"consecutive_failed_rounds", consecutiveFailedRounds,
+			)
+			if consecutiveFailedRounds >= maxConsecutiveFailedRounds {
+				slog.Warn("circuit breaker: too many consecutive failed rounds, aborting loop")
+				break
+			}
+		} else {
+			consecutiveFailedRounds = 0
+		}
+
+		// Reset per-round failure map entries for tools that succeeded
+		for name := range repeatedFailures {
+			if repeatedFailures[name] > 0 && repeatedFailures[name] < 2 {
+				// Keep counting; only reset if tool wasn't called this round
+			}
+		}
 	}
 
-	// Max rounds reached — force final answer
-	messages = append(messages, llm.NewTextMessage("user", "请基于已有信息直接给出回答，不要再调用工具。"))
-	resp, err := co.client.Complete(ctx, messages, nil)
+	// Max rounds reached or circuit breaker tripped — force final answer
+	messages = append(messages, llm.NewTextMessage("user",
+		"请基于已有的工具返回结果直接给出回答。如果某些工具调用失败，请说明无法获取该部分数据，并基于已有信息尽力回答。不要再调用工具。"))
+	resp, err := co.retryLLMCall(ctx, messages, nil)
 	if err != nil {
-		return nil, fmt.Errorf("chat orchestrator: final call failed: %w", err)
+		return co.fallbackResponse(ctx, messages)
 	}
 	return resp, nil
+}
+
+// fallbackResponse generates a graceful degradation response when all retries fail.
+func (co *ChatOrchestrator) fallbackResponse(
+	ctx context.Context,
+	messages []llm.ChatMessage,
+) (*llm.ChatResponse, error) {
+	fallback := &llm.ChatResponse{
+		Choices: []llm.ChatChoice{
+			{
+				Index:        0,
+				FinishReason: "stop",
+				Message: llm.ChatMessage{
+					Role:    "assistant",
+					Content: "抱歉，系统暂时遇到了问题，无法完成查询。请稍后再试，或者换一种方式描述你的问题。",
+				},
+			},
+		},
+	}
+	slog.Warn("chat orchestrator: returned fallback response")
+	return fallback, nil
 }
 
 // BuildChatSystemPrompt creates the evaluation-aware system prompt.

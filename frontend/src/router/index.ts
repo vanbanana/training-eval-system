@@ -11,9 +11,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/forgot-password',
-    name: 'forgot-password',
-    component: () => import('@/views/auth/ForgotPasswordView.vue'),
-    meta: { public: true },
+    redirect: '/login',
   },
   {
     path: '/dashboard',

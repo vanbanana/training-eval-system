@@ -6,7 +6,7 @@ type SimilarityRecordResponse struct {
 	TaskID           int64    `json:"task_id"`
 	UploadAID        int64    `json:"upload_a_id"`
 	UploadBID        int64    `json:"upload_b_id"`
-	HammingDistance  int      `json:"hamming_distance"`
+	HammingDistance  *int     `json:"hamming_distance"`
 	CosineSimilarity *float64 `json:"cosine_similarity"`
 	State            string   `json:"state"`
 	ReviewedBy       *int64   `json:"reviewed_by"`
@@ -19,9 +19,13 @@ type SimilarityDecisionRequest struct {
 	Action string `json:"action"` // "confirmed" or "ignored"
 }
 
-// SegmentPairResponse is a similar text segment pair.
+// SegmentPairResponse is a similar text segment pair with position offsets.
 type SegmentPairResponse struct {
-	TextA      string  `json:"text_a"`
-	TextB      string  `json:"text_b"`
-	Similarity float64 `json:"similarity"`
+	AStart   int     `json:"a_start"`
+	AEnd     int     `json:"a_end"`
+	BStart   int     `json:"b_start"`
+	BEnd     int     `json:"b_end"`
+	SnippetA string  `json:"snippet_a"`
+	SnippetB string  `json:"snippet_b"`
+	Ratio    float64 `json:"ratio"`
 }

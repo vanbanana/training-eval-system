@@ -113,3 +113,36 @@ func (r *SQLiteNotificationRepo) UnreadCount(ctx context.Context, userID int64) 
 	err := r.db.Reader.QueryRowContext(ctx, "SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0", userID).Scan(&count)
 	return count, err
 }
+
+func (r *SQLiteNotificationRepo) GetPreferencesByUserID(ctx context.Context, userID int64) ([]model.NotificationPref, error) {
+	rows, err := r.db.Reader.QueryContext(ctx,
+		"SELECT id, user_id, event_type, enabled FROM notification_prefs WHERE user_id=?", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var prefs []model.NotificationPref
+	for rows.Next() {
+		var p model.NotificationPref
+		var enabled int
+		if err := rows.Scan(&p.ID, &p.UserID, &p.EventType, &enabled); err != nil {
+			return nil, err
+		}
+		p.Enabled = enabled != 0
+		prefs = append(prefs, p)
+	}
+	return prefs, rows.Err()
+}
+
+func (r *SQLiteNotificationRepo) UpsertPreference(ctx context.Context, pref *model.NotificationPref) error {
+	enabled := 0
+	if pref.Enabled {
+		enabled = 1
+	}
+	_, err := r.db.Writer.ExecContext(ctx,
+		`INSERT INTO notification_prefs (user_id, event_type, enabled)
+		 VALUES (?, ?, ?)
+		 ON CONFLICT(user_id, event_type) DO UPDATE SET enabled=excluded.enabled`,
+		pref.UserID, pref.EventType, enabled)
+	return err
+}

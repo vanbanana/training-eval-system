@@ -195,27 +195,20 @@ async function submitCreate() {
 }
 
 async function archiveCourse(c: Course) {
-  if (c.is_archived) {
-    toast({
-      description: '后端暂不支持取消归档，如需恢复请联系运维',
-      variant: 'warning',
-    })
-    return
-  }
+  const action = c.is_archived ? '取消归档' : '归档'
   const ok = await confirm({
-    title: '归档课程',
-    description: `确定归档「${c.name}」？归档后将不再展示在「开课中」列表`,
-    variant: 'destructive',
-    confirmText: '归档',
+    title: `${action}课程`,
+    description: `确定${action}「${c.name}」？`,
+    confirmText: action,
   })
   if (!ok) return
   try {
     await axios.patch(`/api/courses/${c.id}/archive`)
-    toast({ description: '课程已归档', variant: 'success' })
+    toast({ description: `课程已${action}`, variant: 'success' })
     await fetchCourses()
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-    toast({ description: msg ?? '归档失败', variant: 'destructive' })
+    toast({ description: msg ?? `${action}失败`, variant: 'destructive' })
   }
 }
 
@@ -378,13 +371,12 @@ function exportCourses() {
                   查看班级
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  :disabled="course.is_archived"
-                  class="text-danger focus:bg-danger-soft focus:text-danger"
+                  :class="course.is_archived ? 'text-primary focus:bg-primary-soft focus:text-primary' : 'text-danger focus:bg-danger-soft focus:text-danger'"
                   @select="archiveCourse(course)"
                 >
                   <Archive v-if="!course.is_archived" class="text-current" />
                   <ArchiveRestore v-else class="text-current" />
-                  {{ course.is_archived ? '恢复（不可用）' : '归档课程' }}
+                  {{ course.is_archived ? '取消归档' : '归档课程' }}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

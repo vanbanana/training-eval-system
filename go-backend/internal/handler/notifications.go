@@ -52,9 +52,31 @@ func (h *NotificationsHandler) MarkAllRead(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *NotificationsHandler) GetPreferences(w http.ResponseWriter, r *http.Request) {
-	JSON(w, http.StatusOK, dto.PreferencesResponse{})
+	claims := middleware.GetClaims(r.Context())
+	prefs, err := h.svc.GetPreferences(r.Context(), claims.Sub)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	JSON(w, http.StatusOK, dto.PreferencesResponse(prefs))
 }
 
 func (h *NotificationsHandler) UpdatePreferences(w http.ResponseWriter, r *http.Request) {
-	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Preferences updated"})
+	var req dto.UpdatePreferencesRequest
+	if err := Decode(r, &req); err != nil {
+		Error(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	claims := middleware.GetClaims(r.Context())
+	if err := h.svc.UpdatePreference(r.Context(), claims.Sub, req.EventType, req.Enabled); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// Return the full updated preferences map for convenience.
+	prefs, err := h.svc.GetPreferences(r.Context(), claims.Sub)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	JSON(w, http.StatusOK, dto.PreferencesResponse(prefs))
 }

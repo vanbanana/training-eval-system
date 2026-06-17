@@ -29,8 +29,6 @@ import {
   Wrench,
   CheckCircle2,
   XCircle,
-  Paperclip,
-  Image as ImageIcon,
 } from 'lucide-vue-next'
 
 // ============ Types ============
@@ -579,17 +577,9 @@ function autoResize(e: Event) {
 
         <!-- Enhanced Input Area -->
         <div class="px-5 py-4 bg-surface-2 border-t border-border">
-          <!-- Attachment bar (placeholder for future) -->
-          <div class="flex items-center gap-2 mb-2">
-            <button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground bg-surface border border-border rounded-md hover:border-primary hover:text-primary transition-colors" title="上传附件（即将支持）">
-              <Paperclip class="w-3 h-3" />
-              附件
-            </button>
-            <button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground bg-surface border border-border rounded-md hover:border-primary hover:text-primary transition-colors" title="上传图片（即将支持）">
-              <ImageIcon class="w-3 h-3" />
-              图片
-            </button>
-            <span class="ml-auto text-[10px] text-subtle-foreground">Ctrl+Enter 发送</span>
+          <!-- Keyboard shortcut hint -->
+          <div class="flex items-center justify-end mb-2">
+            <span class="text-[10px] text-subtle-foreground">Ctrl+Enter 发送</span>
           </div>
           <!-- Input -->
           <div class="flex items-end gap-3">

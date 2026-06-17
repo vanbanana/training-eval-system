@@ -87,7 +87,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
 	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
-	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc)
+	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc, taskSvc)
 	sseHandler := handler.NewSSEHandler(broker, TestJWTSecret)
 
 	// Router

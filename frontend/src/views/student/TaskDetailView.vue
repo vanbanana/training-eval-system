@@ -8,6 +8,7 @@ import FileUploader from '@/components/business/FileUploader.vue'
 import EvaluationProgressPanel from '@/components/business/EvaluationProgressPanel.vue'
 import { useToast } from '@/components/ui/toast'
 import { useCourseMap } from '@/composables/useCourseMap'
+import { useParseProgress } from '@/composables/useParseProgress'
 import { safeGet } from '@/lib/api-helpers'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -82,17 +83,16 @@ const verifyResults = ref<Record<number, VerifyResult | null>>({})
 const loading = ref(true)
 const triggering = ref<number | null>(null)
 
-// WebSocket 实时进度（stub - SSE 版本待接入）
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getProgress = (_id: number): {status:string;progress:number}|null => null
-const wsMessages = ref<{status:string;progress?:number}[]>([])
+// SSE 实时进度接入
+const uploadIds = computed(() => uploads.value.map(u => u.id))
+const { getProgress: sseGetProgress, messages: sseMessages } = useParseProgress(uploadIds)
 
-// 当 WebSocket 报告解析完成时自动刷新数据
+// 当 SSE 推送解析/评分完成事件时自动刷新数据
 watch(
-  () => wsMessages.value.length,
+  () => sseMessages.value.length,
   () => {
-    const last = wsMessages.value[wsMessages.value.length - 1]
-    if (last && (last.status === 'parsed' || last.status === 'failed')) {
+    const last = sseMessages.value[sseMessages.value.length - 1] as { status?: string } | undefined
+    if (last && (last.status === 'parsed' || last.status === 'failed' || last.status === 'scored')) {
       // 延迟 500ms 刷新，让后端有时间写入 DB
       setTimeout(() => fetchAll(), 500)
     }
@@ -213,16 +213,16 @@ function parseStatusBadge(status: string) {
   } as const)[status] ?? { label: '待解析', variant: 'secondary' as const }
 }
 
-/** 获取上传的实时状态（优先 WebSocket 推送，降级为 DB 状态） */
+/** 获取上传的实时状态（优先 SSE 推送，降级为 DB 状态） */
 function getUploadStatus(upload: Upload): string {
-  const wsProgress = getProgress(upload.id)
+  const wsProgress = sseGetProgress(upload.id)
   if (wsProgress) return wsProgress.status
   return upload.parse_status
 }
 
 /** 获取上传的实时进度百分比 */
 function getUploadProgress(upload: Upload): number | null {
-  const wsProgress = getProgress(upload.id)
+  const wsProgress = sseGetProgress(upload.id)
   if (wsProgress && wsProgress.status === 'parsing') return wsProgress.progress
   return null
 }

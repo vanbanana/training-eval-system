@@ -54,10 +54,7 @@ async function onSubmit() {
           </div>
         </div>
         <div class="field">
-          <div class="field-row">
-            <Label class="field-label">密码</Label>
-            <RouterLink to="/forgot-password" class="forgot-link">忘记密码?</RouterLink>
-          </div>
+          <Label class="field-label">密码</Label>
           <div class="field-input">
             <Lock class="field-icon" />
             <input v-model="password" :type="showPwd ? 'text' : 'password'" placeholder="请输入密码" autocomplete="current-password" />
@@ -92,9 +89,6 @@ async function onSubmit() {
 .login-header p { font-size: 13px; color: #999; margin-top: 6px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field-label { font-size: 13px; font-weight: 500; color: #555; }
-.field-row { display: flex; justify-content: space-between; align-items: center; }
-.forgot-link { font-size: 12px; color: #4361ee; text-decoration: none; }
-.forgot-link:hover { text-decoration: underline; }
 .field-input { display: flex; align-items: center; gap: 10px; height: 44px; border-bottom: 1px solid #e5e5e5; padding: 0 4px; transition: border-color 0.2s; }
 .field-input:focus-within { border-color: #4361ee; }
 .field-icon { width: 16px; height: 16px; color: #ccc; flex-shrink: 0; }

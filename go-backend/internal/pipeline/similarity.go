@@ -113,11 +113,12 @@ func (sc *SimilarityChecker) Check(ctx context.Context, uploadID int64, taskID i
 			state = "ignored"
 		}
 
+		distCopy := dist
 		record := &model.SimilarityRecord{
 			TaskID:           taskID,
 			UploadAID:        aID,
 			UploadBID:        bID,
-			HammingDistance:  dist,
+			HammingDistance:  &distCopy,
 			CosineSimilarity: &cosineSim,
 			State:            state,
 		}

@@ -160,7 +160,7 @@ func main() {
 	chatHandler := handler.NewChatHandler(chatSvc, broker, llmClient, chatOrch, uploadRepo, taskRepo, evalRepo)
 	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
 	templatesHandler := handler.NewTemplatesHandler(templateSvc, taskSvc)
-	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc)
+	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc, taskSvc)
 	dashboardHandler := handler.NewDashboardHandler(db)
 	reportsHandler := handler.NewReportsHandler(evalSvc, taskSvc, userSvc, db)
 	profilesHandler := handler.NewProfilesHandler(profileSvc, db, llmClient)
@@ -169,6 +169,8 @@ func main() {
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
 	sseHandler := handler.NewSSEHandler(broker, cfg.JWTSecret)
+	healthHandler := handler.NewHealthHandler(db)
+	staticHandler := handler.NewStaticHandler(cfg.DistDir)
 
 	// 9. Build router
 	router := handler.NewRouter(handler.RouterConfig{
@@ -195,6 +197,8 @@ func main() {
 		AccountHandler:       accountHandler,
 		ParseHandler:         parseHandler,
 		SSEHandler:           sseHandler,
+		HealthHandler:        healthHandler,
+		StaticHandler:        staticHandler,
 	})
 
 	// 10. Start HTTP server

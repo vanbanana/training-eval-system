@@ -149,7 +149,19 @@ const radarPolygons = computed(() => {
 })
 
 async function exportPdf() {
-  toast({ description: '能力画像 PDF 暂未在后端开放，建议先在评价详情导出单次报告', variant: 'warning' })
+  if (!auth.user) return
+  try {
+    const { data } = await axios.get(`/api/profiles/student/${auth.user.id}/pdf`, { responseType: 'blob' })
+    const url = URL.createObjectURL(data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `profile_${auth.user.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast({ description: '画像 PDF 已开始下载', variant: 'success' })
+  } catch {
+    toast({ description: 'PDF 导出失败，请稍后重试', variant: 'destructive' })
+  }
 }
 
 function copyShareLink() {

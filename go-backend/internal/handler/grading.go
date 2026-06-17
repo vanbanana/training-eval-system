@@ -216,7 +216,18 @@ func (h *GradingHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Evaluation confirmed"})
+	// Return updated evaluation state so frontend can display the confirmed score.
+	updated, err := h.evalSvc.GetByID(ctx, id)
+	if err != nil {
+		// BatchConfirm succeeded but re-fetch failed; return a minimal success response.
+		JSON(w, http.StatusOK, map[string]any{"message": "Evaluation confirmed"})
+		return
+	}
+	JSON(w, http.StatusOK, map[string]any{
+		"message":     "Evaluation confirmed",
+		"total_score": updated.TotalScore,
+		"status":      updated.Status,
+	})
 }
 
 func (h *GradingHandler) Reject(w http.ResponseWriter, r *http.Request) {
@@ -243,5 +254,9 @@ func (h *GradingHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Evaluation rejected"})
+	JSON(w, http.StatusOK, map[string]any{
+		"message":     "Evaluation rejected",
+		"total_score": eval.TotalScore,
+		"status":      eval.Status,
+	})
 }

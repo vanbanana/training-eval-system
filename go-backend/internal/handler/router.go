@@ -33,6 +33,8 @@ type RouterConfig struct {
 	AccountHandler       *AccountHandler
 	SSEHandler           *SSEHandler
 	ParseHandler         *ParseHandler
+	HealthHandler        *HealthHandler
+	StaticHandler        *StaticHandler
 }
 
 // NewRouter creates the chi router with all routes and middleware.
@@ -46,10 +48,14 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	r.Use(middleware.CORS(cfg.CORSOrigins))
 	r.Use(middleware.SecurityHeaders)
 
-	// Health check (public)
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		JSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
+	// Health check (public) — uses HealthHandler for DB connectivity check
+	if cfg.HealthHandler != nil {
+		r.Get("/healthz", cfg.HealthHandler.Health)
+	} else {
+		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		})
+	}
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
@@ -98,10 +104,19 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			})
 
 			r.Route("/imports", func(r chi.Router) {
-				r.Use(middleware.RequireRole("admin"))
-				r.Post("/users", cfg.ImportsHandler.ImportUsers)
-				r.Post("/students", cfg.ImportsHandler.ImportStudents)
-				r.Get("/template/user.xlsx", cfg.ImportsHandler.DownloadTemplate)
+				// Admin-only user/student imports
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Post("/users", cfg.ImportsHandler.ImportUsers)
+					r.Post("/students", cfg.ImportsHandler.ImportStudents)
+					r.Get("/template/user.xlsx", cfg.ImportsHandler.DownloadTemplate)
+				})
+				// Teacher+admin task imports
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin", "teacher"))
+					r.Post("/tasks", cfg.ImportsHandler.ImportTasks)
+					r.Get("/template/task.xlsx", cfg.ImportsHandler.DownloadTaskTemplate)
+				})
 			})
 
 			// Teacher + Admin routes (write operations)
@@ -212,6 +227,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 			r.Route("/profiles", func(r chi.Router) {
 				r.Get("/student/{userId}", cfg.ProfilesHandler.GetStudent)
+				r.Get("/student/{userId}/pdf", cfg.ProfilesHandler.ExportPDF)
 				r.Get("/school", cfg.ProfilesHandler.GetSchool)
 				r.Get("/course/{courseId}", cfg.ProfilesHandler.GetCourse)
 			})
@@ -228,6 +244,11 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			r.Get("/sse/events", cfg.SSEHandler.Events)
 		})
 	})
+
+	// SPA fallback: serve index.html for unmatched routes (enables client-side routing)
+	if cfg.StaticHandler != nil {
+		r.NotFound(cfg.StaticHandler.ServeHTTP)
+	}
 
 	return r
 }

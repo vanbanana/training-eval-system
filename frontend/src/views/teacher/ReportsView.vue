@@ -75,23 +75,26 @@ watch(
   { immediate: true },
 )
 
-async function exportFile(taskId: number, format: 'pdf' | 'xlsx' | 'csv') {
+async function exportFile(taskId: number, format: 'pdf' | 'xlsx' | 'task') {
   exportingId.value = taskId
   exportingFormat.value = format
   try {
     const url = format === 'pdf'
       ? `/api/reports/statistics/${taskId}`
-      : format === 'csv'
+      : format === 'task'
         ? `/api/reports/task/${taskId}/csv`
         : `/api/reports/statistics/${taskId}/xlsx`
     const { data } = await axios.get(url, { responseType: 'blob' })
     const blobUrl = URL.createObjectURL(data)
     const a = document.createElement('a')
     a.href = blobUrl
-    a.download = `report_task_${taskId}.${format}`
+    a.download = format === 'task'
+      ? `report_task_${taskId}.xlsx`
+      : `report_task_${taskId}.${format}`
     a.click()
     URL.revokeObjectURL(blobUrl)
-    toast({ description: `已导出 ${format.toUpperCase()}${format === 'xlsx' ? ' 统计报表' : ''}`, variant: 'success' })
+    const label = format === 'task' ? 'Excel' : format.toUpperCase()
+    toast({ description: `已导出 ${label}${format === 'xlsx' ? ' 统计报表' : ''}`, variant: 'success' })
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     toast({ description: msg ?? '导出失败', variant: 'destructive' })
@@ -172,11 +175,11 @@ function statusLabel(s: string) {
           <Button
             variant="outline"
             size="sm"
-            :disabled="exportingId === t.id && exportingFormat === 'csv'"
-            @click="exportFile(t.id, 'csv')"
+            :disabled="exportingId === t.id && exportingFormat === 'task'"
+            @click="exportFile(t.id, 'task')"
           >
             <FileText class="w-3.5 h-3.5" />
-            CSV
+            Excel
           </Button>
           <Button
             variant="outline"

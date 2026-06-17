@@ -526,23 +526,23 @@ func (o *Orchestrator) parseImage(ctx context.Context, storagePath string, fileT
 // --- SSE helpers ---
 
 func (o *Orchestrator) publishParseProgress(userID, uploadID int64, status, errMsg string) {
-	payload := map[string]any{"upload_id": uploadID, "status": status}
+	payload := map[string]any{"upload_id": uploadID, "status": status, "stage": "parse"}
 	if errMsg != "" {
 		payload["error"] = errMsg
 	}
 	data, _ := json.Marshal(payload)
 	o.broker.Publish(sse.Event{
 		UserID: userID,
-		Type:   "parse_progress",
+		Type:   "progress",
 		Data:   string(data),
 	})
 }
 
 func (o *Orchestrator) publishEvalProgress(userID, uploadID int64, status string) {
-	data, _ := json.Marshal(map[string]any{"upload_id": uploadID, "status": status})
+	data, _ := json.Marshal(map[string]any{"upload_id": uploadID, "status": status, "stage": "eval"})
 	o.broker.Publish(sse.Event{
 		UserID: userID,
-		Type:   "eval_progress",
+		Type:   "progress",
 		Data:   string(data),
 	})
 }

@@ -30,8 +30,6 @@ import {
   Check,
   Plus,
   Info,
-  ScrollText,
-  RefreshCw,
 } from 'lucide-vue-next'
 
 interface LlmConfigRecord {
@@ -70,9 +68,6 @@ const timeout = ref('60')
 // Custom provider dialog
 const showCustomDialog = ref(false)
 const customForm = ref({ key: '', label: '', url: '' })
-
-// Logs dialog (placeholder until backend exposes)
-const showLogsDialog = ref(false)
 
 const builtinProviders = [
   { key: 'tongyi', label: '通义千问', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
@@ -212,10 +207,6 @@ function saveCustomProvider() {
           <span class="w-1.5 h-1.5 bg-success rounded-full mr-1.5 animate-pulse" />
           服务正常 · {{ configs[0]?.provider }}
         </Badge>
-        <Button variant="outline" @click="showLogsDialog = true">
-          <ScrollText class="w-4 h-4" />
-          调用日志
-        </Button>
         <Button :disabled="saving || loading" @click="saveConfig">
           {{ saving ? '保存中...' : '保存配置' }}
         </Button>
@@ -385,40 +376,6 @@ function saveCustomProvider() {
           </div>
         </Card>
 
-        <Card class="p-5">
-          <div class="flex justify-between items-center mb-3.5">
-            <span class="text-sm font-semibold text-ink">今日调用</span>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <button class="text-xs text-primary font-medium hover:underline flex items-center gap-1" @click="showLogsDialog = true">
-                  详情
-                  <RefreshCw class="w-3 h-3" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>计数器尚未通过 HTTP 端点开放，详见后端 app/llm/metrics.py（Epic 31 接入）</TooltipContent>
-            </Tooltip>
-          </div>
-          <div class="grid grid-cols-2 gap-2.5">
-            <div class="flex flex-col gap-0.5 p-3 bg-surface-2 rounded-md">
-              <span class="text-[11px] text-muted-foreground">总请求数</span>
-              <span class="text-lg font-bold text-ink num-tabular">—</span>
-            </div>
-            <div class="flex flex-col gap-0.5 p-3 bg-surface-2 rounded-md">
-              <span class="text-[11px] text-muted-foreground">平均延迟</span>
-              <span class="text-lg font-bold text-ink num-tabular">—</span>
-            </div>
-            <div class="flex flex-col gap-0.5 p-3 bg-surface-2 rounded-md">
-              <span class="text-[11px] text-muted-foreground">总 tokens</span>
-              <span class="text-lg font-bold text-ink num-tabular">—</span>
-            </div>
-            <div class="flex flex-col gap-0.5 p-3 bg-surface-2 rounded-md">
-              <span class="text-[11px] text-muted-foreground">失败次数</span>
-              <span class="text-lg font-bold text-accent num-tabular">0</span>
-            </div>
-          </div>
-          <p class="mt-2 text-[11px] text-muted-foreground">数据由 LLM 调用埋点采集，HTTP 接口 Epic 31 开放</p>
-        </Card>
-
         <div class="bg-info-soft border border-info rounded-lg p-[18px] flex flex-col gap-2.5">
           <div class="flex items-center gap-2 text-[13px] font-semibold text-info">
             <Info class="w-4 h-4" />
@@ -454,24 +411,6 @@ function saveCustomProvider() {
           <Button variant="outline" @click="showCustomDialog = false">取消</Button>
           <Button @click="saveCustomProvider">添加</Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Logs Dialog -->
-    <Dialog v-model:open="showLogsDialog">
-      <DialogContent class="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>调用日志</DialogTitle>
-          <DialogDescription>查看最近的 LLM 调用记录</DialogDescription>
-        </DialogHeader>
-        <div class="border border-border rounded-md p-6 text-center text-sm text-muted-foreground">
-          <Info class="w-6 h-6 mx-auto mb-2 text-info" />
-          <p>调用日志接口预计在 Epic 31 阶段统一暴露。</p>
-          <p class="mt-1">当前可在「审计日志」页面按 <code class="font-mono bg-surface-2 px-1 rounded">action=llm.call</code> 过滤查看。</p>
-          <Button variant="outline" class="mt-3" as-child>
-            <RouterLink to="/admin/audit?action=llm.call">前往审计日志</RouterLink>
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   </AppShell>

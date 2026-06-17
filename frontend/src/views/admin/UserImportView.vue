@@ -148,9 +148,9 @@ async function submitImport() {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     importResult.value = {
-      created: data.created ?? data.success ?? 0,
-      skipped: data.skipped ?? Math.max(0, (data.total ?? 0) - (data.success ?? 0) - (data.failed ?? 0)),
-      errors: data.errors ?? (data.failed ? [`后端报告失败 ${data.failed} 条，请到审计日志查看`] : []),
+      created: data.success_count ?? 0,
+      skipped: (data.total_count ?? 0) - (data.success_count ?? 0) - (data.failed_count ?? 0),
+      errors: data.failed_count ? [`后端报告失败 ${data.failed_count} 条，请到审计日志查看`] : [],
     }
     currentStep.value = 3
     toast('success', `导入完成：成功 ${importResult.value.created} 条`)

@@ -115,9 +115,9 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 			token := delta.Choices[0].Delta.Content
 			content.WriteString(token)
 
-			// Forward token to client as SSE
-			tokenJSON, _ := json.Marshal(map[string]string{"content": token})
-			fmt.Fprintf(w, "event: text\ndata: %s\n\n", tokenJSON)
+			// Forward token to client as SSE (unnamed event; type is in JSON body)
+			tokenJSON, _ := json.Marshal(map[string]string{"type": "text", "content": token})
+			fmt.Fprintf(w, "data: %s\n\n", tokenJSON)
 			if hasFlusher {
 				flusher.Flush()
 			}
@@ -131,17 +131,17 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 	}
 
 	if err := scanner.Err(); err != nil {
-		// Send error event to client
-		errJSON, _ := json.Marshal(map[string]string{"code": "STREAM_ERROR", "message": err.Error()})
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", errJSON)
+		// Send error event to client (unnamed event; type is in JSON body)
+		errJSON, _ := json.Marshal(map[string]string{"type": "error", "code": "STREAM_ERROR", "message": err.Error()})
+		fmt.Fprintf(w, "data: %s\n\n", errJSON)
 		if hasFlusher {
 			flusher.Flush()
 		}
 		return nil, fmt.Errorf("llm: stream read error: %w", err)
 	}
 
-	// Send done event
-	fmt.Fprintf(w, "event: done\ndata: {}\n\n")
+	// Send done event (unnamed event; type is in JSON body)
+	fmt.Fprintf(w, "data: {\"type\":\"done\"}\n\n")
 	if hasFlusher {
 		flusher.Flush()
 	}

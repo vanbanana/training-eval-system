@@ -127,18 +127,19 @@ func (h *SimilarityHandler) UpdateDecision(w http.ResponseWriter, r *http.Reques
 
 // computeSegmentPairs finds the most similar sentence pairs between two texts
 // using SimHash hamming distance at the sentence level.
+// Returns pairs with byte-offset positions in the original texts.
 func computeSegmentPairs(textA, textB string) []dto.SegmentPairResponse {
-	segsA := splitSentences(textA)
-	segsB := splitSentences(textB)
+	segsA := splitSentencesWithPos(textA)
+	segsB := splitSentencesWithPos(textB)
 
 	const maxPairs = 20
 	var pairs []dto.SegmentPairResponse
 	for _, a := range segsA {
-		ha := similarity.SimHash(a)
+		ha := similarity.SimHash(a.text)
 		bestSim := 0.0
-		bestB := ""
+		var bestB sentenceInfo
 		for _, b := range segsB {
-			hb := similarity.SimHash(b)
+			hb := similarity.SimHash(b.text)
 			dist := similarity.HammingDistance(ha, hb)
 			sim := 1.0 - float64(dist)/64.0
 			if sim > bestSim {
@@ -146,12 +147,20 @@ func computeSegmentPairs(textA, textB string) []dto.SegmentPairResponse {
 				bestB = b
 			}
 		}
-		if bestSim >= 0.75 && bestB != "" {
-			pairs = append(pairs, dto.SegmentPairResponse{TextA: a, TextB: bestB, Similarity: bestSim})
+		if bestSim >= 0.75 && bestB.text != "" {
+			pairs = append(pairs, dto.SegmentPairResponse{
+				AStart:   a.start,
+				AEnd:     a.end,
+				BStart:   bestB.start,
+				BEnd:     bestB.end,
+				SnippetA: a.text,
+				SnippetB: bestB.text,
+				Ratio:    bestSim,
+			})
 		}
 	}
 
-	sort.Slice(pairs, func(i, j int) bool { return pairs[i].Similarity > pairs[j].Similarity })
+	sort.Slice(pairs, func(i, j int) bool { return pairs[i].Ratio > pairs[j].Ratio })
 	if len(pairs) > maxPairs {
 		pairs = pairs[:maxPairs]
 	}
@@ -161,20 +170,41 @@ func computeSegmentPairs(textA, textB string) []dto.SegmentPairResponse {
 	return pairs
 }
 
-// splitSentences splits text into non-trivial sentences on common CJK/ASCII delimiters.
-func splitSentences(text string) []string {
-	fields := strings.FieldsFunc(text, func(rc rune) bool {
+type sentenceInfo struct {
+	text  string
+	start int
+	end   int
+}
+
+// splitSentencesWithPos splits text into non-trivial sentences on common CJK/ASCII delimiters,
+// returning each sentence along with its byte-offset range in the original text.
+func splitSentencesWithPos(text string) []sentenceInfo {
+	delimiters := func(rc rune) bool {
 		switch rc {
 		case '。', '！', '？', '\n', '.', '!', '?', ';', '；':
 			return true
 		}
 		return false
-	})
-	var out []string
-	for _, f := range fields {
-		s := strings.TrimSpace(f)
-		if len([]rune(s)) >= 8 { // ignore very short fragments
-			out = append(out, s)
+	}
+
+	var out []sentenceInfo
+	pos := 0
+	for pos < len(text) {
+		// Skip leading delimiters
+		for pos < len(text) && delimiters(rune(text[pos])) {
+			pos++
+		}
+		if pos >= len(text) {
+			break
+		}
+		start := pos
+		// Find next delimiter
+		for pos < len(text) && !delimiters(rune(text[pos])) {
+			pos++
+		}
+		seg := strings.TrimSpace(text[start:pos])
+		if len([]rune(seg)) >= 8 { // ignore very short fragments
+			out = append(out, sentenceInfo{text: seg, start: start, end: pos})
 		}
 	}
 	return out

@@ -212,14 +212,14 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 			slog.Error("chat orchestrator failed", "error", err.Error())
 			// Fall through to basic streaming
 		} else if resp != nil && len(resp.Choices) > 0 && resp.Choices[0].Message.Content != "" {
-			// Stream the response token by token
+			// Stream the response token by token (unnamed events; type is in JSON body)
 			content := resp.Choices[0].Message.Content
-			tokenJSON, _ := json.Marshal(map[string]string{"content": content})
-			fmt.Fprintf(w, "event: text\ndata: %s\n\n", tokenJSON)
+			tokenJSON, _ := json.Marshal(map[string]string{"type": "text", "content": content})
+			fmt.Fprintf(w, "data: %s\n\n", tokenJSON)
 			if hasFlusher {
 				flusher.Flush()
 			}
-			fmt.Fprintf(w, "event: done\ndata: {}\n\n")
+			fmt.Fprintf(w, "data: {\"type\":\"done\"}\n\n")
 			if hasFlusher {
 				flusher.Flush()
 			}
@@ -243,11 +243,11 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	// --- Fallback: basic streaming without orchestrator ---
 	if h.llmClient == nil {
-		fmt.Fprintf(w, "event: text\ndata: {\"content\":\"AI 助手暂未配置，请联系管理员在 LLM 配置页面设置 API Key。\"}\n\n")
+		fmt.Fprintf(w, "data: {\"type\":\"text\",\"content\":\"AI 助手暂未配置，请联系管理员在 LLM 配置页面设置 API Key。\"}\n\n")
 		if hasFlusher {
 			flusher.Flush()
 		}
-		fmt.Fprintf(w, "event: done\ndata: {}\n\n")
+		fmt.Fprintf(w, "data: {\"type\":\"done\"}\n\n")
 		if hasFlusher {
 			flusher.Flush()
 		}

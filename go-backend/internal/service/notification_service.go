@@ -35,6 +35,28 @@ func (s *NotificationService) UnreadCount(ctx context.Context, userID int64) (in
 	return s.repo.UnreadCount(ctx, userID)
 }
 
+// GetPreferences returns a map of event_type → enabled for the given user.
+func (s *NotificationService) GetPreferences(ctx context.Context, userID int64) (map[string]bool, error) {
+	prefs, err := s.repo.GetPreferencesByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]bool, len(prefs))
+	for _, p := range prefs {
+		result[p.EventType] = p.Enabled
+	}
+	return result, nil
+}
+
+// UpdatePreference upserts a single notification preference.
+func (s *NotificationService) UpdatePreference(ctx context.Context, userID int64, eventType string, enabled bool) error {
+	return s.repo.UpsertPreference(ctx, &model.NotificationPref{
+		UserID:    userID,
+		EventType: eventType,
+		Enabled:   enabled,
+	})
+}
+
 // Send creates a notification and pushes it via SSE.
 func (s *NotificationService) Send(ctx context.Context, n *model.Notification) error {
 	if err := s.repo.Create(ctx, n); err != nil {

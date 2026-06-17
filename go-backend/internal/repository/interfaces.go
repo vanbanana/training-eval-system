@@ -131,6 +131,9 @@ type NotificationRepo interface {
 	MarkRead(ctx context.Context, id int64) error
 	MarkAllRead(ctx context.Context, userID int64) error
 	UnreadCount(ctx context.Context, userID int64) (int64, error)
+	// Preferences
+	GetPreferencesByUserID(ctx context.Context, userID int64) ([]model.NotificationPref, error)
+	UpsertPreference(ctx context.Context, pref *model.NotificationPref) error
 }
 
 // ChatRepo defines data access for chat sessions and messages.

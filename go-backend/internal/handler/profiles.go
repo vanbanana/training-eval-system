@@ -9,6 +9,7 @@ import (
 	"github.com/smartedu/training-eval-system/internal/dto"
 	"github.com/smartedu/training-eval-system/internal/llm"
 	"github.com/smartedu/training-eval-system/internal/middleware"
+	"github.com/smartedu/training-eval-system/internal/report"
 	"github.com/smartedu/training-eval-system/internal/service"
 	"github.com/smartedu/training-eval-system/internal/store"
 
@@ -44,6 +45,105 @@ func (h *ProfilesHandler) GetStudent(w http.ResponseWriter, r *http.Request) {
 		SourceEvaluationCount: profile.SourceEvaluationCount,
 		ComputedAt:            profile.ComputedAt.Format("2006-01-02T15:04:05Z07:00"),
 	})
+}
+
+// ExportPDF generates a student ability profile PDF report.
+func (h *ProfilesHandler) ExportPDF(w http.ResponseWriter, r *http.Request) {
+	id, err := PathInt64(r, "userId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+	ctx := r.Context()
+
+	profile, err := h.svc.GetByStudentID(ctx, id)
+	if err != nil || profile == nil {
+		Error(w, http.StatusNotFound, "Profile not found")
+		return
+	}
+
+	// Resolve student display name
+	var studentName string
+	_ = h.db.Reader.QueryRowContext(ctx, "SELECT display_name FROM users WHERE id=?", id).Scan(&studentName)
+	if studentName == "" {
+		studentName = fmt.Sprintf("Student_%d", id)
+	}
+
+	// Parse radar_data: map[string]float64
+	radarData, _ := profile.RadarData.(map[string]float64)
+	if radarData == nil {
+		// Try JSON round-trip for any-typed data
+		radarData = parseRadarData(profile.RadarData)
+	}
+
+	// Parse weakness_list: []map[string]any → []ProfileWeakness
+	var weaknesses []report.ProfileWeakness
+	if wl, ok := profile.WeaknessList.([]map[string]any); ok {
+		for _, w := range wl {
+			pw := report.ProfileWeakness{}
+			if name, ok := w["name"].(string); ok {
+				pw.Name = name
+			}
+			if score, ok := w["score"].(float64); ok {
+				pw.Score = score
+			}
+			if sug, ok := w["suggestion"].(string); ok {
+				pw.Suggestion = sug
+			}
+			weaknesses = append(weaknesses, pw)
+		}
+	}
+
+	// Parse score_trend: []map[string]any → []ProfileTrendPoint
+	var trend []report.ProfileTrendPoint
+	if st, ok := profile.ScoreTrend.([]map[string]any); ok {
+		for _, pt := range st {
+			tp := report.ProfileTrendPoint{}
+			if d, ok := pt["date"].(string); ok {
+				tp.Period = d
+			} else if p, ok := pt["period"].(string); ok {
+				tp.Period = p
+			}
+			if s, ok := pt["score"].(float64); ok {
+				tp.Score = s
+			}
+			trend = append(trend, tp)
+		}
+	}
+
+	data := &report.ProfileReportData{
+		StudentName:           studentName,
+		StudentID:             id,
+		RadarData:             radarData,
+		WeaknessList:          weaknesses,
+		ScoreTrend:            trend,
+		SourceEvaluationCount: profile.SourceEvaluationCount,
+		ComputedAt:            profile.ComputedAt.Format("2006-01-02"),
+	}
+
+	exporter := &report.PDFExporter{}
+	pdfBytes, err := exporter.ExportProfileReport(data)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "Failed to generate PDF")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="profile_%d.pdf"`, id))
+	w.Write(pdfBytes)
+}
+
+// parseRadarData attempts to convert any-typed radar data to map[string]float64.
+func parseRadarData(raw any) map[string]float64 {
+	result := make(map[string]float64)
+	if m, ok := raw.(map[string]any); ok {
+		for k, v := range m {
+			if f, ok := v.(float64); ok {
+				result[k] = f
+			}
+		}
+	}
+	return result
 }
 
 // GetSchool returns school-level teaching quality profile with LLM summary (requirement 14).

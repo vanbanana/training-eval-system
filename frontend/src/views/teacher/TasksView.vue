@@ -226,10 +226,55 @@ function goToReports(taskId: number) {
 }
 
 function notifyImportPlanned() {
-  toast({
-    description: '任务批量导入接口暂未在后端开放，将在 Epic 31 后接入。如急需可在批改工作台单条添加',
-    variant: 'info',
-  })
+  showImportDialog.value = true
+}
+
+// ── Task Import ──
+const showImportDialog = ref(false)
+const importFile = ref<File | null>(null)
+const importing = ref(false)
+const importResult = ref<{ total: number; success: number; failed: number } | null>(null)
+
+function downloadTaskTemplate() {
+  window.location.href = '/api/imports/template/task.xlsx'
+}
+
+function onImportFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  importFile.value = input.files?.[0] ?? null
+  importResult.value = null
+}
+
+async function submitImport() {
+  if (!importFile.value) return
+  importing.value = true
+  importResult.value = null
+  try {
+    const fd = new FormData()
+    fd.append('file', importFile.value)
+    const { data } = await axios.post('/api/imports/tasks', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    importResult.value = {
+      total: data.total_count,
+      success: data.success_count,
+      failed: data.failed_count,
+    }
+    if (data.success_count > 0) {
+      await fetchTasks()
+    }
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    toast({ description: msg ?? '导入失败', variant: 'destructive' })
+  } finally {
+    importing.value = false
+  }
+}
+
+function closeImportDialog() {
+  showImportDialog.value = false
+  importFile.value = null
+  importResult.value = null
 }
 </script>
 
@@ -466,5 +511,54 @@ function notifyImportPlanned() {
         </div>
       </div>
     </Card>
+
+    <!-- Import Dialog -->
+    <Teleport to="body">
+      <div v-if="showImportDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="closeImportDialog">
+        <div class="bg-white rounded-xl shadow-2xl w-[460px] max-h-[80vh] overflow-y-auto p-6">
+          <h2 class="text-lg font-bold text-ink">导入实训任务</h2>
+          <p class="text-sm text-muted-foreground mt-1">通过 Excel 文件批量创建任务（创建后为草稿状态）</p>
+
+          <div class="mt-4 space-y-4">
+            <button class="text-sm text-primary font-medium hover:underline" @click="downloadTaskTemplate">
+              下载导入模板 (task_template.xlsx)
+            </button>
+
+            <div class="border-2 border-dashed border-border rounded-lg p-6 text-center">
+              <input
+                ref="fileInput"
+                type="file"
+                accept=".xlsx,.csv"
+                class="hidden"
+                @change="onImportFileChange"
+              />
+              <button
+                class="text-sm text-muted-foreground hover:text-primary transition-colors"
+                @click="($refs.fileInput as HTMLInputElement)?.click()"
+              >
+                {{ importFile ? importFile.name : '点击选择或拖放 xlsx / csv 文件' }}
+              </button>
+            </div>
+
+            <div v-if="importResult" class="rounded-lg border p-4 text-sm space-y-1"
+              :class="importResult.failed === 0 ? 'border-success bg-success-soft' : 'border-warning bg-warning-soft'"
+            >
+              <p>共 {{ importResult.total }} 条记录</p>
+              <p class="text-success">成功: {{ importResult.success }}</p>
+              <p v-if="importResult.failed > 0" class="text-danger">失败: {{ importResult.failed }}</p>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 mt-6">
+            <Button variant="outline" @click="closeImportDialog">
+              {{ importResult ? '关闭' : '取消' }}
+            </Button>
+            <Button v-if="!importResult" :disabled="!importFile || importing" @click="submitImport">
+              {{ importing ? '导入中...' : '开始导入' }}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </AppShell>
 </template>
