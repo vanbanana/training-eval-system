@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -571,4 +573,78 @@ func (h *GradingHandler) ReportView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, resp)
+}
+
+// canAccessTask returns error if the current user cannot access the given task.
+func (h *GradingHandler) canAccessTask(ctx context.Context, r *http.Request, taskID int64) error {
+	claims := middleware.GetClaims(ctx)
+	if claims.Role == "admin" {
+		return nil
+	}
+	if claims.Role != "teacher" {
+		return fmt.Errorf("access denied")
+	}
+	var teacherID int64
+	err := h.db.Reader.QueryRowContext(ctx,
+		"SELECT teacher_id FROM training_tasks WHERE id=?", taskID).Scan(&teacherID)
+	if err != nil {
+		return fmt.Errorf("task not found")
+	}
+	if teacherID != claims.Sub {
+		return fmt.Errorf("access denied")
+	}
+	return nil
+}
+
+// TriggerScoreForUpload creates a pending evaluation and queues scoring (T3.2).
+func (h *GradingHandler) TriggerScoreForUpload(w http.ResponseWriter, r *http.Request) {
+	uploadID, err := PathInt64(r, "uploadId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid upload ID")
+		return
+	}
+	ctx := r.Context()
+
+	upload, err := h.uploadSvc.GetByID(ctx, uploadID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "Upload not found")
+		return
+	}
+
+	// Check existing evaluations
+	params := repository.EvalListParams{
+		ListParams: repository.ListParams{Page: 1, PageSize: 5},
+	}
+	params.UploadID = &uploadID
+	evals, _, _ := h.evalSvc.List(ctx, params)
+	for _, e := range evals {
+		if e.Status == "scored" || e.Status == "confirmed" {
+			JSON(w, http.StatusOK, map[string]any{
+				"status": "skipped", "reason": "already_scored",
+			})
+			return
+		}
+		if e.Status == "pending" {
+			JSON(w, http.StatusOK, map[string]any{
+				"status": "skipped", "reason": "already_queued",
+			})
+			return
+		}
+	}
+
+	// Create pending evaluation
+	eval := &model.Evaluation{
+		TaskID:    upload.TaskID,
+		UploadID:  uploadID,
+		StudentID: upload.StudentID,
+		Status:    "pending",
+	}
+	if err := h.evalSvc.Create(ctx, eval); err != nil {
+		Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	JSON(w, http.StatusCreated, map[string]any{
+		"status": "queued", "evaluation_id": eval.ID,
+	})
 }
