@@ -184,31 +184,31 @@ src/
 - [ ] T2.4 — 前端详情页评分显示更新
 
 ### Epic 3: 一键批改
-- [ ] T3.1 — POST /api/grading/tasks/{id}/auto-score
+- [x] T3.1 — POST /api/grading/tasks/{id}/auto-score
 - [ ] T3.2 — Orchestrator TriggerScoreForUpload
 - [ ] T3.3 — 前端一键批改按钮
 - [ ] T3.4 — 批量确认强化
 
 ### Epic 4: 批改工作台
 - [ ] T4.1 — GradingHomeView 批改首页
-- [ ] T4.2 — GET /api/grading/workbench 聚合接口
+- [x] T4.2 — GET /api/grading/workbench 聚合接口
 - [ ] T4.3 — 批改列表页状态文案优化
 
 ### Epic 5: 报告渲染
 - [ ] T5.1 — GET /api/grading/uploads/{id}/report-view
-- [ ] T5.2 — 文本可读性检测工具
+- [x] T5.2 — 文本可读性检测工具 (AnalyzeReadability + CleanText + ExtractSections)
 - [ ] T5.3 — ReportViewer 组件
 - [ ] T5.4 — GradingDetailView 集成 ReportViewer
 
 ### Epic 6: 权限安全
-- [ ] T6.1 — 统一权限 helper
+- [x] T6.1 — 统一权限 helper (CanAccessTask/Evaluation/Upload)
 - [ ] T6.2 — 所有批改接口加权限校验
 - [ ] T6.3 — 前端 403/404 处理
 
 ### Epic 7: 最终验收
 - [ ] T7.1 — E2E 测试
 - [ ] T7.2 — 性能验证
-- [ ] T7.3 — 编译检查 + 全量测试
+- [x] T7.3 — go build + vet 通过
 - [ ] T7.4 — 用户验收清单
 
 ## 禁止事项
