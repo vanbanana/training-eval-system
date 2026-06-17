@@ -520,3 +520,55 @@ func (h *GradingHandler) Workbench(w http.ResponseWriter, r *http.Request) {
 
 	JSON(w, http.StatusOK, workbench)
 }
+
+// ReportView returns the report view for an upload (T5.1).
+func (h *GradingHandler) ReportView(w http.ResponseWriter, r *http.Request) {
+	uploadID, err := PathInt64(r, "uploadId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid upload ID")
+		return
+	}
+	ctx := r.Context()
+
+	upload, err := h.uploadSvc.GetByID(ctx, uploadID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "Upload not found")
+		return
+	}
+
+	pr, err := h.uploadSvc.GetParseResult(ctx, uploadID)
+	if err != nil || pr == nil {
+		JSON(w, http.StatusOK, map[string]any{
+			"upload_id":   uploadID,
+			"filename":    upload.Filename,
+			"file_type":   upload.FileType,
+			"render_mode": "unavailable",
+			"is_readable": false,
+			"warnings":    []string{"not_parsed"},
+		})
+		return
+	}
+
+	analysis := service.AnalyzeReadability(pr.RawText)
+	renderMode := "plain_text"
+	if !analysis.IsReadable {
+		renderMode = "unavailable"
+	} else if len(analysis.Sections) > 1 {
+		renderMode = "structured_text"
+	}
+
+	resp := map[string]any{
+		"upload_id":   uploadID,
+		"filename":    upload.Filename,
+		"file_type":   upload.FileType,
+		"render_mode": renderMode,
+		"content":     analysis.CleanText,
+		"is_readable": analysis.IsReadable,
+		"warnings":    analysis.Warnings,
+	}
+	if len(analysis.Sections) > 0 {
+		resp["sections"] = analysis.Sections
+	}
+
+	JSON(w, http.StatusOK, resp)
+}

@@ -140,6 +140,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Post("/evaluations/{id}/reject", cfg.GradingHandler.Reject)
 					r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
 					r.Get("/workbench", cfg.GradingHandler.Workbench)
+					r.Get("/uploads/{uploadId}/report-view", cfg.GradingHandler.ReportView)
+					r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
+					r.Get("/workbench", cfg.GradingHandler.Workbench)
 				r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
 			})
 
