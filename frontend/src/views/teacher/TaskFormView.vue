@@ -128,7 +128,7 @@ async function loadCourses() {
 
 async function loadClasses() {
   try {
-    const { data } = await axios.get('/api/classes')
+    const { data } = await axios.get('/api/courses/' + courseId.value + '/classes')
     allClasses.value = data
   } catch {
     /* ignore */
@@ -162,7 +162,7 @@ async function loadTaskForEdit(id: number) {
       }))
     }
     if (Array.isArray(data.class_ids)) {
-      selectedClassIds.value = new Set(data.class_ids)
+      selectedClassIds.value = new Set(data.class_ids); const { data: cl } = await axios.get("/api/courses/" + data.course_id + "/classes"); allClasses.value = Array.isArray(cl) ? cl : []
     }
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
