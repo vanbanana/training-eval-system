@@ -254,8 +254,8 @@ func BuildGradingWorkflowFixture(ctx context.Context, db *store.DB) (*GradingFix
 
 	// Eval A: student A → task A, scored (AI weighted total = 32+22.5+27 = 81.5)
 	if _, err := w.ExecContext(ctx,
-		`INSERT INTO evaluations (id,task_id,student_id,upload_id,status,total_score,ai_scored_at,created_at)
-		 VALUES (1,1,4,1,'scored',81.5,?,?)`, now, now); err != nil {
+		`INSERT INTO evaluations (id,task_id,student_id,upload_id,status,total_score,created_at)
+		 VALUES (1,1,4,1,'scored',81.5,?)`, now); err != nil {
 		return nil, fmt.Errorf("seed eval_a: %w", err)
 	}
 	f.EvalAID = 1
@@ -278,8 +278,8 @@ func BuildGradingWorkflowFixture(ctx context.Context, db *store.DB) (*GradingFix
 
 	// Eval C: student C → task B, scored (AI weighted total = 51+28 = 79.0)
 	if _, err := w.ExecContext(ctx,
-		`INSERT INTO evaluations (id,task_id,student_id,upload_id,status,total_score,ai_scored_at,created_at)
-		 VALUES (2,2,6,3,'scored',79.0,?,?)`, now, now); err != nil {
+		`INSERT INTO evaluations (id,task_id,student_id,upload_id,status,total_score,created_at)
+		 VALUES (2,2,6,3,'scored',79.0,?)`, now); err != nil {
 		return nil, fmt.Errorf("seed eval_c: %w", err)
 	}
 	f.EvalCID = 2
