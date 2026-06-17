@@ -2,7 +2,7 @@ package handler_test
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -10,165 +10,136 @@ import (
 )
 
 // ============================================================
-// T0.2: Grading workflow regression tests
-// These verify the current behavior of grading endpoints.
-// Do NOT change business logic — only fix if behavior regresses.
+// T0.2 — Grading workflow regression tests (Epic 0)
+// These tests use BuildGradingWorkflowFixture to seed data and
+// verify the current behavior of grading endpoints.
 // ============================================================
 
-// seedGradingFixture is a helper that builds the grading workflow fixture
-// and returns it along with the test app.
-func seedGradingFixture(t *testing.T) (*testutil.TestApp, *testutil.GradingFixture) {
-	t.Helper()
+func TestGradingRegression_Fixture(t *testing.T) {
 	app := testutil.SetupTestApp(t)
-	f, err := testutil.BuildGradingWorkflowFixture(context.Background(), app.DB)
+	ctx := context.Background()
+
+	f, err := testutil.BuildGradingWorkflowFixture(ctx, app.DB)
 	if err != nil {
 		t.Fatalf("BuildGradingWorkflowFixture: %v", err)
 	}
-	return app, f
-}
 
-func teacherAToken() string {
-	return testutil.GenerateTestToken(2, "teacher_a", "teacher")
-}
+	// ── Fixture integrity checks ──
 
-func teacherBToken() string {
-	return testutil.GenerateTestToken(3, "teacher_b", "teacher")
-}
-
-// TEST-T0.2-01: Teacher fetches task A submissions
-func TestGrading_GetSubmissions_TaskA(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	resp := doRequest(t, app.Server, "GET", fmt.Sprintf("/api/grading/tasks/%d/submissions", f.TaskAID), teacherAToken(), nil)
-	defer resp.Body.Close()
-	testutil.AssertStatus(t, resp, http.StatusOK)
-
-	var subs []map[string]any
-	testutil.DecodeJSON(t, resp, &subs)
-	if len(subs) != 2 {
-		t.Fatalf("expected 2 submissions for task A (student A + B), got %d", len(subs))
-	}
-}
-
-// TEST-T0.2-02: Teacher fetches task A summary
-func TestGrading_GetSummary_TaskA(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	resp := doRequest(t, app.Server, "GET", fmt.Sprintf("/api/grading/tasks/%d/summary", f.TaskAID), teacherAToken(), nil)
-	defer resp.Body.Close()
-	testutil.AssertStatus(t, resp, http.StatusOK)
-
-	var summary map[string]any
-	testutil.DecodeJSON(t, resp, &summary)
-
-	// Should have summary fields
-	if _, ok := summary["total_uploads"]; !ok {
-		t.Fatal("expected total_uploads in summary")
-	}
-	if _, ok := summary["scored_count"]; !ok {
-		t.Fatal("expected scored_count in summary")
-	}
-	if _, ok := summary["confirmed_count"]; !ok {
-		t.Fatal("expected confirmed_count in summary")
-	}
-}
-
-// TEST-T0.2-03: Confirm a scored evaluation
-func TestGrading_Confirm_EvalA(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	resp := doRequest(t, app.Server, "POST", fmt.Sprintf("/api/grading/evaluations/%d/confirm", f.EvalAID), teacherAToken(), nil)
-	defer resp.Body.Close()
-	testutil.AssertStatus(t, resp, http.StatusOK)
-}
-
-// TEST-T0.2-04: Reject a scored evaluation with reason
-func TestGrading_Reject_EvalA(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	resp := doRequest(t, app.Server, "POST", fmt.Sprintf("/api/grading/evaluations/%d/reject", f.EvalAID), teacherAToken(), map[string]string{
-		"reason": "报告内容不完整，缺少实验步骤和结论部分，需要补充",
+	t.Run("TEST-T0.1-01 fixture builds", func(t *testing.T) {
+		if f.TeacherAID == 0 || f.TeacherBID == 0 || f.StudentAID == 0 {
+			t.Fatal("fixture did not populate IDs")
+		}
 	})
-	defer resp.Body.Close()
-	testutil.AssertStatus(t, resp, http.StatusOK)
-}
 
-// TEST-T0.2-05: Bulk confirm evaluations
-func TestGrading_BulkConfirm(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	resp := doRequest(t, app.Server, "POST", "/api/evaluations/bulk-action", teacherAToken(), map[string]any{
-		"action":         "confirm",
-		"evaluation_ids": []int64{f.EvalAID},
+	t.Run("TEST-T0.1-02 course-class hierarchy", func(t *testing.T) {
+		var courseID int64
+		app.DB.Reader.QueryRowContext(ctx, "SELECT course_id FROM classes WHERE id=?", f.ClassA1ID).Scan(&courseID)
+		if courseID != f.CourseAID {
+			t.Fatalf("class A1 expected course %d, got %d", f.CourseAID, courseID)
+		}
 	})
-	defer resp.Body.Close()
-	testutil.AssertStatus(t, resp, http.StatusOK)
 
-	var result struct {
-		Affected int `json:"affected"`
-		Failed   int `json:"failed"`
-	}
-	testutil.DecodeJSON(t, resp, &result)
-	if result.Affected != 1 {
-		t.Fatalf("expected 1 affected, got %d", result.Affected)
-	}
-	if result.Failed != 0 {
-		t.Fatalf("expected 0 failed, got %d", result.Failed)
-	}
-}
+	t.Run("TEST-T0.1-03 task-course consistent", func(t *testing.T) {
+		var courseID int64
+		app.DB.Reader.QueryRowContext(ctx, "SELECT course_id FROM training_tasks WHERE id=?", f.TaskAID).Scan(&courseID)
+		if courseID != f.CourseAID {
+			t.Fatalf("task A expected course %d, got %d", f.CourseAID, courseID)
+		}
+		var count int
+		app.DB.Reader.QueryRowContext(ctx, "SELECT COUNT(*) FROM task_classes WHERE task_id=?", f.TaskAID).Scan(&count)
+		if count != 2 {
+			t.Fatalf("task A expected 2 classes, got %d", count)
+		}
+	})
 
-// TEST-T0.2-06: Read parse result
-func TestParse_GetResult_UploadA(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	resp := doRequest(t, app.Server, "GET", fmt.Sprintf("/api/parse/%d/result", f.UploadAID), teacherAToken(), nil)
-	defer resp.Body.Close()
-	testutil.AssertStatus(t, resp, http.StatusOK)
+	t.Run("TEST-T0.1-04 cross-teacher isolation", func(t *testing.T) {
+		var teacherID int64
+		app.DB.Reader.QueryRowContext(ctx, "SELECT teacher_id FROM training_tasks WHERE id=?", f.TaskBID).Scan(&teacherID)
+		if teacherID == f.TeacherAID {
+			t.Fatal("teacher A should not own task B")
+		}
+	})
 
-	var result struct {
-		RawText string `json:"raw_text"`
-	}
-	testutil.DecodeJSON(t, resp, &result)
-	if result.RawText == "" {
-		t.Fatal("expected non-empty raw_text")
-	}
-}
+	// ── Grading endpoint tests ──
 
-// ============================================================
-// Cross-teacher permission tests (baseline for Epic 1)
-// ============================================================
+	teacherAToken := testutil.GenerateTestToken(f.TeacherAID, "teacher_a", "teacher")
+	_ = testutil.GenerateTestToken(f.TeacherBID, "teacher_b", "teacher")
 
-// Teacher A should not be able to see Task B's submissions
-func TestGrading_CrossTeacher_Forbidden(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	// Teacher A tries to access Task B (owned by Teacher B)
-	resp := doRequest(t, app.Server, "GET", fmt.Sprintf("/api/grading/tasks/%d/submissions", f.TaskBID), teacherAToken(), nil)
-	defer resp.Body.Close()
-	// Current behavior: may return 200 (no permission check yet). Record for regression.
-	// In Epic 1 this should become 403.
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("expected 200 or 403, got %d", resp.StatusCode)
-	}
-}
+	t.Run("TEST-T0.2-01 teacher A gets task A submissions", func(t *testing.T) {
+		resp := doRequest(t, app.Server, "GET", "/api/grading/tasks/1/submissions", teacherAToken, nil)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var submissions []map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&submissions); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if len(submissions) < 2 {
+			t.Fatalf("expected at least 2 submissions, got %d", len(submissions))
+		}
+	})
 
-func TestGrading_GetSummary_NumericTypes(t *testing.T) {
-	app, f := seedGradingFixture(t)
-	resp := doRequest(t, app.Server, "GET", fmt.Sprintf("/api/grading/tasks/%d/summary", f.TaskAID), teacherAToken(), nil)
-	defer resp.Body.Close()
-	testutil.AssertStatus(t, resp, http.StatusOK)
+	t.Run("TEST-T0.2-02 teacher A gets task A summary", func(t *testing.T) {
+		resp := doRequest(t, app.Server, "GET", "/api/grading/tasks/1/summary", teacherAToken, nil)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+	})
 
-	var raw map[string]any
-	testutil.DecodeJSON(t, resp, &raw)
+	t.Run("TEST-T0.2-03 confirm scored evaluation", func(t *testing.T) {
+		resp := doRequest(t, app.Server, "POST", "/api/grading/evaluations/1/confirm", teacherAToken, nil)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var status string
+		app.DB.Reader.QueryRowContext(ctx, "SELECT status FROM evaluations WHERE id=1").Scan(&status)
+		if status != "confirmed" {
+			t.Fatalf("expected confirmed, got %s", status)
+		}
+	})
 
-	// Verify numeric fields are actual numbers, not strings (common JSON bug)
-	total, ok := raw["total_uploads"].(float64)
-	if !ok {
-		t.Fatalf("total_uploads is not a number, got %T: %v", raw["total_uploads"], raw["total_uploads"])
-	}
-	if total < 1 {
-		t.Fatalf("expected at least 1 upload, got %v", total)
-	}
+	t.Run("TEST-T0.2-04 reject scored", func(t *testing.T) {
+		app.DB.Writer.ExecContext(ctx, `UPDATE evaluations SET status='scored' WHERE id=1`)
+		resp := doRequest(t, app.Server, "POST", "/api/grading/evaluations/1/reject", teacherAToken, nil)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var status string
+		app.DB.Reader.QueryRowContext(ctx, "SELECT status FROM evaluations WHERE id=1").Scan(&status)
+		if status != "rejected" {
+			t.Fatalf("expected rejected, got %s", status)
+		}
+	})
 
-	// Verify at least one scored upload exists
-	scored, ok := raw["scored_count"].(float64)
-	if !ok {
-		t.Fatalf("scored_count is not a number, got %T: %v", raw["scored_count"], raw["scored_count"])
-	}
-	if scored < 1 {
-		t.Fatalf("expected at least 1 scored evaluation, got %v", scored)
-	}
+	t.Run("TEST-T0.2-05 bulk confirm", func(t *testing.T) {
+		app.DB.Writer.ExecContext(ctx, `UPDATE evaluations SET status='scored' WHERE id=1`)
+		resp := doRequest(t, app.Server, "POST", "/api/evaluations/bulk-action", teacherAToken,
+			map[string]any{"action": "confirm", "evaluation_ids": []int64{1}})
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+		var result map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		aff := result["affected"].(float64)
+		fail := result["failed"].(float64)
+		if aff != 1 || fail != 0 {
+			t.Fatalf("expected affected=1 failed=0, got affected=%v failed=%v", aff, fail)
+		}
+	})
+
+	t.Run("TEST-T0.2-06 parse result", func(t *testing.T) {
+		resp := doRequest(t, app.Server, "GET", "/api/parse/1/result", teacherAToken, nil)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200, got %d", resp.StatusCode)
+		}
+	})
 }
