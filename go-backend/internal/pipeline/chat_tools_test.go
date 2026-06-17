@@ -430,8 +430,13 @@ type mockEvalRepo struct {
 	evals []model.Evaluation
 }
 
-func (m *mockEvalRepo) GetByID(_ context.Context, _ int64) (*model.Evaluation, error) {
-	return nil, errors.New("not implemented")
+func (m *mockEvalRepo) GetByID(_ context.Context, id int64) (*model.Evaluation, error) {
+	for i := range m.evals {
+		if m.evals[i].ID == id {
+			return &m.evals[i], nil
+		}
+	}
+	return nil, errors.New("evaluation not found")
 }
 func (m *mockEvalRepo) List(_ context.Context, params EvalListParams) ([]model.Evaluation, int64, error) {
 	var filtered []model.Evaluation

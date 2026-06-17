@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: frontend_preview
+title: 智能实训评价管理系统前端预览
+scope:
+    - frontend-preview/
+source_files: []
+depends_on: []
+related_to: []

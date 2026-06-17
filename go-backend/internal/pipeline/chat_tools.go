@@ -47,8 +47,9 @@ type ChatOrchestrator struct {
 	uploadRepo  repository.UploadRepo
 	taskRepo    repository.TaskRepo
 	profileRepo repository.ProfileRepo
-	classRepo   repository.ClassRepo  // optional, for teacher tools
-	courseRepo  repository.CourseRepo // optional, for teacher tools
+	classRepo   repository.ClassRepo      // optional, for teacher tools
+	courseRepo  repository.CourseRepo     // optional, for teacher tools
+	simRepo     repository.SimilarityRepo // optional, for teacher tools
 	// OnToolCall is an optional callback invoked when a tool is dispatched.
 	// The handler uses it to emit SSE progress events to the frontend.
 	OnToolCall func(toolName string)

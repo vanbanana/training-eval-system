@@ -41,6 +41,7 @@ import {
   History,
   Edit3,
   Eye,
+  Sparkles,
 } from 'lucide-vue-next'
 
 interface Submission {
@@ -154,6 +155,30 @@ interface TaskSummary {
   progress_percent: number
 }
 const taskSummary = ref<TaskSummary | null>(null)
+const autoScoring = ref(false)
+
+async function triggerAutoScore() {
+  if (autoScoring.value) return
+  const ok = await confirm({
+    title: '一键 AI 批改',
+    description: '将批改所有已解析但未评分的提交。已评分/已确认的将自动跳过。',
+  })
+  if (!ok) return
+  autoScoring.value = true
+  try {
+    const { data } = await axios.post(`/api/grading/tasks/${taskId.value}/auto-score`, { mode: 'unscored' })
+    toast({
+      description: `排队 ${data.queued} 份，跳过 ${data.skipped} 份${data.failed ? `，失败 ${data.failed} 份` : ''}`,
+      variant: data.failed ? 'warning' : 'success',
+    })
+    await fetchAll()
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    toast({ description: msg ?? '一键批改请求失败', variant: 'destructive' })
+  } finally {
+    autoScoring.value = false
+  }
+}
 
 async function fetchAll() {
   loading.value = true
@@ -552,6 +577,11 @@ function goToSimilarity(uploadId: number) {
         </p>
       </div>
       <div class="flex items-center gap-3">
+        <Button variant="outline" :disabled="autoScoring" @click="triggerAutoScore">
+          <Loader2 v-if="autoScoring" class="w-4 h-4 mr-1.5 animate-spin" />
+          <Sparkles v-else class="w-4 h-4 mr-1.5" />
+          一键 AI 批改未评分提交
+        </Button>
         <Button variant="outline" :disabled="selectedCount === 0" @click="bulkReject">
           批量打回
         </Button>

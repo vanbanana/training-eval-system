@@ -22,7 +22,6 @@ type RouterConfig struct {
 	ClassesHandler       *ClassesHandler
 	NotificationsHandler *NotificationsHandler
 	ChatHandler          *ChatHandler
-	AgentHandler         *AgentHandler
 	SimilarityHandler    *SimilarityHandler
 	TemplatesHandler     *TemplatesHandler
 	ImportsHandler       *ImportsHandler
@@ -34,8 +33,7 @@ type RouterConfig struct {
 	AccountHandler       *AccountHandler
 	SSEHandler           *SSEHandler
 	ParseHandler         *ParseHandler
-	HealthHandler        *HealthHandler
-	StaticHandler        *StaticHandler
+	AgentHandler         *AgentHandler
 }
 
 // NewRouter creates the chi router with all routes and middleware.
@@ -50,13 +48,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	r.Use(middleware.SecurityHeaders)
 
 	// Health check (public)
-	if cfg.HealthHandler != nil {
-		r.Get("/healthz", cfg.HealthHandler.Health)
-	} else {
-		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-			JSON(w, http.StatusOK, map[string]string{"status": "ok"})
-		})
-	}
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
@@ -108,9 +102,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Use(middleware.RequireRole("admin"))
 				r.Post("/users", cfg.ImportsHandler.ImportUsers)
 				r.Post("/students", cfg.ImportsHandler.ImportStudents)
-				r.Post("/tasks", cfg.ImportsHandler.ImportTasks)
 				r.Get("/template/user.xlsx", cfg.ImportsHandler.DownloadTemplate)
-				r.Get("/template/task.xlsx", cfg.ImportsHandler.DownloadTaskTemplate)
 			})
 
 			// Teacher + Admin routes (write operations)
@@ -141,9 +133,6 @@ func NewRouter(cfg RouterConfig) http.Handler {
 					r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
 					r.Get("/workbench", cfg.GradingHandler.Workbench)
 					r.Get("/uploads/{uploadId}/report-view", cfg.GradingHandler.ReportView)
-					r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
-					r.Get("/workbench", cfg.GradingHandler.Workbench)
-				r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
 			})
 
 			r.Route("/similarity", func(r chi.Router) {
@@ -223,16 +212,6 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Post("/stream", cfg.ChatHandler.Stream)
 			})
 
-			if cfg.AgentHandler != nil {
-				r.Route("/agent", func(r chi.Router) {
-					r.Get("/sessions", cfg.AgentHandler.ListSessions)
-					r.Post("/sessions", cfg.AgentHandler.CreateSession)
-					r.Get("/sessions/{id}/messages", cfg.AgentHandler.GetMessages)
-					r.Delete("/sessions/{id}", cfg.AgentHandler.DeleteSession)
-					r.Post("/stream", cfg.AgentHandler.Stream)
-				})
-			}
-
 			r.Get("/dashboard", cfg.DashboardHandler.Get)
 
 			r.Route("/profiles", func(r chi.Router) {
@@ -251,13 +230,19 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 			// SSE endpoint for real-time events (replaces WebSocket)
 			r.Get("/sse/events", cfg.SSEHandler.Events)
+
+			// Agent API — unified AI agent for all roles
+			if cfg.AgentHandler != nil {
+				r.Route("/agent", func(r chi.Router) {
+					r.Get("/sessions", cfg.AgentHandler.ListSessions)
+					r.Post("/sessions", cfg.AgentHandler.CreateSession)
+					r.Get("/sessions/{id}/messages", cfg.AgentHandler.GetMessages)
+					r.Delete("/sessions/{id}", cfg.AgentHandler.DeleteSession)
+					r.Post("/stream", cfg.AgentHandler.Stream)
+				})
+			}
 		})
 	})
-
-	// SPA fallback: serve frontend for unmatched routes
-	if cfg.StaticHandler != nil {
-		r.NotFound(cfg.StaticHandler.ServeHTTP)
-	}
 
 	return r
 }

@@ -224,3 +224,4 @@ type AgentRepo interface {
 	GetLegacySession(ctx context.Context, id int64) (*model.AgentSession, error)
 	GetLegacyMessages(ctx context.Context, sessionID int64, limit int) ([]model.AgentMessage, error)
 }
+
