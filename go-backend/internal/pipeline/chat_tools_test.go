@@ -442,6 +442,9 @@ func (m *mockEvalRepo) List(_ context.Context, params EvalListParams) ([]model.E
 		if params.TaskID != nil && e.TaskID != *params.TaskID {
 			continue
 		}
+		if params.Status != nil && e.Status != *params.Status {
+			continue
+		}
 		filtered = append(filtered, e)
 	}
 	return filtered, int64(len(filtered)), nil
