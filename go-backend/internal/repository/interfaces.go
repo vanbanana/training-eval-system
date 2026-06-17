@@ -101,6 +101,8 @@ type EvaluationRepo interface {
 	SaveScores(ctx context.Context, evalID int64, scores []model.DimensionScore) error
 	AppendHistory(ctx context.Context, h *model.EvaluationHistory) error
 	GetHistory(ctx context.Context, evalID int64) ([]model.EvaluationHistory, error)
+	GetDimensionScores(ctx context.Context, evalID int64) ([]model.DimensionScore, error)
+	UpdateDimensionTeacherScore(ctx context.Context, evalID, dimID int64, teacherScore *float64) error
 }
 
 // CourseRepo defines data access for courses.

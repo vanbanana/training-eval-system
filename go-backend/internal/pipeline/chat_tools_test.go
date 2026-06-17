@@ -470,6 +470,12 @@ func (m *mockEvalRepo) AppendHistory(_ context.Context, _ *model.EvaluationHisto
 func (m *mockEvalRepo) GetHistory(_ context.Context, _ int64) ([]model.EvaluationHistory, error) {
 	return nil, errors.New("not implemented")
 }
+func (m *mockEvalRepo) GetDimensionScores(_ context.Context, _ int64) ([]model.DimensionScore, error) {
+	return nil, errors.New("not implemented")
+}
+func (m *mockEvalRepo) UpdateDimensionTeacherScore(_ context.Context, _ int64, _ int64, _ *float64) error {
+	return errors.New("not implemented")
+}
 
 // EvalListParams type alias for the mock (pipeline imports repository already)
 type EvalListParams = repository.EvalListParams

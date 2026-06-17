@@ -4,14 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/smartedu/training-eval-system/internal/handler"
-	"github.com/smartedu/training-eval-system/internal/llm"
 	"github.com/smartedu/training-eval-system/internal/middleware"
-	"github.com/smartedu/training-eval-system/internal/pipeline"
 	"github.com/smartedu/training-eval-system/internal/repository"
 	"github.com/smartedu/training-eval-system/internal/service"
 	"github.com/smartedu/training-eval-system/internal/sse"
@@ -20,16 +16,9 @@ import (
 
 // TestApp holds all test dependencies.
 type TestApp struct {
-	Server       *httptest.Server
-	DB           *store.DB
-	Router       http.Handler
-	LLMClient    *llm.Client
-	Orchestrator *pipeline.ChatOrchestrator
-}
-
-// HasRealLLM returns true if a real LLM client is configured.
-func (a *TestApp) HasRealLLM() bool {
-	return a.LLMClient != nil
+	Server *httptest.Server
+	DB     *store.DB
+	Router http.Handler
 }
 
 // SetupTestApp creates a fully wired test application with SQLite :memory:.
@@ -58,7 +47,6 @@ func SetupTestApp(t *testing.T) *TestApp {
 	templateRepo := repository.NewTemplateRepo(db)
 	profileRepo := repository.NewProfileRepo(db)
 	llmConfigRepo := repository.NewLLMConfigRepo(db)
-	agentRepo := repository.NewAgentRepo(db)
 
 	// Infrastructure
 	broker := sse.NewBroker()
@@ -78,33 +66,6 @@ func SetupTestApp(t *testing.T) *TestApp {
 	profileSvc := service.NewProfileService(profileRepo)
 	llmConfigSvc := service.NewLLMConfigService(llmConfigRepo)
 	auditSvc := service.NewAuditService(auditRepo)
-	agentSvc := service.NewAgentService(agentRepo)
-
-	// Optional: wire real LLM client for integration tests
-	var llmClient *llm.Client
-	var orchestrator *pipeline.ChatOrchestrator
-	for _, p := range []string{".env", "../../.env", "../../../.env"} {
-		if err := godotenv.Load(p); err == nil {
-			break
-		}
-	}
-	if apiKey := os.Getenv("TES_LLM_API_KEY"); apiKey != "" {
-		baseURL := os.Getenv("TES_LLM_BASE_URL")
-		if baseURL == "" {
-			baseURL = "https://token-plan-cn.xiaomimimo.com/v1"
-		}
-		model := os.Getenv("TES_LLM_MODEL")
-		if model == "" {
-			model = "mimo-v2.5-pro"
-		}
-		llmClient = llm.NewClient(baseURL, apiKey, model, "")
-		llmClient.SetUseAPIKeyHeader(true)
-		orchestrator = pipeline.NewChatOrchestrator(
-			llmClient, evalRepo, uploadRepo, taskRepo, profileRepo,
-		)
-		orchestrator.SetClassRepo(classRepo)
-		orchestrator.SetCourseRepo(courseRepo)
-	}
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -116,8 +77,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 	coursesHandler := handler.NewCoursesHandler(courseSvc, classSvc)
 	classesHandler := handler.NewClassesHandler(classSvc, userSvc)
 	notificationsHandler := handler.NewNotificationsHandler(notifSvc)
-	chatHandler := handler.NewChatHandler(chatSvc, broker, llmClient, orchestrator, uploadRepo, taskRepo, evalRepo)
-	agentHandler := handler.NewAgentHandler(agentSvc, llmClient, evalRepo, uploadRepo, taskRepo, classRepo, courseRepo, orchestrator)
+	chatHandler := handler.NewChatHandler(chatSvc, broker, nil, nil, uploadRepo, taskRepo, evalRepo)
 	templatesHandler := handler.NewTemplatesHandler(templateSvc, taskSvc)
 	dashboardHandler := handler.NewDashboardHandler(db)
 	reportsHandler := handler.NewReportsHandler(evalSvc, taskSvc, userSvc, db)
@@ -127,7 +87,7 @@ func SetupTestApp(t *testing.T) *TestApp {
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
 	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
-	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc, taskSvc)
+	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc)
 	sseHandler := handler.NewSSEHandler(broker, TestJWTSecret)
 
 	// Router
@@ -144,7 +104,6 @@ func SetupTestApp(t *testing.T) *TestApp {
 		ClassesHandler:       classesHandler,
 		NotificationsHandler: notificationsHandler,
 		ChatHandler:          chatHandler,
-		AgentHandler:         agentHandler,
 		SimilarityHandler:    similarityHandler,
 		TemplatesHandler:     templatesHandler,
 		ImportsHandler:       importsHandler,
@@ -167,10 +126,8 @@ func SetupTestApp(t *testing.T) *TestApp {
 	})
 
 	return &TestApp{
-		Server:       srv,
-		DB:           db,
-		Router:       router,
-		LLMClient:    llmClient,
-		Orchestrator: orchestrator,
+		Server: srv,
+		DB:     db,
+		Router: router,
 	}
 }

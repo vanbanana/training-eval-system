@@ -191,6 +191,22 @@ func (r *SQLiteEvaluationRepo) GetHistory(ctx context.Context, evalID int64) ([]
 	return items, rows.Err()
 }
 
+// GetDimensionScores is the exported wrapper for getScores.
+func (r *SQLiteEvaluationRepo) GetDimensionScores(ctx context.Context, evalID int64) ([]model.DimensionScore, error) {
+	return r.getScores(ctx, evalID)
+}
+
+// UpdateDimensionTeacherScore sets the teacher_score for a specific dimension in an evaluation.
+func (r *SQLiteEvaluationRepo) UpdateDimensionTeacherScore(ctx context.Context, evalID, dimID int64, teacherScore *float64) error {
+	_, err := r.db.Writer.ExecContext(ctx,
+		`UPDATE dimension_scores SET teacher_score=? WHERE evaluation_id=? AND dimension_id=?`,
+		teacherScore, evalID, dimID)
+	if err != nil {
+		return fmt.Errorf("evaluation_repo: update dimension teacher score: %w", err)
+	}
+	return nil
+}
+
 func (r *SQLiteEvaluationRepo) getScores(ctx context.Context, evalID int64) ([]model.DimensionScore, error) {
 	rows, err := r.db.Reader.QueryContext(ctx,
 		`SELECT id, evaluation_id, dimension_id, ai_score, teacher_score, rationale

@@ -159,6 +159,58 @@ src/
 | `docs/handbook/04-api-endpoints.md` | 全部 REST + SSE 端点 |
 | `docs/handbook/05-data-model.md` | ERD + 字段 + SQL |
 
+## 进度跟踪纪律（teacher-grading-workflow-optimization）
+
+当前分支: `feat/teacher-grading-workflow-optimization`
+
+每个 Epic 必须在全部 Task 完成、测试通过后才能进入下一个。每个 Task/Epic 必须打勾。
+
+### Epic 0: 冻结基线
+- [x] T0.1 — 教师批改链路测试 fixture
+- [x] T0.2 — 批改链路回归测试
+- [x] `go test ./handler/... -count=1` 通过
+
+### Epic 1: 课程→班级→任务层级
+- [x] T1.1 — ValidateTaskClassesBelongToCourse 校验
+- [x] T1.2 — UpdateTaskRequest 支持 class_ids
+- [x] T1.3 — 课程班级接口权限过滤
+- [ ] T1.4 — 前端 TaskFormView 先课程后班级
+- [ ] `go test ./... -count=1` 通过
+
+### Epic 2: AI-first 评分模型
+- [ ] T2.1 — 最终分计算规则 (teacher_score overrides ai_score)
+- [ ] T2.2 — AI scoring 只写 ai_score (teacher_score=nil)
+- [ ] T2.3 — 教师覆盖维度分 PATCH 接口
+- [ ] T2.4 — 前端详情页评分显示更新
+
+### Epic 3: 一键批改
+- [ ] T3.1 — POST /api/grading/tasks/{id}/auto-score
+- [ ] T3.2 — Orchestrator TriggerScoreForUpload
+- [ ] T3.3 — 前端一键批改按钮
+- [ ] T3.4 — 批量确认强化
+
+### Epic 4: 批改工作台
+- [ ] T4.1 — GradingHomeView 批改首页
+- [ ] T4.2 — GET /api/grading/workbench 聚合接口
+- [ ] T4.3 — 批改列表页状态文案优化
+
+### Epic 5: 报告渲染
+- [ ] T5.1 — GET /api/grading/uploads/{id}/report-view
+- [ ] T5.2 — 文本可读性检测工具
+- [ ] T5.3 — ReportViewer 组件
+- [ ] T5.4 — GradingDetailView 集成 ReportViewer
+
+### Epic 6: 权限安全
+- [ ] T6.1 — 统一权限 helper
+- [ ] T6.2 — 所有批改接口加权限校验
+- [ ] T6.3 — 前端 403/404 处理
+
+### Epic 7: 最终验收
+- [ ] T7.1 — E2E 测试
+- [ ] T7.2 — 性能验证
+- [ ] T7.3 — 编译检查 + 全量测试
+- [ ] T7.4 — 用户验收清单
+
 ## 禁止事项
 
 - ❌ 修改 `backend/` (Python, 已废弃)
