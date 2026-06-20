@@ -105,8 +105,18 @@ func (h *UploadsHandler) VerifyResult(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid upload ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	upload, err := h.svc.GetByID(r.Context(), id)
 	if err != nil || upload == nil {
+		Error(w, http.StatusNotFound, "Upload not found")
+		return
+	}
+	// Ownership check: students can only verify their own uploads
+	if claims.Role == "student" && upload.StudentID != claims.Sub {
 		Error(w, http.StatusNotFound, "Upload not found")
 		return
 	}
@@ -128,8 +138,18 @@ func (h *UploadsHandler) Retry(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid upload ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	upload, err := h.svc.GetByID(r.Context(), id)
 	if err != nil || upload == nil {
+		Error(w, http.StatusNotFound, "Upload not found")
+		return
+	}
+	// Ownership check: students can only retry their own uploads
+	if claims.Role == "student" && upload.StudentID != claims.Sub {
 		Error(w, http.StatusNotFound, "Upload not found")
 		return
 	}

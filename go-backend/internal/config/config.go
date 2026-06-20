@@ -45,6 +45,34 @@ type Config struct {
 
 	// system_config cache TTL
 	SystemConfigCacheTTL time.Duration // default 60s
+
+	// Agent quota limits (per role, configurable via env vars)
+	AgentStudentSessionLimit int // max messages per session for students (default 20)
+	AgentStudentDailyLimit   int // max messages per day for students (default 50)
+	AgentTeacherSessionLimit int // max messages per session for teachers (default 50)
+	AgentTeacherDailyLimit   int // max messages per day for teachers (default 200)
+	AgentAdminSessionLimit   int // max messages per session for admins (default 50)
+	AgentAdminDailyLimit     int // max messages per day for admins (default 300)
+
+	// Agent concurrency limits
+	AgentUserConcurrentLimit   int // max concurrent streams per user (default 2)
+	AgentGlobalConcurrentLimit int // max concurrent streams globally (default 50)
+
+	// LLM resilience parameters (T8.2)
+	LLMFirstTokenTimeout time.Duration // max wait for first token/byte (default 30s)
+	LLMTotalTimeout      time.Duration // max total response time (default 120s)
+	LLMMaxToolRounds     int           // max tool-call cycles per request (default 5)
+	LLMBreakerThreshold  int           // consecutive failures before circuit opens (default 50)
+	LLMBreakerCooldown   time.Duration // cooldown before half-open recovery attempt (default 30s)
+
+	// Feature flags — gradual rollout for the agent system (T9.2).
+	// All default to true (fully enabled). Set to false to disable a role's
+	// agent routes — the backend returns 503 and the frontend hides the entry.
+	AgentV2Enabled         bool // master switch for all agent routes
+	StudentAgentV2Enabled  bool // student agent routes
+	TeacherAgentEnabled    bool // teacher agent routes
+	AdminAgentEnabled      bool // admin agent routes
+	AgentToolEventsEnabled bool // tool call events in SSE stream
 }
 
 // Load reads TES_ prefixed env vars, with .env file fallback.
@@ -82,6 +110,32 @@ func Load() (*Config, error) {
 		LLMEmbedModel:      envStr("TES_LLM_EMBED_MODEL", ""),
 		LLMOCRModel:        envStr("TES_LLM_OCR_MODEL", ""),
 		LLMUseAPIKeyHeader: envBool("TES_LLM_USE_API_KEY_HEADER", true),
+
+		// Agent quota limits (role-based)
+		AgentStudentSessionLimit: envInt("TES_AGENT_STUDENT_SESSION_LIMIT", 20),
+		AgentStudentDailyLimit:   envInt("TES_AGENT_STUDENT_DAILY_LIMIT", 50),
+		AgentTeacherSessionLimit: envInt("TES_AGENT_TEACHER_SESSION_LIMIT", 50),
+		AgentTeacherDailyLimit:   envInt("TES_AGENT_TEACHER_DAILY_LIMIT", 200),
+		AgentAdminSessionLimit:   envInt("TES_AGENT_ADMIN_SESSION_LIMIT", 50),
+		AgentAdminDailyLimit:     envInt("TES_AGENT_ADMIN_DAILY_LIMIT", 300),
+
+		// Agent concurrency limits
+		AgentUserConcurrentLimit:   envInt("TES_AGENT_USER_CONCURRENT_LIMIT", 2),
+		AgentGlobalConcurrentLimit: envInt("TES_AGENT_GLOBAL_CONCURRENT_LIMIT", 50),
+
+		// LLM resilience parameters (T8.2)
+		LLMFirstTokenTimeout: envDuration("TES_LLM_FIRST_TOKEN_TIMEOUT_SECONDS", 30*time.Second),
+		LLMTotalTimeout:      envDuration("TES_LLM_TOTAL_TIMEOUT_SECONDS", 120*time.Second),
+		LLMMaxToolRounds:     envInt("TES_LLM_MAX_TOOL_ROUNDS", 5),
+		LLMBreakerThreshold:  envInt("TES_LLM_BREAKER_THRESHOLD", 50),
+		LLMBreakerCooldown:   envDuration("TES_LLM_BREAKER_COOLDOWN_SECONDS", 30*time.Second),
+
+		// Feature flags (T9.2) — all enabled by default.
+		AgentV2Enabled:         envBool("TES_AGENT_V2_ENABLED", true),
+		StudentAgentV2Enabled:  envBool("TES_STUDENT_AGENT_V2_ENABLED", true),
+		TeacherAgentEnabled:    envBool("TES_TEACHER_AGENT_ENABLED", true),
+		AdminAgentEnabled:      envBool("TES_ADMIN_AGENT_ENABLED", true),
+		AgentToolEventsEnabled: envBool("TES_AGENT_TOOL_EVENTS_ENABLED", true),
 	}
 
 	// Validate environment

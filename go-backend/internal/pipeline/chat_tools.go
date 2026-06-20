@@ -31,6 +31,9 @@ type ChatToolContext struct {
 	Upload      *model.Upload
 	ParseResult *model.ParseResult
 	Dimensions  []model.Dimension
+	// OnToolCall is an optional per-request callback for SSE progress events.
+	// Prevents the data race of using the shared ChatOrchestrator.OnToolCall.
+	OnToolCall func(toolName string)
 }
 
 // ToolResult is the result of a tool call.
@@ -42,17 +45,24 @@ type ToolResult struct {
 
 // ChatOrchestrator manages the Function Calling loop for AI chat.
 type ChatOrchestrator struct {
-	client      LLMCompleter
-	evalRepo    repository.EvaluationRepo
-	uploadRepo  repository.UploadRepo
-	taskRepo    repository.TaskRepo
-	profileRepo repository.ProfileRepo
-	classRepo   repository.ClassRepo      // optional, for teacher tools
-	courseRepo  repository.CourseRepo     // optional, for teacher tools
-	simRepo     repository.SimilarityRepo // optional, for teacher tools
+	client        LLMCompleter
+	evalRepo      repository.EvaluationRepo
+	uploadRepo    repository.UploadRepo
+	taskRepo      repository.TaskRepo
+	profileRepo   repository.ProfileRepo
+	classRepo     repository.ClassRepo      // optional, for teacher tools
+	courseRepo    repository.CourseRepo     // optional, for teacher tools
+	simRepo       repository.SimilarityRepo // optional, for teacher tools
+	userRepo      repository.UserRepo       // optional, for admin tools
+	llmConfigRepo repository.LLMConfigRepo  // optional, for admin tools
+	auditRepo     repository.AuditRepo      // optional, for admin tools
+	usageRepo     repository.UsageRepo      // optional, for admin tools (T8.3)
 	// OnToolCall is an optional callback invoked when a tool is dispatched.
 	// The handler uses it to emit SSE progress events to the frontend.
 	OnToolCall func(toolName string)
+	// maxToolRounds is the configurable max number of tool-call cycles (T8.2).
+	// Defaults to MaxToolRounds constant; can be overridden via SetMaxToolRounds.
+	maxToolRounds int
 }
 
 // NewChatOrchestrator creates a chat orchestrator.
@@ -64,11 +74,19 @@ func NewChatOrchestrator(
 	profileRepo repository.ProfileRepo,
 ) *ChatOrchestrator {
 	return &ChatOrchestrator{
-		client:      client,
-		evalRepo:    evalRepo,
-		uploadRepo:  uploadRepo,
-		taskRepo:    taskRepo,
-		profileRepo: profileRepo,
+		client:        client,
+		evalRepo:      evalRepo,
+		uploadRepo:    uploadRepo,
+		taskRepo:      taskRepo,
+		profileRepo:   profileRepo,
+		maxToolRounds: MaxToolRounds,
+	}
+}
+
+// SetMaxToolRounds configures the max number of tool-call cycles per request (T8.2).
+func (co *ChatOrchestrator) SetMaxToolRounds(n int) {
+	if n > 0 {
+		co.maxToolRounds = n
 	}
 }
 
@@ -108,14 +126,14 @@ func ChatToolSchemas() []llm.Tool {
 // toolRequiredParams maps tool names to their required parameter names,
 // used for argument validation before dispatch.
 var toolRequiredParams = map[string][]string{
-	"get_parse_segment":                {"topic"},
-	"get_dimension_detail":             {"dimension_name"},
-	"get_dimension_history":            {"dimension_name"},
-	"get_dimension_class_statistics":   {"dimension_name"},
-	"get_excellent_sample_summary":     {},
-	"get_weakness_list":                {},
-	"get_class_statistics":             {},
-	"get_learning_resources":           {"keyword"},
+	"get_parse_segment":              {"topic"},
+	"get_dimension_detail":           {"dimension_name"},
+	"get_dimension_history":          {"dimension_name"},
+	"get_dimension_class_statistics": {"dimension_name"},
+	"get_excellent_sample_summary":   {},
+	"get_weakness_list":              {},
+	"get_class_statistics":           {},
+	"get_learning_resources":         {"keyword"},
 }
 
 // DispatchTool dispatches a tool call by name with argument validation.
@@ -161,14 +179,14 @@ func (co *ChatOrchestrator) DispatchTool(ctx context.Context, name string, args 
 	}
 }
 
-// retryLLMCall calls Complete with exponential backoff retry.
-// Retries on transient errors (network, timeout, 5xx); gives up immediately
-// on permanent errors (4xx except 429).
 func (co *ChatOrchestrator) retryLLMCall(
 	ctx context.Context,
 	messages []llm.ChatMessage,
 	tools []llm.Tool,
 ) (*llm.ChatResponse, error) {
+	if co.client == nil {
+		return nil, fmt.Errorf("LLM client not configured")
+	}
 	var lastErr error
 	for attempt := 0; attempt <= llmMaxRetries; attempt++ {
 		if attempt > 0 {
@@ -240,7 +258,7 @@ func (co *ChatOrchestrator) Run(
 	// Track which tools have failed twice in a row (to warn LLM)
 	repeatedFailures := map[string]int{}
 
-	for round := 0; round < MaxToolRounds; round++ {
+	for round := 0; round < co.maxToolRounds; round++ {
 		// --- LLM call with retry ---
 		resp, err := co.retryLLMCall(ctx, messages, tools)
 		if err != nil {
@@ -285,9 +303,13 @@ func (co *ChatOrchestrator) Run(
 		for _, tc := range choice.Message.ToolCalls {
 			slog.Info("chat tool called", "tool", tc.Function.Name, "round", round+1)
 
-			// Fire callback for frontend progress events
-			if co.OnToolCall != nil {
-				co.OnToolCall(tc.Function.Name)
+			// Fire callback for frontend progress events (per-request context)
+			cb := tctx.OnToolCall
+			if cb == nil {
+				cb = co.OnToolCall // fallback to shared callback for legacy compatibility
+			}
+			if cb != nil {
+				cb(tc.Function.Name)
 			}
 
 			var args map[string]any
@@ -325,11 +347,27 @@ func (co *ChatOrchestrator) Run(
 				result.Error = hint + " 错误详情：" + result.Error
 			}
 
-			resultJSON, _ := json.Marshal(result)
-			if len(resultJSON) > MaxToolResultBytes {
-				resultJSON = resultJSON[:MaxToolResultBytes]
-				slog.Warn("chat tool result truncated", "tool", tc.Function.Name)
-			}
+resultJSON, _ := json.Marshal(result)
+				if len(resultJSON) > MaxToolResultBytes {
+					// Truncate the Error message first, then fall back to truncating Data fields
+					if len(result.Error) > 500 {
+						result.Error = result.Error[:500] + "...[truncated]"
+					}
+					if result.Data != nil {
+						if dataStr, ok := result.Data.(string); ok && len(dataStr) > 1000 {
+							result.Data = dataStr[:1000] + "...[truncated]"
+						}
+					}
+					resultJSON, _ = json.Marshal(result)
+					if len(resultJSON) > MaxToolResultBytes {
+						// Last resort: generate a minimal valid JSON with truncated error
+						resultJSON = []byte(fmt.Sprintf(
+							`{"success":false,"error":"tool result too large (%d bytes), truncated","data":null}`,
+							len(resultJSON),
+						))
+					}
+					slog.Warn("chat tool result truncated", "tool", tc.Function.Name, "original_size", len(resultJSON))
+				}
 
 			messages = append(messages, llm.ChatMessage{
 				Role:       "tool",
@@ -420,13 +458,14 @@ func BuildChatSystemPrompt(task *model.TrainingTask, eval *model.Evaluation, pr 
 		sb.WriteString("\n")
 	}
 
-	if pr != nil && pr.RawText != "" {
-		text := pr.RawText
-		if len(text) > 2000 {
-			text = text[:2000]
+if pr != nil && pr.RawText != "" {
+			text := pr.RawText
+			textRunes := []rune(text)
+			if len(textRunes) > 2000 {
+				text = string(textRunes[:2000])
+			}
+			sb.WriteString(fmt.Sprintf("## 学生提交内容摘要\n%s\n\n", text))
 		}
-		sb.WriteString(fmt.Sprintf("## 学生提交内容摘要\n%s\n\n", text))
-	}
 
 	return sb.String()
 }
@@ -440,14 +479,16 @@ func (co *ChatOrchestrator) getParseSegment(tctx *ChatToolContext, args map[stri
 		maxChars = int(mc)
 	}
 
-	if tctx.ParseResult == nil || tctx.ParseResult.RawText == "" {
-		return &ToolResult{Success: false, Error: "no parsed content available"}
-	}
+if tctx.ParseResult == nil || tctx.ParseResult.RawText == "" {
+			return &ToolResult{Success: false, Error: "no parsed content available"}
+		}
 
-	text := tctx.ParseResult.RawText
-	if len(text) > maxChars {
-		text = text[:maxChars]
-	}
+		text := tctx.ParseResult.RawText
+		textRunes := []rune(text)
+		if len(textRunes) > maxChars {
+			textRunes = textRunes[:maxChars]
+		}
+		text = string(textRunes)
 
 	// Case-insensitive search for topic
 	if topic != "" {
@@ -701,6 +742,9 @@ func (co *ChatOrchestrator) getDimensionHistory(ctx context.Context, tctx *ChatT
 }
 
 func (co *ChatOrchestrator) getExcellentSampleSummary(ctx context.Context, tctx *ChatToolContext, args map[string]any) *ToolResult {
+	if tctx == nil || tctx.Evaluation == nil {
+		return &ToolResult{Success: false, Error: "评价上下文缺失，无法查询优秀示例。"}
+	}
 	if tctx.Task == nil {
 		return &ToolResult{Success: false, Error: "no task context"}
 	}

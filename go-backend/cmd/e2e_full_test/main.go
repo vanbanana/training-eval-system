@@ -115,7 +115,7 @@ func main() {
 	tasksHandler := handler.NewTasksHandler(taskSvc)
 	uploadsHandler := handler.NewUploadsHandler(uploadSvc, nil)
 	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc, uploadSvc)
-	gradingHandler := handler.NewGradingHandler(evalSvc, uploadSvc, userSvc, db)
+	gradingHandler := handler.NewGradingHandler(evalSvc, uploadSvc, userSvc, db, nil, nil)
 	coursesHandler := handler.NewCoursesHandler(courseSvc, classSvc)
 	classesHandler := handler.NewClassesHandler(classSvc, userSvc)
 	notificationsHandler := handler.NewNotificationsHandler(notifSvc)

@@ -107,7 +107,7 @@ async function fetchAll() {
   try {
     const [t, u] = await Promise.all([
       axios.get(`/api/tasks/${taskId.value}`),
-      axios.get(`/api/uploads/${taskId.value}`),
+      axios.get(`/api/uploads/by-task/${taskId.value}`),
     ])
     task.value = t.data
     uploads.value = u.data
@@ -328,7 +328,7 @@ function onUploadSuccess() {
           <!-- Uploader -->
           <Card class="p-6">
             <FileUploader
-              :endpoint="`/api/uploads/${taskId}`"
+              :endpoint="`/api/uploads/by-task/${taskId}`"
               :accept="['.pdf', '.docx', '.doc', '.zip', '.png', '.jpg', '.jpeg']"
               :max-size-mb="50"
               :disabled="!canUpload"

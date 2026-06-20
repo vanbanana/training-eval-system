@@ -4,6 +4,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -21,15 +22,23 @@ import (
 
 // AgentHandler handles /api/agent/* endpoints.
 type AgentHandler struct {
-	agentSvc  *service.AgentService
-	llmClient *llm.Client
-	evalRepo  repository.EvaluationRepo
-	uploadRepo repository.UploadRepo
-	taskRepo  repository.TaskRepo
-	classRepo repository.ClassRepo
-	courseRepo repository.CourseRepo
-	chatOrch  *pipeline.ChatOrchestrator
-	roleOrch  *service.RoleAgentOrchestrator
+	agentSvc      *service.AgentService
+	llmClient     *llm.Client
+	evalRepo      repository.EvaluationRepo
+	uploadRepo    repository.UploadRepo
+	taskRepo      repository.TaskRepo
+	classRepo     repository.ClassRepo
+	courseRepo    repository.CourseRepo
+	auditRepo     repository.AuditRepo
+	usageSvc      *service.UsageService
+	chatOrch      *pipeline.ChatOrchestrator
+	roleOrch      *service.RoleAgentOrchestrator
+	streamTracker *StreamTracker
+}
+
+// SetStreamTracker sets the concurrent stream tracker (optional, nil-safe).
+func (h *AgentHandler) SetStreamTracker(t *StreamTracker) {
+	h.streamTracker = t
 }
 
 // NewAgentHandler creates a new AgentHandler.
@@ -43,6 +52,8 @@ func NewAgentHandler(
 	courseRepo repository.CourseRepo,
 	chatOrch *pipeline.ChatOrchestrator,
 	roleOrch *service.RoleAgentOrchestrator,
+	auditRepo repository.AuditRepo,
+	usageSvc *service.UsageService,
 ) *AgentHandler {
 	return &AgentHandler{
 		agentSvc:   agentSvc,
@@ -52,6 +63,8 @@ func NewAgentHandler(
 		taskRepo:   taskRepo,
 		classRepo:  classRepo,
 		courseRepo: courseRepo,
+		auditRepo:  auditRepo,
+		usageSvc:   usageSvc,
 		chatOrch:   chatOrch,
 		roleOrch:   roleOrch,
 	}
@@ -175,6 +188,7 @@ func (h *AgentHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 
 // Stream handles SSE streaming for agent messages.
 func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
+	streamStart := time.Now()
 	claims := middleware.GetClaims(r.Context())
 
 	var req dto.AgentStreamRequest
@@ -183,14 +197,84 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Audit tracking state
+	var toolNames []string
+	var promptTokens, completionTokens int
+	var streamSuccess bool
+	var streamErr string
+	var streamErrCode string
+
+	// Defer audit log entry
+	defer func() {
+		if h.auditRepo == nil || claims == nil {
+			return
+		}
+		latencyMs := time.Since(streamStart).Milliseconds()
+		result := "success"
+		if !streamSuccess {
+			result = "failure"
+		}
+		payload := map[string]any{
+			"agent_role":        req.AgentRole,
+			"session_id":        req.SessionID,
+			"tool_names":        toolNames,
+			"prompt_tokens":     promptTokens,
+			"completion_tokens": completionTokens,
+			"latency_ms":        latencyMs,
+		}
+		errDetail := streamErr
+		if streamErrCode != "" {
+			errDetail = streamErrCode
+			payload["error_code"] = streamErrCode
+		}
+		if errDetail != "" {
+			payload["error"] = errDetail
+		}
+		userID := claims.Sub
+		go func() {
+			_ = h.auditRepo.Create(context.Background(), &model.AuditLog{
+				UserID:     &userID,
+				Username:   claims.Username,
+				Role:       claims.Role,
+				Action:     "agent.chat." + result,
+				TargetType: "agent_session",
+				TargetID:   fmt.Sprintf("%d", req.SessionID),
+				Result:     result,
+				Detail: fmt.Sprintf("agent_role=%s tools=%d tokens=%d/%d latency=%dms",
+					req.AgentRole, len(toolNames), promptTokens, completionTokens, latencyMs),
+				Payload: payload,
+			})
+		}()
+	}()
+
+	// Defer token usage recording (fire-and-forget, T8.3)
+	defer func() {
+		if h.usageSvc == nil || claims == nil {
+			return
+		}
+		h.usageSvc.RecordUsage(context.Background(), &model.TokenUsage{
+			UserID:           claims.Sub,
+			UserRole:         claims.Role,
+			AgentRole:        req.AgentRole,
+			SessionID:        req.SessionID,
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
+			ToolCallCount:    len(toolNames),
+			Success:          streamSuccess,
+			LatencyMs:        time.Since(streamStart).Milliseconds(),
+			ErrorCode:        streamErr,
+		})
+	}()
+
 	// Empty message check
 	if strings.TrimSpace(req.Message) == "" {
 		agentError(w, http.StatusBadRequest, dto.AgentErrInvalidRequest, "Message cannot be empty")
 		return
 	}
 
-	// Message length check
-	if len(req.Message) > 500 {
+// Message length check (measured in runes to handle multi-byte characters correctly)
+		if len([]rune(req.Message)) > 500 {
 		agentError(w, http.StatusBadRequest, dto.AgentErrMessageTooLong, "Message exceeds maximum length of 500 characters")
 		return
 	}
@@ -222,9 +306,8 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	// Context validation
 	var evalCtx *model.Evaluation
 	var taskCtx *model.TrainingTask
-	var uploadCtx *model.Upload
-	var parseResultCtx *model.ParseResult
-	var classCtx *model.Class
+var uploadCtx *model.Upload
+		var parseResultCtx *model.ParseResult
 
 	if req.Context != nil {
 		// Cross-role context check: students cannot use teacher-only context fields
@@ -289,8 +372,8 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				if task.TeacherID != claims.Sub {
-					agentError(w, http.StatusForbidden, dto.AgentErrContextForbidden,
-						"You do not have permission to access this task")
+					// Anti-enumeration: return 404 (same as "not found") to prevent ID probing
+					agentError(w, http.StatusNotFound, dto.AgentErrSessionNotFound, "Session not found")
 					return
 				}
 				taskCtx = task
@@ -307,8 +390,8 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				if task.TeacherID != claims.Sub {
-					agentError(w, http.StatusForbidden, dto.AgentErrContextForbidden,
-						"You do not have permission to access this evaluation")
+					// Anti-enumeration: return 404
+					agentError(w, http.StatusNotFound, dto.AgentErrSessionNotFound, "Session not found")
 					return
 				}
 				evalCtx = eval
@@ -320,23 +403,39 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 					agentError(w, http.StatusNotFound, dto.AgentErrContextNotFound, "Class not found")
 					return
 				}
-				if cls.TeacherID != claims.Sub {
-					agentError(w, http.StatusForbidden, dto.AgentErrContextForbidden,
-						"You do not have permission to access this class")
-					return
+if cls.TeacherID != claims.Sub {
+						// Anti-enumeration: return 404
+						agentError(w, http.StatusNotFound, dto.AgentErrSessionNotFound, "Session not found")
+						return
+					}
+					_ = cls // class validated for ownership, stored for later use if needed
 				}
-				classCtx = cls
-			}
 		}
 	}
 
-	// Quota enforcement
+	// Concurrency tracking: acquire slot before SSE, release on stream end
+	if h.streamTracker != nil {
+		if err := h.streamTracker.Acquire(claims.Sub); err != nil {
+			agentError(w, http.StatusTooManyRequests, dto.AgentErrConcurrentLimit, err.Error())
+			return
+		}
+		defer h.streamTracker.Release(claims.Sub)
+	}
+
+	// T8.2: Circuit breaker pre-check — short-circuit if LLM is unavailable
+	if h.llmClient != nil && h.llmClient.IsBreakerOpen() {
+		agentError(w, http.StatusServiceUnavailable, dto.AgentErrLLMUnavailable,
+			"AI 服务暂时不可用，请稍后再试")
+		return
+	}
+
+	// Quota enforcement (role-based)
 	msg := &model.AgentMessage{
 		SessionID: req.SessionID,
 		Role:      "user",
 		Content:   req.Message,
 	}
-	if err := h.agentSvc.SaveUserMessage(r.Context(), msg); err != nil {
+	if err := h.agentSvc.SaveUserMessageWithRole(r.Context(), msg, claims.Role); err != nil {
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "message exceeds max length") {
 			agentError(w, http.StatusBadRequest, dto.AgentErrMessageTooLong, "Message too long")
@@ -357,7 +456,7 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	// Update session context if provided
 	if req.Context != nil {
 		newCtxJSON, _ := json.Marshal(req.Context)
-		_ = h.agentSvc.(*service.AgentService).UpdateContext(r.Context(), req.SessionID, string(newCtxJSON))
+		_ = h.agentSvc.UpdateContext(r.Context(), req.SessionID, string(newCtxJSON))
 	}
 
 	// Build conversation history
@@ -385,32 +484,40 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 			Upload:      uploadCtx,
 			ParseResult: parseResultCtx,
 			Dimensions:  dims,
-		}
-		if h.chatOrch.OnToolCall == nil {
-			h.chatOrch.OnToolCall = func(name string) {
+			OnToolCall: func(name string) {
+				toolNames = append(toolNames, name)
 				writeSSE(w, flusher, map[string]any{"type": "tool_start", "name": name})
-			}
+			},
 		}
 		resp, err := h.chatOrch.Run(r.Context(), history, req.Message, tctx)
 		if err != nil {
 			slog.Error("agent stream: student tool path failed", "error", err.Error())
-			content = "抱歉，系统暂时遇到了问题，请稍后再试。"
+			streamErr = err.Error()
+			_, content = ClassifyLLMError(err)
 		} else if resp != nil && len(resp.Choices) > 0 {
 			content = resp.Choices[0].Message.Content
+			if resp.Usage != nil {
+				promptTokens = resp.Usage.PromptTokens
+				completionTokens = resp.Usage.CompletionTokens
+			}
+			streamSuccess = true
 		}
 
 	case claims.Role == "teacher" && hasTeacherContext(req.Context) && h.chatOrch != nil:
 		// Teacher tool-augmented path
 		ttctx := &pipeline.TeacherToolContext{
 			TeacherID: claims.Sub,
+			OnToolCall: func(name string) {
+				toolNames = append(toolNames, name)
+				writeSSE(w, flusher, map[string]any{"type": "tool_start", "name": name})
+			},
 		}
 		if req.Context != nil {
-			ttctx.TaskID = req.Context.TaskID
-			ttctx.ClassID = req.Context.ClassID
-			ttctx.CourseID = req.Context.CourseID
-		}
-		_ = classCtx // classCtx used for validation only
-		systemPrompt := service.BuildTeacherPrompt(service.AgentContext{
+ttctx.TaskID = req.Context.TaskID
+				ttctx.ClassID = req.Context.ClassID
+				ttctx.CourseID = req.Context.CourseID
+			}
+			systemPrompt := service.BuildTeacherPrompt(service.AgentContext{
 			UserID:    claims.Sub,
 			UserRole:  claims.Role,
 			AgentRole: "teacher",
@@ -418,17 +525,46 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 			ClassID:   req.Context.ClassID,
 			CourseID:  req.Context.CourseID,
 		})
-		if h.chatOrch.OnToolCall == nil {
-			h.chatOrch.OnToolCall = func(name string) {
-				writeSSE(w, flusher, map[string]any{"type": "tool_start", "name": name})
-			}
-		}
 		resp, err := h.chatOrch.RunTeacher(r.Context(), history, req.Message, ttctx, systemPrompt)
 		if err != nil {
 			slog.Error("agent stream: teacher tool path failed", "error", err.Error())
-			content = "抱歉，系统暂时遇到了问题，请稍后再试。"
+			streamErr = err.Error()
+			_, content = ClassifyLLMError(err)
 		} else if resp != nil && len(resp.Choices) > 0 {
 			content = resp.Choices[0].Message.Content
+			if resp.Usage != nil {
+				promptTokens = resp.Usage.PromptTokens
+				completionTokens = resp.Usage.CompletionTokens
+			}
+			streamSuccess = true
+		}
+
+	case claims.Role == "admin" && h.chatOrch != nil:
+		// Admin tool-augmented path
+		actx := &pipeline.AdminToolContext{
+			AdminID: claims.Sub,
+			OnToolCall: func(name string) {
+				toolNames = append(toolNames, name)
+				writeSSE(w, flusher, map[string]any{"type": "tool_start", "name": name})
+			},
+		}
+		systemPrompt := service.BuildAdminPrompt(service.AgentContext{
+			UserID:    claims.Sub,
+			UserRole:  claims.Role,
+			AgentRole: "admin",
+		})
+		resp, err := h.chatOrch.RunAdmin(r.Context(), history, req.Message, actx, systemPrompt)
+		if err != nil {
+			slog.Error("agent stream: admin tool path failed", "error", err.Error())
+			streamErr = err.Error()
+			_, content = ClassifyLLMError(err)
+		} else if resp != nil && len(resp.Choices) > 0 {
+			content = resp.Choices[0].Message.Content
+			if resp.Usage != nil {
+				promptTokens = resp.Usage.PromptTokens
+				completionTokens = resp.Usage.CompletionTokens
+			}
+			streamSuccess = true
 		}
 
 	default:
@@ -449,20 +585,39 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 			resp, err := h.roleOrch.Stream(r.Context(), agCtx, req.Message, history, w)
 			if err != nil {
 				slog.Error("agent stream: basic path failed", "error", err.Error())
-				content = "抱歉，系统暂时遇到了问题，请稍后再试。"
+				streamErr = err.Error()
+				_, content = ClassifyLLMError(err)
 			} else if resp != nil {
 				content = resp.Content
+				promptTokens = resp.PromptTokens
+				completionTokens = resp.CompletionTokens
+				streamSuccess = true
 			}
 			// roleOrch.Stream writes SSE directly, so skip the pseudo-stream below
-			// Save assistant response asynchronously
-			go func() {
-				ctx := context.Background()
-				truncated := content
-				if len(truncated) > 500 {
-					truncated = truncated[:500]
+			// But if it errored, emit a terminal done event so the client doesn't hang
+			if err != nil {
+				writeSSE(w, flusher, map[string]any{"type": "error", "code": "AGENT_STREAM_INTERRUPTED", "message": content})
+				writeSSE(w, flusher, map[string]any{"type": "done"})
+				if flusher != nil {
+					flusher.Flush()
 				}
+				// Save assistant response asynchronously (the error message, not the failed content)
+				go func() {
+					truncated := truncateContent(content, 500)
+					if truncated != "" {
+						h.agentSvc.SaveAssistantMessage(context.Background(), &model.AgentMessage{
+							SessionID: req.SessionID,
+							Content:   truncated,
+						})
+					}
+				}()
+				return
+			}
+			// Success path: roleOrch.Stream emitted its own SSE, save response
+			go func() {
+				truncated := truncateContent(content, 500)
 				if truncated != "" {
-					h.agentSvc.SaveAssistantMessage(ctx, &model.AgentMessage{
+					h.agentSvc.SaveAssistantMessage(context.Background(), &model.AgentMessage{
 						SessionID: req.SessionID,
 						Content:   truncated,
 					})
@@ -473,10 +628,21 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		content = "AI 助手暂未配置，请联系管理员。"
 	}
 
-	// Pseudo-stream the content (for student tool path and teacher tool path)
+	// Pseudo-stream the content (for student/tool paths), with context cancellation
 	if content != "" {
 		chunks := chunkString(content, 40)
 		for _, chunk := range chunks {
+			select {
+			case <-r.Context().Done():
+				slog.Warn("agent stream: client disconnected during pseudo-stream", "session_id", req.SessionID)
+				// Write done anyway so parser doesn't hang
+				writeSSE(w, flusher, map[string]any{"type": "done"})
+				if flusher != nil {
+					flusher.Flush()
+				}
+				return
+			default:
+			}
 			writeSSE(w, flusher, map[string]any{"type": "text", "content": chunk})
 			time.Sleep(30 * time.Millisecond)
 		}
@@ -488,13 +654,9 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	// Save assistant response asynchronously
 	go func() {
-		ctx := context.Background()
-		truncated := content
-		if len(truncated) > 500 {
-			truncated = truncated[:500]
-		}
+		truncated := truncateContent(content, 500)
 		if truncated != "" {
-			h.agentSvc.SaveAssistantMessage(ctx, &model.AgentMessage{
+			h.agentSvc.SaveAssistantMessage(context.Background(), &model.AgentMessage{
 				SessionID: req.SessionID,
 				Content:   truncated,
 			})
@@ -503,6 +665,18 @@ func (h *AgentHandler) Stream(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- Helpers ---
+
+// truncateContent truncates content to maxLen runes without breaking UTF-8.
+func truncateContent(s string, maxLen int) string {
+	if maxLen <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen])
+}
 
 func toAgentSessionResponse(s model.AgentSession) dto.AgentSessionResponse {
 	return dto.AgentSessionResponse{
@@ -570,4 +744,26 @@ func hasTeacherContext(ctx *dto.AgentContextReq) bool {
 		return false
 	}
 	return ctx.TaskID != nil || ctx.ClassID != nil || ctx.CourseID != nil || ctx.EvaluationID != nil
+}
+
+// ClassifyLLMError maps an LLM/orchestrator error to the appropriate agent error code and user message (T8.2).
+func ClassifyLLMError(err error) (code string, userMsg string) {
+	if err == nil {
+		return "", ""
+	}
+	if errors.Is(err, llm.ErrFirstTokenTimeout) || errors.Is(err, llm.ErrTotalTimeout) {
+		return dto.AgentErrLLMTimeout, "AI 响应超时，请稍后再试或简化问题后重试。"
+	}
+	if errors.Is(err, llm.ErrCircuitOpen) {
+		return dto.AgentErrLLMUnavailable, "AI 服务暂时不可用，请稍后再试。"
+	}
+	// Check for generic timeout strings from context or HTTP client
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "context deadline exceeded") || strings.Contains(errMsg, "timeout") {
+		return dto.AgentErrLLMTimeout, "AI 响应超时，请稍后再试或简化问题后重试。"
+	}
+	if strings.Contains(errMsg, "circuit breaker") {
+		return dto.AgentErrLLMUnavailable, "AI 服务暂时不可用，请稍后再试。"
+	}
+	return dto.AgentErrInternal, "抱歉，系统暂时遇到了问题，请稍后再试。"
 }

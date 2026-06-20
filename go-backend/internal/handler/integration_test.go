@@ -82,13 +82,13 @@ func TestTasks_List_Empty(t *testing.T) {
 
 func TestUploads_Auth_Required(t *testing.T) {
 	app := testutil.SetupTestApp(t)
-	resp := doRequest(t, app.Server, "GET", "/api/uploads/1", "", nil)
+	resp := doRequest(t, app.Server, "GET", "/api/uploads/by-task/1", "", nil)
 	testutil.AssertStatus(t, resp, http.StatusUnauthorized)
 }
 
 func TestUploads_ListByTask_Empty(t *testing.T) {
 	app := testutil.SetupTestApp(t)
-	resp := doRequest(t, app.Server, "GET", "/api/uploads/1", testutil.StudentToken(), nil)
+	resp := doRequest(t, app.Server, "GET", "/api/uploads/by-task/1", testutil.StudentToken(), nil)
 	testutil.AssertStatus(t, resp, http.StatusOK)
 }
 
@@ -207,18 +207,19 @@ func TestChat_ListSessions_OK(t *testing.T) {
 }
 
 func TestChat_Stream_SSE(t *testing.T) {
-	app := testutil.SetupTestApp(t)
-	body := dto.ChatStreamRequest{SessionID: 1, Message: "hello"}
-	resp := doRequest(t, app.Server, "POST", "/api/chat/stream", testutil.StudentToken(), body)
-	if resp.Header.Get("Content-Type") != "text/event-stream" {
-		t.Fatalf("expected text/event-stream, got %q", resp.Header.Get("Content-Type"))
+		app := testutil.SetupTestApp(t)
+		// Use SessionID=0 so no DB persistence is attempted (no session needed for basic SSE format test)
+		body := dto.ChatStreamRequest{SessionID: 0, Message: "hello"}
+		resp := doRequest(t, app.Server, "POST", "/api/chat/stream", testutil.StudentToken(), body)
+		if resp.Header.Get("Content-Type") != "text/event-stream" {
+			t.Fatalf("expected text/event-stream, got %q", resp.Header.Get("Content-Type"))
+		}
+		defer resp.Body.Close()
+		data, _ := io.ReadAll(resp.Body)
+		if !bytes.Contains(data, []byte("data:")) {
+			t.Fatal("expected SSE data event in response")
+		}
 	}
-	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
-	if !bytes.Contains(data, []byte("data:")) {
-		t.Fatal("expected SSE data event in response")
-	}
-}
 
 // ============================================================
 // Task 10.2: Similarity Handler integration tests

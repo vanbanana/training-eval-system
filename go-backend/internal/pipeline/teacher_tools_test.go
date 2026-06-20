@@ -39,6 +39,14 @@ func (m *mockTaskRepoForTeacher) GetDimensions(_ context.Context, taskID int64) 
 	return dims, nil
 }
 
+func (m *mockTaskRepoForTeacher) List(_ context.Context, _ repository.TaskListParams) ([]model.TrainingTask, int64, error) {
+	var tasks []model.TrainingTask
+	for _, t := range m.tasks {
+		tasks = append(tasks, *t)
+	}
+	return tasks, int64(len(tasks)), nil
+}
+
 // mockUploadRepoForTeacher implements repository.UploadRepo for teacher tool tests.
 type mockUploadRepoForTeacher struct {
 	repository.UploadRepo
@@ -50,7 +58,12 @@ func (m *mockUploadRepoForTeacher) List(_ context.Context, params repository.Upl
 		uploads := m.uploads[*params.TaskID]
 		return uploads, int64(len(uploads)), nil
 	}
-	return nil, 0, nil
+	// Return all uploads across all tasks (used by admin overview)
+	var all []model.Upload
+	for _, uploads := range m.uploads {
+		all = append(all, uploads...)
+	}
+	return all, int64(len(all)), nil
 }
 
 // mockClassRepoForTeacher implements repository.ClassRepo for teacher tool tests.
@@ -239,7 +252,7 @@ func TestT33_04_TeacherGetClassPerformanceEmpty(t *testing.T) {
 	}
 
 	co := &ChatOrchestrator{
-		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{}},
+		taskRepo:   &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{}},
 		uploadRepo: &mockUploadRepoForTeacher{uploads: map[int64][]model.Upload{}},
 		evalRepo:   &mockEvalRepo{},
 		classRepo: &mockClassRepoForTeacher{
@@ -354,19 +367,25 @@ func TestT33_05_TeacherGetDimensionDistribution(t *testing.T) {
 // exactly 4 tools with correct names.
 func TestT33_06_TeacherToolSchemas(t *testing.T) {
 	schemas := TeacherToolSchemas()
-	if len(schemas) != 8 {
-		t.Fatalf("expected 8 teacher tools, got %d", len(schemas))
+	if len(schemas) != 14 {
+		t.Fatalf("expected 14 teacher tools, got %d", len(schemas))
 	}
 
 	expectedNames := map[string]bool{
-		"teacher_get_task_summary":            false,
-		"teacher_list_pending_submissions":    false,
-		"teacher_get_class_performance":       false,
-		"teacher_get_dimension_distribution":  false,
-		"teacher_get_evaluation_detail":       false,
-		"teacher_generate_feedback_draft":     false,
-		"teacher_suggest_score_review":        false,
-		"teacher_compare_with_rubric":         false,
+		"teacher_get_task_summary":                false,
+		"teacher_list_pending_submissions":        false,
+		"teacher_get_class_performance":           false,
+		"teacher_get_dimension_distribution":      false,
+		"teacher_get_evaluation_detail":           false,
+		"teacher_generate_feedback_draft":         false,
+		"teacher_suggest_score_review":            false,
+		"teacher_compare_with_rubric":             false,
+		"teacher_get_similarity_summary":          false,
+		"teacher_explain_similarity_case":         false,
+		"teacher_generate_teaching_suggestions":   false,
+		"teacher_generate_task_draft":             false,
+		"teacher_generate_dimension_rubric_draft": false,
+		"teacher_generate_report_outline_draft":   false,
 	}
 
 	for _, s := range schemas {
@@ -473,9 +492,9 @@ var _ = time.Now
 // mockUploadRepoWithParse extends mockUploadRepoForTeacher with GetByID and GetParseResult.
 type mockUploadRepoWithParse struct {
 	repository.UploadRepo
-	uploads      map[int64]*model.Upload       // uploadID → upload
-	parseResults map[int64]*model.ParseResult   // uploadID → parse result
-	taskUploads  map[int64][]model.Upload       // taskID → uploads (for List)
+	uploads      map[int64]*model.Upload      // uploadID → upload
+	parseResults map[int64]*model.ParseResult // uploadID → parse result
+	taskUploads  map[int64][]model.Upload     // taskID → uploads (for List)
 }
 
 func (m *mockUploadRepoWithParse) GetByID(_ context.Context, id int64) (*model.Upload, error) {
@@ -873,5 +892,406 @@ func TestT34_07_CompareWithRubric(t *testing.T) {
 	}
 	if !containsStr(data["note"].(string), "不自动确认") {
 		t.Error("note should clarify no auto-confirm")
+	}
+}
+
+// ============================================================
+// T3.5 — Similarity Explanation & Teaching Suggestions Tests
+// ============================================================
+
+// mockSimilarityRepo implements repository.SimilarityRepo for teacher tool tests.
+type mockSimilarityRepo struct {
+	repository.SimilarityRepo
+	records []model.SimilarityRecord
+}
+
+func (m *mockSimilarityRepo) GetByID(_ context.Context, id int64) (*model.SimilarityRecord, error) {
+	for _, r := range m.records {
+		if r.ID == id {
+			return &r, nil
+		}
+	}
+	return nil, errNotFound
+}
+
+func (m *mockSimilarityRepo) List(_ context.Context, taskID int64, state *string) ([]model.SimilarityRecord, error) {
+	var result []model.SimilarityRecord
+	for _, r := range m.records {
+		if r.TaskID == taskID {
+			if state == nil || r.State == *state {
+				result = append(result, r)
+			}
+		}
+	}
+	return result, nil
+}
+
+func TestT35_01_SimilaritySummary(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11, Status: "published"}
+
+	hamming := 15
+	cosine := 0.87
+	records := []model.SimilarityRecord{
+		{ID: 1, TaskID: taskID, UploadAID: 100, UploadBID: 101, State: "suspect", HammingDistance: &hamming, CosineSimilarity: &cosine},
+		{ID: 2, TaskID: taskID, UploadAID: 100, UploadBID: 102, State: "suspect"},
+		{ID: 3, TaskID: taskID, UploadAID: 101, UploadBID: 102, State: "confirmed"},
+		{ID: 4, TaskID: taskID, UploadAID: 103, UploadBID: 104, State: "ignored"},
+	}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{taskID: task}},
+		simRepo:  &mockSimilarityRepo{records: records},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_get_similarity_summary", args, ttctx)
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	data := result.Data.(map[string]any)
+	if data["total"].(int) != 4 {
+		t.Errorf("expected total=4, got %v", data["total"])
+	}
+	if data["suspect"].(int) != 2 {
+		t.Errorf("expected suspect=2, got %v", data["suspect"])
+	}
+	if data["confirmed"].(int) != 1 {
+		t.Errorf("expected confirmed=1, got %v", data["confirmed"])
+	}
+	if data["ignored"].(int) != 1 {
+		t.Errorf("expected ignored=1, got %v", data["ignored"])
+	}
+}
+
+func TestT35_02_SimilaritySummaryForbidden(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{taskID: task}},
+		simRepo:  &mockSimilarityRepo{},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 99} // different teacher
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_get_similarity_summary", args, ttctx)
+	if result.Success {
+		t.Fatal("expected failure for forbidden access")
+	}
+	if !containsStr(result.Error, "forbidden") {
+		t.Errorf("error should mention 'forbidden', got: %s", result.Error)
+	}
+}
+
+func TestT35_03_ExplainSimilarityCase(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11}
+
+	hamming := 12
+	cosine := 0.91
+	records := []model.SimilarityRecord{
+		{ID: 1, TaskID: taskID, UploadAID: 100, UploadBID: 101, State: "suspect", HammingDistance: &hamming, CosineSimilarity: &cosine},
+	}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{taskID: task}},
+		simRepo:  &mockSimilarityRepo{records: records},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{"record_id": float64(1)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_explain_similarity_case", args, ttctx)
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	data := result.Data.(map[string]any)
+	if data["state"].(string) != "疑似" {
+		t.Errorf("expected state='疑似', got %v", data["state"])
+	}
+	if data["hamming_distance"].(int) != 12 {
+		t.Errorf("expected hamming_distance=12, got %v", data["hamming_distance"])
+	}
+	if !containsStr(data["note"].(string), "不自动定性") {
+		t.Error("note should clarify that it does not determine plagiarism")
+	}
+}
+
+func TestT35_04_ExplainSimilarityForbidden(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11}
+
+	records := []model.SimilarityRecord{
+		{ID: 1, TaskID: taskID, State: "suspect"},
+	}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{taskID: task}},
+		simRepo:  &mockSimilarityRepo{records: records},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 99} // different teacher
+	args := map[string]any{"record_id": float64(1)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_explain_similarity_case", args, ttctx)
+	if result.Success {
+		t.Fatal("expected failure for forbidden access")
+	}
+	if !containsStr(result.Error, "forbidden") {
+		t.Errorf("error should mention 'forbidden', got: %s", result.Error)
+	}
+}
+
+func TestT35_05_TeachingSuggestions(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11, Status: "published"}
+	dims := []model.Dimension{
+		{ID: 1, TaskID: taskID, Name: "Code Quality", Weight: 50},
+		{ID: 2, TaskID: taskID, Name: "Documentation", Weight: 50},
+	}
+	// Student A: strong in code, weak in docs
+	evalA := makeEvalHelper(1, taskID, 13, 100, "confirmed", 70, []model.DimensionScore{
+		{DimensionID: 1, AIScore: makeScore(90)},
+		{DimensionID: 2, AIScore: makeScore(50)}, // weak
+	})
+	// Student B: also weak in docs
+	evalB := makeEvalHelper(2, taskID, 14, 101, "confirmed", 65, []model.DimensionScore{
+		{DimensionID: 1, AIScore: makeScore(80)},
+		{DimensionID: 2, AIScore: makeScore(45)}, // weak
+	})
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{
+			tasks:      map[int64]*model.TrainingTask{taskID: task},
+			dimensions: map[int64][]model.Dimension{taskID: dims},
+		},
+		uploadRepo: &mockUploadRepoWithParse{uploads: map[int64]*model.Upload{}, parseResults: map[int64]*model.ParseResult{}},
+		evalRepo:   &mockEvalRepo{evals: []model.Evaluation{evalA, evalB}},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_generate_teaching_suggestions", args, ttctx)
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	data := result.Data.(map[string]any)
+	if data["is_draft"].(bool) != true {
+		t.Error("expected is_draft=true")
+	}
+	weakCount := data["weak_dimensions"].(int)
+	if weakCount != 1 {
+		t.Errorf("expected 1 weak dimension (Documentation), got %d", weakCount)
+	}
+	if !containsStr(data["suggestions"].(string), "草稿") {
+		t.Error("suggestions should mention 'draft'")
+	}
+}
+
+func TestT35_06_SimilaritySummaryNoRepo(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{taskID: task}},
+		simRepo:  nil, // no sim repo
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_get_similarity_summary", args, ttctx)
+	if result.Success {
+		t.Fatal("expected failure when sim repo is nil")
+	}
+	if !containsStr(result.Error, "not available") {
+		t.Errorf("error should mention 'not available', got: %s", result.Error)
+	}
+}
+
+// ============================================================
+// T3.6 — Task & Dimension Rubric Draft Generation Tests
+// ============================================================
+
+func TestT36_01_TaskDraft(t *testing.T) {
+	co := &ChatOrchestrator{}
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{"brief": "Python web development task"}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_generate_task_draft", args, ttctx)
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	data := result.Data.(map[string]any)
+	if data["is_draft"].(bool) != true {
+		t.Error("expected is_draft=true")
+	}
+	draft := data["draft"].(string)
+	if !containsStr(draft, "草稿") {
+		t.Error("draft should contain 'draft' label")
+	}
+	if !containsStr(draft, "Python web development task") {
+		t.Error("draft should contain the brief")
+	}
+	if !containsStr(draft, "不会自动创建") {
+		t.Error("draft should note it won't auto-create")
+	}
+}
+
+func TestT36_02_TaskDraftNoBrief(t *testing.T) {
+	co := &ChatOrchestrator{}
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_generate_task_draft", args, ttctx)
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	data := result.Data.(map[string]any)
+	draft := data["draft"].(string)
+	if containsStr(draft, "任务简述：") {
+		t.Error("draft should not contain '任务简述：' value line when no brief provided")
+	}
+}
+
+func TestT36_03_DimensionRubricDraft(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11}
+	existingDims := []model.Dimension{
+		{ID: 1, TaskID: taskID, Name: "Existing Dim", Weight: 30},
+	}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{
+			tasks:      map[int64]*model.TrainingTask{taskID: task},
+			dimensions: map[int64][]model.Dimension{taskID: existingDims},
+		},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_generate_dimension_rubric_draft", args, ttctx)
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	data := result.Data.(map[string]any)
+	if data["is_draft"].(bool) != true {
+		t.Error("expected is_draft=true")
+	}
+	totalWeight := data["total_weight"].(int)
+	if totalWeight != 100 {
+		t.Errorf("expected total_weight=100, got %d", totalWeight)
+	}
+
+	draft := data["draft"].(string)
+	if !containsStr(draft, "已有 1 个评分维度") {
+		t.Error("draft should show existing dimensions")
+	}
+	if !containsStr(draft, "不会自动替换") {
+		t.Error("draft should note it won't auto-replace")
+	}
+}
+
+func TestT36_04_DimensionRubricDraftForbidden(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{taskID: task}},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 99} // different teacher
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_generate_dimension_rubric_draft", args, ttctx)
+	if result.Success {
+		t.Fatal("expected failure for forbidden access")
+	}
+	if !containsStr(result.Error, "forbidden") {
+		t.Errorf("error should mention 'forbidden', got: %s", result.Error)
+	}
+}
+
+func TestT36_05_ReportOutlineDraft(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11, Status: "published"}
+	dims := []model.Dimension{
+		{ID: 1, TaskID: taskID, Name: "Code Quality", Weight: 50},
+		{ID: 2, TaskID: taskID, Name: "Documentation", Weight: 50},
+	}
+	score := 75.0
+	evalA := model.Evaluation{
+		ID: 1, TaskID: taskID, StudentID: 13, UploadID: 100, Status: "confirmed",
+		TotalScore: &score,
+		Scores: []model.DimensionScore{
+			{DimensionID: 1, AIScore: makeScore(80)},
+			{DimensionID: 2, AIScore: makeScore(70)},
+		},
+	}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{
+			tasks:      map[int64]*model.TrainingTask{taskID: task},
+			dimensions: map[int64][]model.Dimension{taskID: dims},
+		},
+		uploadRepo: &mockUploadRepoForTeacher{uploads: map[int64][]model.Upload{
+			taskID: {{ID: 100, StudentID: 13}, {ID: 101, StudentID: 14}},
+		}},
+		evalRepo: &mockEvalRepo{evals: []model.Evaluation{evalA}},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 11}
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_generate_report_outline_draft", args, ttctx)
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+
+	data := result.Data.(map[string]any)
+	if data["is_draft"].(bool) != true {
+		t.Error("expected is_draft=true")
+	}
+	outline := data["outline"].(string)
+	if !containsStr(outline, "总体概况") {
+		t.Error("outline should contain overview section")
+	}
+	if !containsStr(outline, "各维度分析") {
+		t.Error("outline should contain dimension analysis section")
+	}
+	if !containsStr(outline, "不会自动写入") {
+		t.Error("outline should note it won't auto-write")
+	}
+}
+
+func TestT36_06_ReportOutlineDraftForbidden(t *testing.T) {
+	taskID := int64(200)
+	task := &model.TrainingTask{ID: taskID, Name: "Test Task", TeacherID: 11}
+
+	co := &ChatOrchestrator{
+		taskRepo: &mockTaskRepoForTeacher{tasks: map[int64]*model.TrainingTask{taskID: task}},
+	}
+
+	ttctx := &TeacherToolContext{TeacherID: 99} // different teacher
+	args := map[string]any{"task_id": float64(taskID)}
+
+	result := co.DispatchTeacherTool(context.Background(), "teacher_generate_report_outline_draft", args, ttctx)
+	if result.Success {
+		t.Fatal("expected failure for forbidden access")
+	}
+	if !containsStr(result.Error, "forbidden") {
+		t.Errorf("error should mention 'forbidden', got: %s", result.Error)
 	}
 }

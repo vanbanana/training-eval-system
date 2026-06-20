@@ -28,10 +28,28 @@ func (h *EvaluationsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid evaluation ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	eval, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		Error(w, http.StatusNotFound, "Evaluation not found")
 		return
+	}
+	// Ownership check: students can only view their own evaluations
+	if claims.Role == "student" && eval.StudentID != claims.Sub {
+		Error(w, http.StatusNotFound, "Evaluation not found")
+		return
+	}
+	// Teachers: must own the task
+	if claims.Role == "teacher" {
+		task, err := h.taskSvc.GetByID(r.Context(), eval.TaskID)
+		if err != nil || task.TeacherID != claims.Sub {
+			Error(w, http.StatusNotFound, "Evaluation not found")
+			return
+		}
 	}
 	JSON(w, http.StatusOK, h.evalToFullDTO(r.Context(), eval))
 }

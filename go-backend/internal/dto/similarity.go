@@ -9,7 +9,7 @@ type SimilarityRecordResponse struct {
 	HammingDistance  *int     `json:"hamming_distance"`
 	CosineSimilarity *float64 `json:"cosine_similarity"`
 	State            string   `json:"state"`
-	ReviewedBy       *int64   `json:"reviewed_by"`
+	ReviewedBy       *int64   `json:"reviewed_by_id"`
 	CreatedAt        string   `json:"created_at"`
 	DecidedAt        *string  `json:"decided_at"`
 }

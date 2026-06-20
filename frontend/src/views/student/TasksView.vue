@@ -83,7 +83,7 @@ async function fetchAll() {
     const counts: Record<number, number> = {}
     await Promise.all(
       tasks.value.map(async (t) => {
-        const r = await safeGet<unknown[]>(`/api/uploads/${t.id}`, [])
+        const r = await safeGet<unknown[]>(`/api/uploads/by-task/${t.id}`, [])
         counts[t.id] = (r.data ?? []).length
       }),
     )

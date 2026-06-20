@@ -12,6 +12,7 @@ import (
 type RouterConfig struct {
 	JWTSecret            string
 	CORSOrigins          []string
+	FeatureFlags         middleware.FeatureFlags
 	AuthHandler          *AuthHandler
 	UsersHandler         *UsersHandler
 	TasksHandler         *TasksHandler
@@ -33,6 +34,11 @@ type RouterConfig struct {
 	AccountHandler       *AccountHandler
 	SSEHandler           *SSEHandler
 	ParseHandler         *ParseHandler
+	AgentHandler         *AgentHandler
+	UsageHandler         *UsageHandler
+	HealthHandler        *HealthHandler
+	StaticHandler        *StaticHandler
+	CapabilitiesHandler  *CapabilitiesHandler
 }
 
 // NewRouter creates the chi router with all routes and middleware.
@@ -46,10 +52,14 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	r.Use(middleware.CORS(cfg.CORSOrigins))
 	r.Use(middleware.SecurityHeaders)
 
-	// Health check (public)
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		JSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
+	// Health check (public) — use HealthHandler if available, otherwise inline fallback
+	if cfg.HealthHandler != nil {
+		r.Get("/healthz", cfg.HealthHandler.Health)
+	} else {
+		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		})
+	}
 
 	// API routes
 	r.Route("/api", func(r chi.Router) {
@@ -64,6 +74,11 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			})
 		})
 
+		// Public capabilities endpoint — frontend uses this to show/hide agent entries (T9.2).
+		if cfg.CapabilitiesHandler != nil {
+			r.Get("/capabilities", cfg.CapabilitiesHandler.GetCapabilities)
+		}
+
 		// Protected routes
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
@@ -73,16 +88,14 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Use(middleware.RequireRole("admin"))
 				r.Get("/", cfg.UsersHandler.List)
 				r.Post("/", cfg.UsersHandler.Create)
-				r.Put("/{id}", cfg.UsersHandler.Update)
 				r.Patch("/{id}", cfg.UsersHandler.Update)
 				r.Delete("/{id}", cfg.UsersHandler.Delete)
-				r.Patch("/{id}/toggle-status", cfg.UsersHandler.ToggleStatus)
 				r.Patch("/{id}/toggle-active", cfg.UsersHandler.ToggleStatus)
 				r.Post("/{id}/reset-password", cfg.UsersHandler.ResetPassword)
 			})
 
-			// Allow teachers to look up individual students for profile display
-			r.Get("/users/{id}", cfg.UsersHandler.Get)
+			// Allow teachers and admins to look up individual users; students only see their own via /account/me
+			r.With(middleware.RequireRole("admin", "teacher")).Get("/users/{id}", cfg.UsersHandler.Get)
 
 			r.Route("/llm", func(r chi.Router) {
 				r.Use(middleware.RequireRole("admin"))
@@ -96,6 +109,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Get("/", cfg.AuditHandler.List)
 				r.Get("/export", cfg.AuditHandler.Export)
 			})
+
+			if cfg.UsageHandler != nil {
+				r.Route("/usage", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Get("/summary", cfg.UsageHandler.GetSummary)
+				})
+			}
 
 			r.Route("/imports", func(r chi.Router) {
 				r.Use(middleware.RequireRole("admin"))
@@ -116,8 +136,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 					r.Post("/", cfg.TasksHandler.Create)
 					r.Patch("/{id}", cfg.TasksHandler.Update)
 					r.Delete("/{id}", cfg.TasksHandler.Delete)
-					r.Patch("/{id}/publish", cfg.TasksHandler.Publish)
-					r.Post("/{id}/publish", cfg.TasksHandler.Publish)
+r.Post("/{id}/publish", cfg.TasksHandler.Publish)
 					r.Patch("/{id}/close", cfg.TasksHandler.Close)
 					r.Put("/{id}/dimensions", cfg.TasksHandler.ReplaceDimensions)
 				})
@@ -129,9 +148,9 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Get("/tasks/{id}/summary", cfg.GradingHandler.GetSummary)
 				r.Post("/evaluations/{id}/confirm", cfg.GradingHandler.Confirm)
 				r.Post("/evaluations/{id}/reject", cfg.GradingHandler.Reject)
-					r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
-					r.Get("/workbench", cfg.GradingHandler.Workbench)
-					r.Get("/uploads/{uploadId}/report-view", cfg.GradingHandler.ReportView)
+				r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
+				r.Get("/workbench", cfg.GradingHandler.Workbench)
+				r.Get("/uploads/{uploadId}/report-view", cfg.GradingHandler.ReportView)
 			})
 
 			r.Route("/similarity", func(r chi.Router) {
@@ -162,37 +181,55 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				})
 			})
 
-			// All authenticated users
-			r.Route("/uploads", func(r chi.Router) {
-				r.Get("/{taskId}", cfg.UploadsHandler.ListByTask)
-				r.Post("/{taskId}", cfg.UploadsHandler.Upload)
-				r.Get("/{id}/verify-result", cfg.UploadsHandler.VerifyResult)
-				r.Post("/{id}/retry", cfg.UploadsHandler.Retry)
-			})
+// All authenticated users
+				r.Route("/uploads", func(r chi.Router) {
+					r.Get("/by-task/{taskId}", cfg.UploadsHandler.ListByTask)
+					r.Post("/by-task/{taskId}", cfg.UploadsHandler.Upload)
+					r.Get("/{id}/verify-result", cfg.UploadsHandler.VerifyResult)
+					r.Post("/{id}/retry", cfg.UploadsHandler.Retry)
+				})
 
 			r.Route("/evaluations", func(r chi.Router) {
+				// Read operations available to all authenticated users
 				r.Get("/my", cfg.EvaluationsHandler.GetMy)
 				r.Get("/{id}", cfg.EvaluationsHandler.GetByID)
 				r.Get("/{id}/history", cfg.EvaluationsHandler.GetHistory)
-				r.Post("/trigger/{uploadId}", cfg.EvaluationsHandler.Trigger)
-				r.Post("/bulk-action", cfg.EvaluationsHandler.BulkAction)
-				r.Patch("/{id}/dimensions/{dimId}", cfg.EvaluationsHandler.UpdateDimensionScore)
+
+				// Write operations require teacher or admin
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin", "teacher"))
+					r.Post("/{uploadId}/trigger", cfg.EvaluationsHandler.Trigger)
+					r.Post("/bulk-action", cfg.EvaluationsHandler.BulkAction)
+					r.Patch("/{id}/dimensions/{dimId}", cfg.EvaluationsHandler.UpdateDimensionScore)
+				})
 			})
 
 			r.Route("/courses", func(r chi.Router) {
+				// Read operations available to all authenticated users
 				r.Get("/", cfg.CoursesHandler.List)
-				r.Post("/", cfg.CoursesHandler.Create)
-				r.Patch("/{id}/archive", cfg.CoursesHandler.ToggleArchive)
 				r.Get("/{id}/classes", cfg.CoursesHandler.GetClasses)
+
+				// Write operations require teacher or admin
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin", "teacher"))
+					r.Post("/", cfg.CoursesHandler.Create)
+					r.Patch("/{id}/archive", cfg.CoursesHandler.ToggleArchive)
+				})
 			})
 
 			r.Route("/classes", func(r chi.Router) {
+				// Read operations available to all authenticated users
 				r.Get("/", cfg.ClassesHandler.List)
-				r.Post("/", cfg.ClassesHandler.Create)
 				r.Get("/{id}/students", cfg.ClassesHandler.GetStudents)
-				r.Patch("/{id}/archive", cfg.ClassesHandler.ToggleArchive)
-				r.Post("/{id}/students/bulk", cfg.ClassesHandler.BulkAddStudents)
-				r.Delete("/{id}/students/{studentId}", cfg.ClassesHandler.RemoveStudent)
+
+				// Write operations require teacher or admin
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin", "teacher"))
+					r.Post("/", cfg.ClassesHandler.Create)
+					r.Patch("/{id}/archive", cfg.ClassesHandler.ToggleArchive)
+					r.Post("/{id}/students/bulk", cfg.ClassesHandler.BulkAddStudents)
+					r.Delete("/{id}/students/{studentId}", cfg.ClassesHandler.RemoveStudent)
+				})
 			})
 
 			r.Route("/notifications", func(r chi.Router) {
@@ -215,6 +252,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 			r.Route("/profiles", func(r chi.Router) {
 				r.Get("/student/{userId}", cfg.ProfilesHandler.GetStudent)
+				r.Get("/student/{userId}/pdf", cfg.ProfilesHandler.ExportPDF)
 				r.Get("/school", cfg.ProfilesHandler.GetSchool)
 				r.Get("/course/{courseId}", cfg.ProfilesHandler.GetCourse)
 			})
@@ -229,8 +267,25 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 			// SSE endpoint for real-time events (replaces WebSocket)
 			r.Get("/sse/events", cfg.SSEHandler.Events)
+
+			// Agent API — unified AI agent for all roles (gated by feature flags, T9.2)
+			if cfg.AgentHandler != nil {
+				r.Route("/agent", func(r chi.Router) {
+					r.Use(middleware.AgentFeatureGate(cfg.FeatureFlags))
+					r.Get("/sessions", cfg.AgentHandler.ListSessions)
+					r.Post("/sessions", cfg.AgentHandler.CreateSession)
+					r.Get("/sessions/{id}/messages", cfg.AgentHandler.GetMessages)
+					r.Delete("/sessions/{id}", cfg.AgentHandler.DeleteSession)
+					r.Post("/stream", cfg.AgentHandler.Stream)
+				})
+			}
 		})
 	})
+
+	// Static file handler (SPA fallback) — must be last
+	if cfg.StaticHandler != nil {
+		r.NotFound(cfg.StaticHandler.ServeHTTP)
+	}
 
 	return r
 }

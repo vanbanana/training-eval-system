@@ -33,6 +33,18 @@ func (h *ProfilesHandler) GetStudent(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+	// Only teachers, admins, or the student themselves can view the profile
+	if claims.Role == "student" && claims.Sub != id {
+		Error(w, http.StatusNotFound, "Profile not found")
+		return
+	}
+	// Teachers can view any student profile (part of their job)
+	// Admins have full access
 	profile, err := h.svc.GetByStudentID(r.Context(), id)
 	if err != nil || profile == nil {
 		Error(w, http.StatusNotFound, "Profile not found")

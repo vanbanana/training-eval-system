@@ -136,6 +136,19 @@ const routes: RouteRecordRaw[] = [
     path: '/student/chat',
     name: 'student-chat',
     component: () => import('@/views/student/ChatView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: '/teacher/agent',
+    name: 'teacher-agent',
+    component: () => import('@/views/teacher/AgentView.vue'),
+    meta: { roles: ['teacher'] },
+  },
+  {
+    path: '/admin/agent',
+    name: 'admin-agent',
+    component: () => import('@/views/admin/AgentView.vue'),
+    meta: { roles: ['admin'] },
   },
   {
     path: '/templates',
@@ -176,6 +189,11 @@ router.beforeEach(async (to) => {
   }
   if (to.name === 'login' && auth.isAuthenticated) {
     return { name: 'dashboard' }
+  }
+  // Role-based guard
+  const roles = to.meta.roles as string[] | undefined
+  if (roles && auth.user && !roles.includes(auth.user.role)) {
+    return { name: 'forbidden' }
   }
 })
 

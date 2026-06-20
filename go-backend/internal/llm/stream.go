@@ -37,7 +37,7 @@ type StreamDelta struct {
 // Returns the accumulated full response, token counts, and any error.
 func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages []ChatMessage) (*StreamResult, error) {
 	if err := c.breaker.Allow(); err != nil {
-		return nil, fmt.Errorf("llm: circuit breaker open: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrCircuitOpen, err)
 	}
 
 	req := ChatRequest{
@@ -52,7 +52,18 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 	}
 
 	url := c.baseURL + "/chat/completions"
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+
+	// T8.2: Apply first-token timeout to the HTTP connect phase.
+	// This limits how long we wait for the server to start responding,
+	// separate from the overall HTTP client timeout.
+	connectCtx := ctx
+	if c.firstTokenTimeout > 0 {
+		var cancel context.CancelFunc
+		connectCtx, cancel = context.WithTimeout(ctx, c.firstTokenTimeout)
+		defer cancel()
+	}
+
+	httpReq, err := http.NewRequestWithContext(connectCtx, http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("llm: create stream request: %w", err)
 	}
@@ -68,6 +79,10 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		c.breaker.RecordFailure()
+		// Distinguish first-token timeout from other errors
+		if connectCtx.Err() != nil && ctx.Err() == nil {
+			return nil, fmt.Errorf("%w: %v", ErrFirstTokenTimeout, err)
+		}
 		return nil, fmt.Errorf("llm: stream http request: %w", err)
 	}
 	defer resp.Body.Close()
@@ -102,7 +117,8 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 		}
 
 		data := strings.TrimPrefix(line, "data: ")
-		if data == "[DONE]" {
+		data = strings.TrimRight(data, "\r")
+		if strings.TrimSpace(data) == "[DONE]" {
 			break
 		}
 
@@ -127,6 +143,14 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 		if delta.Usage != nil {
 			result.PromptTokens = delta.Usage.PromptTokens
 			result.CompletionTokens = delta.Usage.CompletionTokens
+		}
+
+		// Check for client disconnect mid-stream
+		select {
+		case <-ctx.Done():
+			// Client disconnected; stop forwarding but still capture partial content
+			break
+		default:
 		}
 	}
 

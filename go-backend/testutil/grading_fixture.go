@@ -29,17 +29,17 @@ type GradingFixture struct {
 	TaskBID int64
 
 	// UploadA: student A → task A, parsed + scored evaluation
-	UploadAID       int64
-	EvalAID         int64
-	EvalADimScores  []DimScoreFixture
+	UploadAID      int64
+	EvalAID        int64
+	EvalADimScores []DimScoreFixture
 
 	// UploadB: student B → task A, parsed + no evaluation
 	UploadBID int64
 
 	// UploadC: student C → task B, parsed + scored evaluation
-	UploadCID       int64
-	EvalCID         int64
-	EvalCDimScores  []DimScoreFixture
+	UploadCID      int64
+	EvalCID        int64
+	EvalCDimScores []DimScoreFixture
 
 	// Normal and garbled parse results
 	NormalRawText  string
@@ -59,8 +59,8 @@ type DimFixture struct {
 
 // DimScoreFixture describes a single dimension score row.
 type DimScoreFixture struct {
-	DimensionID int64
-	AIScore     float64
+	DimensionID  int64
+	AIScore      float64
 	TeacherScore *float64 // nil = not overridden
 }
 

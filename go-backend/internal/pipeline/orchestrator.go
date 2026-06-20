@@ -154,6 +154,57 @@ func (o *Orchestrator) IsScoringActive(uploadID int64) bool {
 	return ok
 }
 
+// TriggerScore triggers AI scoring for a parsed upload that has a pending evaluation (T3.2).
+// It looks up the parse result, then queues the scoring task via the worker pool.
+// Returns an error if the upload is not parsed, has no parse result, or is already being scored.
+func (o *Orchestrator) TriggerScore(ctx context.Context, uploadID int64) error {
+	upload, err := o.uploadRepo.GetByID(ctx, uploadID)
+	if err != nil {
+		return fmt.Errorf("pipeline: upload not found: %w", err)
+	}
+	if upload.ParseStatus != "parsed" {
+		return fmt.Errorf("pipeline: upload %d is not parsed (status=%s)", uploadID, upload.ParseStatus)
+	}
+
+	pr, err := o.uploadRepo.GetParseResult(ctx, uploadID)
+	if err != nil || pr == nil || pr.RawText == "" {
+		return fmt.Errorf("pipeline: no parse result for upload %d", uploadID)
+	}
+
+	// Check for existing pending evaluation
+	pendingStatus := "pending"
+	evals, _, _ := o.evalRepo.List(ctx, repository.EvalListParams{
+		UploadID: &uploadID,
+		Status:   &pendingStatus,
+		ListParams: repository.ListParams{Page: 1, PageSize: 1},
+	})
+	if len(evals) == 0 {
+		return fmt.Errorf("pipeline: no pending evaluation for upload %d; create one first", uploadID)
+	}
+
+	if o.IsScoringActive(uploadID) {
+		return fmt.Errorf("pipeline: scoring already active for upload %d", uploadID)
+	}
+
+	o.markScoringActive(uploadID)
+	o.publishEvalProgress(upload.StudentID, uploadID, "scoring")
+
+	evalID := evals[0].ID
+	return o.pool.Submit(&worker.Task{
+		ID: fmt.Sprintf("score-%d", evalID),
+		Fn: func(taskCtx context.Context) error {
+			defer o.markScoringDone(uploadID)
+			if err := o.scorer.Score(taskCtx, evalID, pr.RawText); err != nil {
+				return err
+			}
+			if o.onScored != nil {
+				o.onScored(upload.StudentID)
+			}
+			return nil
+		},
+	})
+}
+
 func (o *Orchestrator) markScoringActive(uploadID int64) {
 	o.mu.Lock()
 	o.activeTasks[uploadID] = struct{}{}

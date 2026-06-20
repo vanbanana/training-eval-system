@@ -8,9 +8,9 @@ import (
 
 // ReadabilityResult holds the analysis of a text chunk.
 type ReadabilityResult struct {
-	IsReadable bool     `json:"is_readable"`
-	Warnings   []string `json:"warnings,omitempty"`
-	CleanText  string   `json:"clean_text,omitempty"`
+	IsReadable bool      `json:"is_readable"`
+	Warnings   []string  `json:"warnings,omitempty"`
+	CleanText  string    `json:"clean_text,omitempty"`
 	Sections   []Section `json:"sections,omitempty"`
 }
 
