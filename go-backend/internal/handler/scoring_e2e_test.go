@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -194,3 +195,93 @@ func seedScoringFixture(t *testing.T, db *store.DB) *scoringFixture {
 
 // Ensure unused imports are suppressed
 var _ = model.Evaluation{}
+
+// TestE2E_Agent_ToolCalls verifies the teacher agent tool call path runs through
+// FakeLLM correctly, producing expected tool call → tool result → final response flow.
+func TestE2E_Agent_ToolCalls(t *testing.T) {
+	fakeLLM := testutil.NewFakeLLM()
+	// First Complete call: return a teacher_get_task_summary tool call
+	fakeLLM.WithToolCallResponse("teacher_get_task_summary", map[string]any{
+		"task_id": 200,
+	})
+	// Second Complete call (after tool result is fed back): return final text
+	fakeLLM.WithResponses("根据数据，该任务共有 1 名学生提交了作业。")
+
+	app := testutil.SetupTestAppWithLLM(t, fakeLLM)
+	f := seedScoringFixture(t, app.DB)
+	token := testutil.GenerateTestToken(f.TeacherAID, "teacher_a", "teacher")
+
+	// Create teacher session
+	resp := doRequest(t, app.Server, "POST", "/api/agent/sessions", token,
+		map[string]any{"title": "Agent Tool Test", "agent_role": "teacher"})
+	testutil.AssertStatus(t, resp, http.StatusCreated)
+	var session struct {
+		ID        int64  `json:"id"`
+		AgentRole string `json:"agent_role"`
+	}
+	json.NewDecoder(resp.Body).Decode(&session)
+
+	// Send message with task context — this triggers the teacher tool flow
+	resp = doRequest(t, app.Server, "POST", "/api/agent/stream", token,
+		map[string]any{
+			"session_id": session.ID,
+			"message":    "总结这个任务的提交情况",
+			"agent_role": "teacher",
+			"context":    map[string]any{"task_id": f.TaskAID},
+		})
+	testutil.AssertStatus(t, resp, http.StatusOK)
+
+	body := readAll(resp.Body)
+	events := parseSSEEvents(t, string(body))
+
+	var hasToolCall, hasText, hasDone bool
+	for _, evt := range events {
+		typ, _ := evt["type"].(string)
+		switch typ {
+		case "tool_start":
+			hasToolCall = true
+		case "text":
+			if content, ok := evt["content"].(string); ok && content != "" {
+				hasText = true
+			}
+		case "done":
+			hasDone = true
+		}
+	}
+
+	if !hasToolCall {
+		t.Error("expected tool_start event in agent stream — teacher tool was not triggered")
+	}
+	if !hasText {
+		t.Error("expected text event in agent stream")
+	}
+	if !hasDone {
+		t.Error("expected done event in agent stream")
+	}
+	if !hasToolCall || !hasText || !hasDone {
+		t.Logf("SSE events received (%d):", len(events))
+		for i, evt := range events {
+			t.Logf("  event[%d]: type=%v content=%v", i, evt["type"], truncateStr(evt["content"], 80))
+		}
+	}
+}
+
+func readAll(r io.ReadCloser) string {
+	b, _ := io.ReadAll(r)
+	r.Close()
+	return string(b)
+}
+
+func truncateStr(s any, max int) string {
+	if s == nil {
+		return "<nil>"
+	}
+	str, ok := s.(string)
+	if !ok {
+		return fmt.Sprintf("%v", s)
+	}
+	if len([]rune(str)) > max {
+		return string([]rune(str)[:max]) + "..."
+	}
+	return str
+}
