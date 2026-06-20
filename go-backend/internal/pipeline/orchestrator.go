@@ -30,7 +30,7 @@ type OrchestratorDeps struct {
 	TaskRepo      repository.TaskRepo
 	ProfileRepo   repository.ProfileRepo
 	SystemCfgRepo repository.SystemConfigRepo
-	LLMClient     *llm.Client
+	LLMClient     llm.LLMClient
 	OnScored      func(studentID int64) // called after scoring completes to trigger profile recompute
 }
 
@@ -43,7 +43,7 @@ type Orchestrator struct {
 	simRepo     repository.SimilarityRepo
 	taskRepo    repository.TaskRepo
 	profileRepo repository.ProfileRepo
-	llmClient   *llm.Client
+	llmClient   llm.LLMClient
 	onScored    func(studentID int64)
 
 	scorer     *Scorer

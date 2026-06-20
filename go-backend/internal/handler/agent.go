@@ -23,8 +23,8 @@ import (
 // AgentHandler handles /api/agent/* endpoints.
 type AgentHandler struct {
 	agentSvc      *service.AgentService
-	llmClient     *llm.Client
-	evalRepo      repository.EvaluationRepo
+llmClient     llm.LLMClient
+		evalRepo      repository.EvaluationRepo
 	uploadRepo    repository.UploadRepo
 	taskRepo      repository.TaskRepo
 	classRepo     repository.ClassRepo
@@ -44,7 +44,7 @@ func (h *AgentHandler) SetStreamTracker(t *StreamTracker) {
 // NewAgentHandler creates a new AgentHandler.
 func NewAgentHandler(
 	agentSvc *service.AgentService,
-	llmClient *llm.Client,
+	llmClient llm.LLMClient,
 	evalRepo repository.EvaluationRepo,
 	uploadRepo repository.UploadRepo,
 	taskRepo repository.TaskRepo,

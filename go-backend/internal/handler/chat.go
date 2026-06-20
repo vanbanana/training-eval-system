@@ -22,9 +22,9 @@ import (
 type ChatHandler struct {
 	svc          *service.ChatService
 	broker       *sse.Broker
-	llmClient    *llm.Client
-	orchestrator *pipeline.ChatOrchestrator
-	uploadRepo   repository.UploadRepo
+llmClient    llm.LLMClient
+		orchestrator *pipeline.ChatOrchestrator
+		uploadRepo   repository.UploadRepo
 	taskRepo     repository.TaskRepo
 	evalRepo     repository.EvaluationRepo
 }
@@ -32,7 +32,7 @@ type ChatHandler struct {
 func NewChatHandler(
 	svc *service.ChatService,
 	broker *sse.Broker,
-	llmClient *llm.Client,
+	llmClient llm.LLMClient,
 	orchestrator *pipeline.ChatOrchestrator,
 	uploadRepo repository.UploadRepo,
 	taskRepo repository.TaskRepo,

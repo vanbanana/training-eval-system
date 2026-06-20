@@ -18,7 +18,7 @@ const DefaultObjectiveRatio = 0.6
 
 // Scorer handles LLM-based evaluation scoring via Function Calling.
 type Scorer struct {
-	client        *llm.Client
+	client        llm.LLMClient
 	evalRepo      repository.EvaluationRepo
 	taskRepo      repository.TaskRepo
 	systemCfgRepo repository.SystemConfigRepo

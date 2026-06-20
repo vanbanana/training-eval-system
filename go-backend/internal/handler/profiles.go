@@ -20,10 +20,10 @@ import (
 type ProfilesHandler struct {
 	svc       *service.ProfileService
 	db        *store.DB
-	llmClient *llm.Client
-}
-
-func NewProfilesHandler(svc *service.ProfileService, db *store.DB, llmClient *llm.Client) *ProfilesHandler {
+llmClient llm.LLMClient
+	}
+	
+	func NewProfilesHandler(svc *service.ProfileService, db *store.DB, llmClient llm.LLMClient) *ProfilesHandler {
 	return &ProfilesHandler{svc: svc, db: db, llmClient: llmClient}
 }
 

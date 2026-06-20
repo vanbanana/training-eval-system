@@ -30,11 +30,11 @@ type ProfileComputer struct {
 	profileRepo repository.ProfileRepo
 	taskRepo    repository.TaskRepo
 	pool        *worker.Pool
-	llmClient   *llm.Client
-}
-
-// NewProfileComputer creates a new profile computer.
-func NewProfileComputer(evalRepo repository.EvaluationRepo, profileRepo repository.ProfileRepo, taskRepo repository.TaskRepo, pool *worker.Pool) *ProfileComputer {
+llmClient   llm.LLMClient
+	}
+	
+	// NewProfileComputer creates a new profile computer.
+	func NewProfileComputer(evalRepo repository.EvaluationRepo, profileRepo repository.ProfileRepo, taskRepo repository.TaskRepo, pool *worker.Pool) *ProfileComputer {
 	return &ProfileComputer{
 		evalRepo:    evalRepo,
 		profileRepo: profileRepo,
@@ -44,7 +44,7 @@ func NewProfileComputer(evalRepo repository.EvaluationRepo, profileRepo reposito
 }
 
 // SetLLMClient sets the LLM client for generating weakness descriptions and suggestions.
-func (pc *ProfileComputer) SetLLMClient(client *llm.Client) {
+func (pc *ProfileComputer) SetLLMClient(client llm.LLMClient) {
 	pc.llmClient = client
 }
 

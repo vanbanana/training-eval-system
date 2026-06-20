@@ -33,12 +33,12 @@ var ErrUnsupportedAgentRole = fmt.Errorf("unsupported agent role")
 
 // RoleAgentOrchestrator routes agent requests to role-specific handlers.
 type RoleAgentOrchestrator struct {
-	llmClient *llm.Client
-}
-
-// NewRoleAgentOrchestrator creates a new orchestrator with the given LLM client.
-// llmClient may be nil (for LLM-not-configured fallback).
-func NewRoleAgentOrchestrator(llmClient *llm.Client) *RoleAgentOrchestrator {
+		llmClient llm.LLMClient
+	}
+	
+	// NewRoleAgentOrchestrator creates a new orchestrator with the given LLM client.
+	// llmClient may be nil (for LLM-not-configured fallback).
+	func NewRoleAgentOrchestrator(llmClient llm.LLMClient) *RoleAgentOrchestrator {
 	return &RoleAgentOrchestrator{llmClient: llmClient}
 }
 

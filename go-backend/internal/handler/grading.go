@@ -25,10 +25,10 @@ type GradingHandler struct {
 	userSvc   *service.UserService
 	db        *store.DB
 	orch      *pipeline.Orchestrator
-	llmClient *llm.Client
-}
-
-func NewGradingHandler(evalSvc *service.EvaluationService, uploadSvc *service.UploadService, userSvc *service.UserService, db *store.DB, orch *pipeline.Orchestrator, llmClient *llm.Client) *GradingHandler {
+llmClient llm.LLMClient
+	}
+	
+	func NewGradingHandler(evalSvc *service.EvaluationService, uploadSvc *service.UploadService, userSvc *service.UserService, db *store.DB, orch *pipeline.Orchestrator, llmClient llm.LLMClient) *GradingHandler {
 	return &GradingHandler{evalSvc: evalSvc, uploadSvc: uploadSvc, userSvc: userSvc, db: db, orch: orch, llmClient: llmClient}
 }
 

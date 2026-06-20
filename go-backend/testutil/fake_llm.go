@@ -2,13 +2,14 @@
 package testutil
 
 import (
-	"context"
-	"encoding/json"
-	"sync"
-	"time"
+		"context"
+		"encoding/json"
+		"net/http"
+		"sync"
+		"time"
 
-	"github.com/smartedu/training-eval-system/internal/llm"
-)
+		"github.com/smartedu/training-eval-system/internal/llm"
+	)
 
 // FakeLLM is a mock LLM client that returns preset responses for testing.
 // Supports:
@@ -266,6 +267,21 @@ func (f *FakeLLM) Remaining() int {
 // Model returns "fake-llm" as the model identifier.
 func (f *FakeLLM) Model() string {
 	return "fake-llm"
+}
+
+// StreamChat is a no-op stub that writes a done event and returns empty content.
+func (f *FakeLLM) StreamChat(ctx context.Context, w http.ResponseWriter, messages []llm.ChatMessage) (*llm.StreamResult, error) {
+	return &llm.StreamResult{}, nil
+}
+
+// ExtractTextFromImage is a no-op stub that returns empty text.
+func (f *FakeLLM) ExtractTextFromImage(ctx context.Context, base64Image string, mimeType string) (string, error) {
+	return "", nil
+}
+
+// IsBreakerOpen returns false — the fake LLM is always available.
+func (f *FakeLLM) IsBreakerOpen() bool {
+	return false
 }
 
 // Compile-time assertion that *FakeLLM implements llm.LLMClient.
