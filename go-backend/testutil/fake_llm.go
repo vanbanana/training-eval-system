@@ -263,6 +263,14 @@ func (f *FakeLLM) Remaining() int {
 	return len(f.responses) - f.index
 }
 
+// Model returns "fake-llm" as the model identifier.
+func (f *FakeLLM) Model() string {
+	return "fake-llm"
+}
+
+// Compile-time assertion that *FakeLLM implements llm.LLMClient.
+var _ llm.LLMClient = (*FakeLLM)(nil)
+
 // copyMessages deep-copies a message slice to avoid aliasing issues in recordings.
 func copyMessages(src []llm.ChatMessage) []llm.ChatMessage {
 	dst := make([]llm.ChatMessage, len(src))

@@ -522,3 +522,6 @@ func (c *Client) SetFirstTokenTimeout(d time.Duration) {
 func (c *Client) SetHTTPTimeout(d time.Duration) {
 	c.httpClient.Timeout = d
 }
+
+// Compile-time assertion that *Client implements LLMClient.
+var _ LLMClient = (*Client)(nil)
