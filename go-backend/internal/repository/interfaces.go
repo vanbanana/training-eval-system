@@ -25,6 +25,30 @@ func (p ListParams) Offset() int {
 	return (p.Page - 1) * p.PageSize
 }
 
+// allowedSortColumns is the allow-list of column names for ORDER BY.
+// Any SortBy value not in this list is rejected to prevent SQL injection.
+var allowedSortColumns = map[string]bool{
+	"id":              true,
+	"name":            true,
+	"username":        true,
+	"display_name":    true,
+	"role":            true,
+	"status":          true,
+	"created_at":      true,
+	"updated_at":      true,
+	"deadline":        true,
+	"teacher_id":      true,
+	"course_id":       true,
+	"total_score":     true,
+	"student_count":   true,
+	"last_login_at":   true,
+}
+
+// isValidSortColumn checks that sortBy is a known, safe column name.
+func isValidSortColumn(sortBy string) bool {
+	return allowedSortColumns[sortBy]
+}
+
 // TaskListParams extends ListParams with task-specific filters.
 type TaskListParams struct {
 	ListParams

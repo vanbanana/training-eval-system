@@ -84,14 +84,18 @@ func (r *SQLiteTaskRepo) List(ctx context.Context, params TaskListParams) ([]mod
 		return nil, 0, fmt.Errorf("task_repo: count: %w", err)
 	}
 
-	orderBy := "id DESC"
-	if params.SortBy != "" {
-		dir := "ASC"
-		if params.SortDir == "desc" {
-			dir = "DESC"
+orderBy := "id DESC"
+		if params.SortBy != "" {
+			dir := "ASC"
+			if params.SortDir == "desc" {
+				dir = "DESC"
+			}
+			// Validate SortBy against allow-list to prevent SQL injection
+			if !isValidSortColumn(params.SortBy) {
+				return nil, 0, fmt.Errorf("task_repo: invalid sort column: %q", params.SortBy)
+			}
+			orderBy = fmt.Sprintf("%s %s", params.SortBy, dir)
 		}
-		orderBy = fmt.Sprintf("%s %s", params.SortBy, dir)
-	}
 
 	querySQL := fmt.Sprintf(
 		`SELECT id, name, description, requirements, evaluation_criteria, teacher_id, course_id,
