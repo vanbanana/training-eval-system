@@ -221,12 +221,20 @@ func (h *GradingHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if len(req.ScoreOverrides) > 0 {
-			_ = h.evalSvc.SaveScores(ctx, id, eval.Scores)
+			if err := h.evalSvc.SaveScores(ctx, id, eval.Scores); err != nil {
+				slog.Error("confirm: save scores failed", "eval_id", id, "error", err.Error())
+				Error(w, http.StatusInternalServerError, "Failed to save score overrides")
+				return
+			}
 		}
 		if req.TeacherComment != "" {
 			// Persist comment via update (status stays scored until BatchConfirm below)
 			eval.TeacherComment = req.TeacherComment
-			_ = h.evalSvc.Update(ctx, eval)
+			if err := h.evalSvc.Update(ctx, eval); err != nil {
+				slog.Error("confirm: update comment failed", "eval_id", id, "error", err.Error())
+				Error(w, http.StatusInternalServerError, "Failed to save comment")
+				return
+			}
 		}
 	}
 

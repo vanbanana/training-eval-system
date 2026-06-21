@@ -98,8 +98,11 @@ func BuildChatSystemPrompt(task *model.TrainingTask, eval *model.Evaluation, raw
 	const maxChars = 4000
 
 	truncatedText := rawText
-	if len(truncatedText) > maxChars {
-		truncatedText = truncatedText[:maxChars]
+	if rawText != "" {
+		runes := []rune(rawText)
+		if len(runes) > maxChars {
+			truncatedText = string(runes[:maxChars])
+		}
 	}
 
 	var sb strings.Builder

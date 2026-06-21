@@ -348,16 +348,20 @@ func (co *ChatOrchestrator) Run(
 			}
 
 resultJSON, _ := json.Marshal(result)
-				if len(resultJSON) > MaxToolResultBytes {
-					// Truncate the Error message first, then fall back to truncating Data fields
-					if len(result.Error) > 500 {
-						result.Error = result.Error[:500] + "...[truncated]"
-					}
-					if result.Data != nil {
-						if dataStr, ok := result.Data.(string); ok && len(dataStr) > 1000 {
-							result.Data = dataStr[:1000] + "...[truncated]"
+					if len(resultJSON) > MaxToolResultBytes {
+						// Truncate the Error message first (rune-safe), then fall back to truncating Data fields
+						errRunes := []rune(result.Error)
+						if len(errRunes) > 500 {
+							result.Error = string(errRunes[:500]) + "...[truncated]"
 						}
-					}
+						if result.Data != nil {
+							if dataStr, ok := result.Data.(string); ok {
+								dataRunes := []rune(dataStr)
+								if len(dataRunes) > 1000 {
+									result.Data = string(dataRunes[:1000]) + "...[truncated]"
+								}
+							}
+						}
 					resultJSON, _ = json.Marshal(result)
 					if len(resultJSON) > MaxToolResultBytes {
 						// Last resort: generate a minimal valid JSON with truncated error
