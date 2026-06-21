@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, History as HistoryIcon } from 'lucide-vue-next'
+import { Search, History as HistoryIcon, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 interface Evaluation {
   id: number
@@ -43,6 +44,8 @@ const loading = ref(true)
 const search = ref('')
 const statusFilter = ref<string>('all')
 const sortBy = ref<'date_desc' | 'date_asc' | 'score_desc' | 'score_asc'>('date_desc')
+const currentPage = ref(1)
+const pageSize = 10
 
 async function fetchAll() {
   loading.value = true
@@ -103,11 +106,19 @@ function statusLabel(s: string) {
   return ({ scored: 'AI 评分', confirmed: '已确认', rejected: '已打回' } as Record<string, string>)[s] ?? s
 }
 function scoreColor(score: number | null): string {
-  if (score === null) return 'text-muted-foreground'
-  if (score >= 85) return 'text-success'
-  if (score >= 60) return 'text-ink'
-  return 'text-danger'
-}
+	  if (score === null) return 'text-muted-foreground'
+	  if (score >= 85) return 'text-success'
+	  if (score >= 60) return 'text-ink'
+	  return 'text-danger'
+	}
+
+	// Pagination
+	const totalItems = computed(() => filtered.value.length)
+	const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
+	const paged = computed(() => {
+	  const start = (currentPage.value - 1) * pageSize
+	  return filtered.value.slice(start, start + pageSize)
+	})
 </script>
 
 <template>
@@ -135,7 +146,7 @@ function scoreColor(score: number | null): string {
         </div>
         <div class="space-y-1.5">
           <Label class="text-[11px] text-muted-foreground">状态</Label>
-          <Select v-model="statusFilter">
+          <Select v-model="statusFilter" @update:model-value="currentPage = 1">
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部 ({{ counts.all }})</SelectItem>
@@ -190,7 +201,7 @@ function scoreColor(score: number | null): string {
       />
 
       <div
-        v-for="(e, idx) in filtered"
+        v-for="(e, idx) in paged"
         v-else
         :key="e.id"
         class="grid min-w-[760px] grid-cols-[80px_minmax(16rem,1fr)_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border last:border-0 text-sm hover:bg-surface-2 transition-colors anim-in"
@@ -217,6 +228,31 @@ function scoreColor(score: number | null): string {
           查看
         </RouterLink>
       </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="totalItems > pageSize" class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border-t border-border">
+        <div class="text-xs text-muted-foreground">
+          显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
+        </div>
+        <div class="flex items-center gap-1.5">
+          <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
+            <ChevronLeft class="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            v-for="page in totalPages"
+            :key="page"
+            :variant="page === currentPage ? 'default' : 'outline'"
+            size="sm"
+            class="h-8 min-w-[32px]"
+            @click="currentPage = page"
+          >
+            {{ page }}
+          </Button>
+          <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
+            <ChevronRight class="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
     </Card>
   </AppShell>

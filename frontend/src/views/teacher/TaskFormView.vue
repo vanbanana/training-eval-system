@@ -135,33 +135,33 @@ const filteredClassesForPicker = computed(() => {
 })
 
 async function loadCourses() {
-  try {
-    const { data } = await axios.get('/api/courses')
-    allCourses.value = data
-    if (allCourses.value.length > 0 && !courseId.value) {
-      courseId.value = allCourses.value[0].id
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-async function loadClasses() {
-  try {
-    const { data } = await axios.get('/api/courses/' + courseId.value + '/classes')
-    allClasses.value = data
-  } catch {
-    /* ignore */
-  }
-}
-
-async function loadTemplates() {
-  try {
-    const { data } = await axios.get('/api/templates')
-    templates.value = data
-  } catch {
-    /* ignore */
-  }
+	  try {
+	    const { data } = await axios.get('/api/courses')
+	    allCourses.value = data
+	    if (allCourses.value.length > 0 && !courseId.value) {
+	      courseId.value = allCourses.value[0].id
+	    }
+	  } catch {
+	    toast({ description: '加载课程列表失败', variant: 'warning' })
+	  }
+	}
+	
+	async function loadClasses() {
+	  try {
+	    const { data } = await axios.get('/api/courses/' + courseId.value + '/classes')
+	    allClasses.value = data
+	  } catch {
+	    toast({ description: '加载班级列表失败', variant: 'warning' })
+	  }
+	}
+	
+	async function loadTemplates() {
+	  try {
+	    const { data } = await axios.get('/api/templates')
+	    templates.value = data
+	  } catch {
+	    toast({ description: '加载评语模板失败', variant: 'warning' })
+	  }
 }
 
 async function loadTaskForEdit(id: number) {
