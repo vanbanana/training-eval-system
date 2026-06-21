@@ -10,10 +10,6 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
-    path: '/forgot-password',
-    redirect: '/login',
-  },
-  {
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('@/views/shared/DashboardView.vue'),

@@ -2,6 +2,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -153,9 +154,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: TES_JWT_SECRET must be at least 32 characters, got %d", len(cfg.JWTSecret))
 	}
 
-	if cfg.LLMKeyMaster == "" {
-		return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER is required (base64-encoded 32 bytes)")
-	}
+if cfg.LLMKeyMaster == "" {
+			return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER is required (base64-encoded 32 bytes)")
+		}
+		// Verify it's valid base64 decoding to exactly 32 bytes
+		decoded, err := base64.StdEncoding.DecodeString(cfg.LLMKeyMaster)
+		if err != nil {
+			return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER is not valid base64: %w", err)
+		}
+		if len(decoded) != 32 {
+			return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER decoded to %d bytes, expected exactly 32", len(decoded))
+		}
 
 	// Validate log level
 	switch cfg.LogLevel {

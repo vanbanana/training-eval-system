@@ -57,6 +57,7 @@ const navItems = computed(() => {
       return [
         { label: '首页', to: '/dashboard', icon: 'Home' },
         { label: '实训任务', to: '/teacher/tasks', icon: 'ClipboardList' },
+        { label: '批改工作台', to: '/teacher/grading', icon: 'PenLine' },
         { label: '班级管理', to: '/teacher/classes', icon: 'Users' },
         { label: '报表中心', to: '/teacher/reports', icon: 'BarChart3' },
         { label: 'AI 助教', to: '/teacher/agent', icon: 'MessageSquare' },

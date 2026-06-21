@@ -150,7 +150,7 @@ const currentClass = () => currentCourse()?.classes.find(c => c.id === selectedC
             </div>
             <div class="flex gap-2">
               <Button size="sm" @click="router.push(`/teacher/tasks/${t.id}/grading`)">进入批改</Button>
-              <Button size="sm" variant="outline" @click="router.push(`/teacher/reports/${t.id}`)">报告</Button>
+              <Button size="sm" variant="outline" @click="router.push(`/teacher/reports?task_id=${t.id}`)">报告</Button>
             </div>
           </div>
         </div>

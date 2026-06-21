@@ -310,33 +310,37 @@ choice := resp.Choices[0]
 // ============================================================
 
 func (co *ChatOrchestrator) adminGetSystemOverview(ctx context.Context, _ map[string]any, _ *AdminToolContext) *ToolResult {
-	// User stats
-	var adminCount, teacherCount, studentCount int
-	if co.userRepo != nil {
-		users, total, _ := co.userRepo.List(ctx, repository.ListParams{Page: 1, PageSize: 1})
-		_ = total
-		// Count by role: iterate all users (use large page)
-		allUsers, _, _ := co.userRepo.List(ctx, repository.ListParams{Page: 1, PageSize: 10000})
-		for _, u := range allUsers {
-			switch u.Role {
-			case "admin":
-				adminCount++
-			case "teacher":
-				teacherCount++
-			case "student":
-				studentCount++
+// User stats
+		var adminCount, teacherCount, studentCount int
+		if co.userRepo != nil {
+			// Paginate through all users to count by role (avoids PageSize ceiling issues)
+			const pageSize = 500
+			for page := 1; ; page++ {
+				batch, _, err := co.userRepo.List(ctx, repository.ListParams{Page: page, PageSize: pageSize})
+				if err != nil || len(batch) == 0 {
+					break
+				}
+				for _, u := range batch {
+					switch u.Role {
+					case "admin":
+						adminCount++
+					case "teacher":
+						teacherCount++
+					case "student":
+						studentCount++
+					}
+				}
+				if len(batch) < pageSize {
+					break
+				}
 			}
 		}
-		_ = users
-	}
 
-	// Task stats
-	tasks, taskTotal, _ := co.taskRepo.List(ctx, repository.TaskListParams{ListParams: repository.ListParams{Page: 1, PageSize: 1}})
-	_ = tasks
+		// Task stats
+		_, taskTotal, _ := co.taskRepo.List(ctx, repository.TaskListParams{ListParams: repository.ListParams{Page: 1, PageSize: 1}})
 
-	// Eval stats
-	evals, evalTotal, _ := co.evalRepo.List(ctx, repository.EvalListParams{ListParams: repository.ListParams{Page: 1, PageSize: 1}})
-	_ = evals
+		// Eval stats
+		_, evalTotal, _ := co.evalRepo.List(ctx, repository.EvalListParams{ListParams: repository.ListParams{Page: 1, PageSize: 1}})
 
 	return &ToolResult{
 		Success: true,

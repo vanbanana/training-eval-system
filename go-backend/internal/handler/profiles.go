@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -404,7 +403,3 @@ func joinInts(vals []int) string {
 	}
 	return strings.Join(parts, ", ")
 }
-
-// suppress unused import
-var _ = json.Marshal
-var _ = middleware.GetClaims

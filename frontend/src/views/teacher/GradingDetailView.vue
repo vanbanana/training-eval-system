@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
 import BreadcrumbNav from '@/components/business/BreadcrumbNav.vue'
+import ReportViewer from '@/components/business/ReportViewer.vue'
 import EvaluationProgressPanel from '@/components/business/EvaluationProgressPanel.vue'
 import RejectConfirmDialog from '@/components/business/RejectConfirmDialog.vue'
 import { useToast } from '@/components/ui/toast'
@@ -21,7 +22,6 @@ import {
   ChevronRight,
   CheckCircle2,
   XCircle,
-  FileSearch,
   Save,
   History,
 } from 'lucide-vue-next'
@@ -47,14 +47,6 @@ interface EvaluationDetail {
   scores: DimensionScore[]
 }
 
-interface ParseResult {
-  upload_id: number
-  raw_text?: string
-  pages?: number
-  word_count?: number
-  parse_status?: string
-}
-
 interface Submission {
   upload_id: number
   student_id: number
@@ -72,8 +64,8 @@ const router = useRouter()
 const { toast } = useToast()
 
 const evalId = computed(() => Number(route.params.id))
+const uploadId = computed(() => submission.value?.upload_id ?? 0)
 const evaluation = ref<EvaluationDetail | null>(null)
-const parseResult = ref<ParseResult | null>(null)
 const submission = ref<Submission | null>(null)
 const submissionsList = ref<Submission[]>([])
 const loading = ref(true)
@@ -96,14 +88,8 @@ async function fetchAll() {
       subjScores.value[d.dimension_id] = d.teacher_score ?? undefined
     }
 
-    // 拉解析文本（左栏）
+    // 拉报告预览（左栏 ReportViewer 只依赖 uploadId）
     if (ev.upload_id) {
-      try {
-        const { data: pr } = await axios.get(`/api/parse/${ev.upload_id}/result`)
-        parseResult.value = pr
-      } catch {
-        parseResult.value = null
-      }
     }
 
     // 上下条切换：拉同任务的提交列表
@@ -287,25 +273,15 @@ function openHistory() {
     </div>
 
     <div v-else-if="evaluation" class="tes-grid-main-aside">
-      <!-- LEFT: parsed text -->
+      <!-- LEFT: report preview via ReportViewer -->
       <Card class="tes-card-container flex flex-col overflow-hidden max-h-[44rem]">
-        <header class="px-5 py-3.5 border-b border-border flex justify-between items-center bg-surface-2">
-          <div class="flex items-center gap-2">
-            <FileSearch class="w-4 h-4 text-primary" />
-            <span class="text-sm font-semibold text-ink">{{ submission?.filename ?? '提交原文' }}</span>
-          </div>
-          <span v-if="parseResult?.pages" class="text-xs text-muted-foreground">{{ parseResult.pages }} 页</span>
-        </header>
-        <ScrollArea class="flex-1">
-          <div class="p-5 text-sm leading-relaxed text-foreground whitespace-pre-wrap font-mono">
-            <template v-if="parseResult?.raw_text">{{ parseResult.raw_text }}</template>
-            <template v-else>
-              <p class="text-center text-muted-foreground py-12">
-                {{ parseResult ? '解析文本暂未提供（可能文件类型不支持文本提取）' : '加载中…' }}
-              </p>
-            </template>
-          </div>
-        </ScrollArea>
+        <ReportViewer
+          v-if="submission?.upload_id"
+          :upload-id="submission.upload_id"
+        />
+        <div v-else class="flex-1 flex items-center justify-center p-8">
+          <p class="text-sm text-muted-foreground">暂无提交原文</p>
+        </div>
       </Card>
 
       <!-- RIGHT: AI scores + teacher input -->
