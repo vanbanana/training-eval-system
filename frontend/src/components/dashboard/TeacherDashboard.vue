@@ -188,7 +188,7 @@ function go(p: string) { router.push(p) }
         <h3>快捷操作</h3>
         <div class="td-qa-grid">
           <div class="td-qa" @click="go('/teacher/tasks/new')"><Icon3D name="clipboard" :size="56" color="blue"/><span>创建实训任务</span><small>快速布置新任务</small></div>
-          <div class="td-qa" @click="go('/teacher/tasks')"><Icon3D name="notebook" :size="56" color="purple"/><span>批改工作台</span><small>高效批改学生作业</small></div>
+          <div class="td-qa" @click="go('/teacher/tasks')"><Icon3D name="notebook" :size="56" color="purple"/><span>批改工作台</span><small>高效批改学生实训任务</small></div>
           <div class="td-qa" @click="go('/teacher/classes')"><Icon3D name="people" :size="56" color="green"/><span>班级管理</span><small>查看班级学生情况</small></div>
           <div class="td-qa" @click="go('/profiles')"><Icon3D name="chart" :size="56" color="orange"/><span>评价看板</span><small>多维度数据分析</small></div>
         </div>

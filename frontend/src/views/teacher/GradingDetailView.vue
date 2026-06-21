@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
 import BreadcrumbNav from '@/components/business/BreadcrumbNav.vue'
@@ -71,6 +71,7 @@ const submissionsList = ref<Submission[]>([])
 const loading = ref(true)
 const teacherComment = ref('')
 const subjScores = ref<Record<number, number>>({})
+const dirty = ref(false)
 const submitting = ref(false)
 
 // reject dialog
@@ -109,6 +110,27 @@ async function fetchAll() {
 }
 
 onMounted(fetchAll)
+
+// Track unsaved grading edits
+watch([teacherComment, subjScores], () => { dirty.value = true }, { deep: true })
+
+// Guard against navigation with unsaved changes (prev/next, refresh, tab close)
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!dirty.value) { next(); return }
+  const ok = window.confirm('有未保存的更改，确定离开吗？')
+  if (ok) next()
+  else next(false)
+})
+function beforeUnload(e: BeforeUnloadEvent) {
+  if (dirty.value) e.preventDefault()
+}
+onMounted(() => {
+  fetchAll()
+  window.addEventListener('beforeunload', beforeUnload)
+})
+
+// Reset dirty flag after explicit save
+function afterSave() { dirty.value = false }
 
 const currentIndex = computed(() => {
   if (!submission.value) return -1

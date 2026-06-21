@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import axios from 'axios'
 import { GripVertical, Trash2, Bookmark, Save, CalendarClock, Info, Plus, X } from 'lucide-vue-next'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -84,6 +84,26 @@ const requirementsLength = computed(() => requirements.value.length)
 
 const submitting = ref(false)
 const error = ref('')
+const dirty = ref(false) // tracks unsaved changes for navigation guard
+
+// Mark form as dirty when user interacts with any field
+watch([name, description, requirements, courseId, deadline, selectedClassIds, dimensions], () => {
+  if (!loadingTask.value) dirty.value = true
+}, { deep: true })
+
+// Guard against accidental navigation with unsaved changes
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!dirty.value) { next(); return }
+  const ok = window.confirm('有未保存的更改，确定离开吗？')
+  if (ok) next()
+  else next(false)
+})
+// Also guard browser refresh / tab close
+function beforeUnload(e: BeforeUnloadEvent) {
+  if (dirty.value) e.preventDefault()
+}
+onMounted(() => window.addEventListener('beforeunload', beforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
 // Templates
 const templates = ref<Template[]>([])
