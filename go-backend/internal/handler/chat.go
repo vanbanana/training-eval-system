@@ -154,14 +154,21 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// --- Quota enforcement (requirement 22.8) ---
-	if req.SessionID > 0 {
-		msg := &model.ChatMessage{
-			SessionID: req.SessionID,
-			Role:      "user",
-			Content:   req.Message,
-		}
-		if err := h.svc.SendMessage(r.Context(), studentID, msg); err != nil {
+// --- Session ownership check + quota enforcement ---
+		if req.SessionID > 0 {
+			// Verify session ownership before reading/writing (prevents cross-user IDOR)
+			sess, err := h.svc.GetSession(r.Context(), req.SessionID)
+			if err != nil || sess.StudentID != studentID {
+				Error(w, http.StatusNotFound, "Session not found")
+				return
+			}
+
+			msg := &model.ChatMessage{
+				SessionID: req.SessionID,
+				Role:      "user",
+				Content:   req.Message,
+			}
+			if err := h.svc.SendMessage(r.Context(), studentID, msg); err != nil {
 			if strings.Contains(err.Error(), "daily message limit") {
 				Error(w, http.StatusTooManyRequests, "Daily message limit exceeded (50/day).")
 				return
