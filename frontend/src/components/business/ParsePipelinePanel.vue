@@ -211,15 +211,6 @@ function stageColor(state: PipelineStage['state']) {
   } as const)[state]
 }
 
-function stageIconBg(state: PipelineStage['state']) {
-  return ({
-    done: 'bg-success text-white',
-    active: 'bg-primary text-white',
-    failed: 'bg-destructive text-white',
-    idle: 'bg-muted text-muted-foreground',
-  } as const)[state]
-}
-
 function connectorColor(state: PipelineStage['state']) {
   return ({
     done: 'bg-success',

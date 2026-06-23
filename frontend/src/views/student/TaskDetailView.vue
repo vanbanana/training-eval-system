@@ -102,7 +102,7 @@ const evalDimensions = ref<DimensionProgress[]>([])
 watch(
   () => sseMessages.value.length,
   () => {
-    const last = sseMessages.value[sseMessages.value.length - 1] as Record<string, unknown> | undefined
+    const last = sseMessages.value[sseMessages.value.length - 1] as unknown as Record<string, unknown> | undefined
     if (!last) return
 
     // Handle eval_dimensions events for per-dimension progress
