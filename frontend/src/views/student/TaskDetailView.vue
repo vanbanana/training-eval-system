@@ -55,12 +55,18 @@ interface Upload {
   parse_status: string
   created_at: string
 }
+interface EvalDimScore {
+  dimension_id: number
+  ai_score: number | null
+  weight: number
+}
 interface Evaluation {
   id: number
   task_id: number
   total_score: number | null
   status: string
   created_at: string
+  scores?: EvalDimScore[]
 }
 interface VerifyResult {
   is_valid: boolean
@@ -144,7 +150,18 @@ async function fetchAll() {
     const myEvs = evsResult.data.filter(
       (e) => e.task_id === Number(taskId.value),
     )
-    evaluation.value = myEvs.sort((a, b) => b.id - a.id)[0] ?? null
+    const latestEv = myEvs.sort((a, b) => b.id - a.id)[0] ?? null
+    // Fetch full evaluation detail (with per-dimension scores) if eval exists
+    if (latestEv && ['scored', 'confirmed', 'rejected'].includes(latestEv.status)) {
+      try {
+        const fullEv = await axios.get(`/api/evaluations/${latestEv.id}`)
+        evaluation.value = fullEv.data
+      } catch {
+        evaluation.value = latestEv
+      }
+    } else {
+      evaluation.value = latestEv
+    }
 
     const cur = uploads.value[0]
     if (cur) {
@@ -272,6 +289,12 @@ const showParsePipeline = computed(() => {
 // Build idle dimension list from task dimensions for initial display
 const taskDimensionsAsIdle = computed<DimensionProgress[]>(() => {
   if (!task.value?.dimensions) return []
+  const scoreMap = new Map<number, number>()
+  if (evaluation.value?.scores) {
+    for (const s of evaluation.value.scores) {
+      if (s.ai_score != null) scoreMap.set(s.dimension_id, s.ai_score)
+    }
+  }
   return task.value.dimensions.map(d => ({
     id: d.id,
     name: d.name,
@@ -279,6 +302,7 @@ const taskDimensionsAsIdle = computed<DimensionProgress[]>(() => {
     status: evaluation.value?.status === 'scored' || evaluation.value?.status === 'confirmed' || evaluation.value?.status === 'rejected'
       ? 'done' as const
       : 'idle' as const,
+    score: scoreMap.get(d.id),
   }))
 })
 
