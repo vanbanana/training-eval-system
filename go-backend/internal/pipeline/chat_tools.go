@@ -105,14 +105,14 @@ func ChatToolSchemas() []llm.Tool {
 // toolRequiredParams maps tool names to their required parameter names,
 // used for argument validation before dispatch.
 var toolRequiredParams = map[string][]string{
-	"get_parse_segment":                {"topic"},
-	"get_dimension_detail":             {"dimension_name"},
-	"get_dimension_history":            {"dimension_name"},
-	"get_dimension_class_statistics":   {"dimension_name"},
-	"get_excellent_sample_summary":     {},
-	"get_weakness_list":                {},
-	"get_class_statistics":             {},
-	"get_learning_resources":           {"keyword"},
+	"get_parse_segment":              {"topic"},
+	"get_dimension_detail":           {"dimension_name"},
+	"get_dimension_history":          {"dimension_name"},
+	"get_dimension_class_statistics": {"dimension_name"},
+	"get_excellent_sample_summary":   {},
+	"get_weakness_list":              {},
+	"get_class_statistics":           {},
+	"get_learning_resources":         {"keyword"},
 }
 
 // DispatchTool dispatches a tool call by name with argument validation.
