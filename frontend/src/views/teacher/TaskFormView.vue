@@ -528,7 +528,7 @@ async function doSubmit(status: 'draft' | 'published') {
             <RouterLink to="/templates" class="text-xs text-primary font-medium">管理 ›</RouterLink>
           </header>
           <div v-if="templates.length === 0" class="px-5 py-6 text-center text-xs text-muted-foreground">
-            暂无可用模板
+            暂无模板
           </div>
           <div v-else class="max-h-[280px] overflow-auto">
             <button
