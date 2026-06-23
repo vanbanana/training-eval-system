@@ -28,10 +28,15 @@ import {
 } from '@/components/ui/dialog'
 import { Target, Sparkles, Share2, FileDown, BarChart3 } from 'lucide-vue-next'
 
+interface WeaknessEntry {
+  name: string
+  score: number
+}
+
 interface ProfileOut {
   student_id: number
   radar_data: Record<string, number>
-  weakness_list: string[]
+  weakness_list: WeaknessEntry[]
   suggestions: string[]
   score_trend: { period: string; score: number }[]
   source_evaluation_count: number
@@ -254,24 +259,20 @@ function copyShareLink() {
                 <span class="w-6 h-6 rounded-full grid place-items-center text-xs font-bold bg-accent-soft text-accent-strong">
                   {{ idx + 1 }}
                 </span>
-                <span class="tes-breakable text-[15px] font-bold text-ink">{{ w }}</span>
+                <span class="tes-breakable text-[15px] font-bold text-ink">{{ w.name }}</span>
               </div>
               <span
-                v-if="profile.radar_data[w] !== undefined"
                 class="text-sm font-semibold font-mono"
-                :class="scoreColor(levelOf(profile.radar_data[w]))"
+                :class="scoreColor(levelOf(w.score))"
               >
-                {{ profile.radar_data[w] }} 分
+                {{ w.score }} 分
               </span>
             </div>
-            <div
-              v-if="profile.radar_data[w] !== undefined"
-              class="h-[5px] bg-muted rounded-full overflow-hidden"
-            >
+            <div class="h-[5px] bg-muted rounded-full overflow-hidden">
               <div
                 class="h-full rounded-full transition-all duration-700"
-                :class="progressClass(levelOf(profile.radar_data[w]))"
-                :style="{ width: profile.radar_data[w] + '%' }"
+                :class="progressClass(levelOf(w.score))"
+                :style="{ width: w.score + '%' }"
               ></div>
             </div>
             <div

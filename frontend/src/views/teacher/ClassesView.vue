@@ -69,7 +69,6 @@ interface StudentRow {
 
 const breadcrumbs = [
   { label: '工作台', to: '/dashboard' },
-  { label: '组织' },
   { label: '班级管理' },
 ]
 
@@ -83,7 +82,6 @@ const loadingClasses = ref(true)
 const loadingStudents = ref(false)
 const searchClass = ref('')
 const searchStudent = ref('')
-const filterType = ref('all')
 const currentPage = ref(1)
 const pageSize = 20
 
@@ -472,13 +470,6 @@ onMounted(async () => {
                 <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input v-model="searchStudent" placeholder="按学号 / 姓名搜索" class="pl-9" />
               </div>
-              <Select v-model="filterType">
-                <SelectTrigger class="w-32"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="recent">最近加入</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div class="flex items-center gap-3">
               <Button variant="outline" size="sm" @click="exportClassRoster">
@@ -492,24 +483,15 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="tes-table-shell">
-            <div class="grid min-w-[860px] grid-cols-[36px_240px_140px_160px_140px_minmax(12rem,1fr)] items-center bg-surface-2 px-6 py-3 border-b border-border">
-              <div></div>
-              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学生</div>
-              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学号</div>
-              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">加入时间</div>
-              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
-              <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
-            </div>
-
+          <div class="flex flex-col">
           <template v-if="loadingStudents">
-            <div v-for="n in 5" :key="n" class="grid min-w-[860px] grid-cols-[36px_240px_140px_160px_140px_minmax(12rem,1fr)] items-center px-6 py-3.5 border-b border-border">
-              <Skeleton class="h-4 w-4" />
-              <Skeleton class="h-9 w-3/4" />
-              <Skeleton class="h-4 w-20" />
-              <Skeleton class="h-4 w-24" />
-              <Skeleton class="h-5 w-12" />
-              <Skeleton class="h-4 w-16 ml-auto" />
+            <div v-for="n in 5" :key="n" class="flex items-center gap-3 px-6 py-3.5 border-b border-border">
+              <Skeleton class="h-9 w-9 rounded-full" />
+              <div class="flex-1 space-y-2">
+                <Skeleton class="h-4 w-40" />
+                <Skeleton class="h-3 w-24" />
+              </div>
+              <Skeleton class="h-7 w-24" />
             </div>
           </template>
 
@@ -524,21 +506,18 @@ onMounted(async () => {
             v-for="(s, idx) in paginatedStudents"
             v-else
             :key="s.id"
-            class="grid min-w-[860px] grid-cols-[36px_240px_140px_160px_140px_minmax(12rem,1fr)] items-center px-6 py-3.5 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
+            class="flex items-center gap-3 px-6 py-3.5 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
             :style="{ animationDelay: Math.min(idx * 20, 200) + 'ms' }"
           >
-            <div></div>
-            <div class="flex items-center gap-2.5">
-              <Avatar size="sm">{{ getInitial(s.display_name) }}</Avatar>
-              <div class="flex flex-col">
-                <span class="text-sm font-medium text-ink">{{ s.display_name }}</span>
-                <span class="text-[11px] text-muted-foreground">ID #{{ s.id }}</span>
+            <Avatar size="sm">{{ getInitial(s.display_name) }}</Avatar>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium text-ink truncate">{{ s.display_name }}</div>
+              <div class="text-[11px] text-muted-foreground truncate">
+                <span class="font-mono">{{ s.username }}</span>
+                <template v-if="s.joined_at"> · 加入 {{ formatJoined(s.joined_at) }}</template>
               </div>
             </div>
-            <div class="font-mono text-xs text-muted-foreground">{{ s.username }}</div>
-            <div class="font-mono text-xs text-muted-foreground">{{ formatJoined(s.joined_at) }}</div>
-            <Badge variant="success">在班</Badge>
-            <div class="flex items-center justify-end gap-1.5">
+            <div class="flex items-center gap-1.5">
               <Button variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="viewProfile(s)">画像</Button>
               <Button variant="ghost" size="sm" class="h-7 px-2 text-danger hover:text-danger" @click="removeStudent(s)">
                 <UserX class="w-3 h-3" />

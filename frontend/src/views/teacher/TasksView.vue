@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   DropdownMenu,
@@ -46,7 +45,9 @@ import {
   Eye,
   BarChart3,
   Plus,
-  Info,
+  BookOpen,
+  CalendarClock,
+  Layers,
 } from 'lucide-vue-next'
 
 interface Task {
@@ -71,7 +72,6 @@ const searchQuery = ref('')
 const statusFilter = ref<string>('all')
 const sortBy = ref<'created_at_desc' | 'created_at_asc' | 'deadline_asc' | 'deadline_desc'>('created_at_desc')
 const minDimensions = ref<number | ''>('')
-const selected = ref<Set<number>>(new Set())
 
 const currentPage = ref(1)
 const pageSize = 6
@@ -133,25 +133,6 @@ const statusCounts = computed(() => ({
   draft: tasks.value.filter((t) => t.status === 'draft').length,
   closed: tasks.value.filter((t) => t.status === 'closed').length,
 }))
-
-const allSelectedOnPage = computed({
-  get: () =>
-    paginatedTasks.value.length > 0 &&
-    paginatedTasks.value.every((t) => selected.value.has(t.id)),
-  set: (v: boolean) => {
-    if (v) paginatedTasks.value.forEach((t) => selected.value.add(t.id))
-    else paginatedTasks.value.forEach((t) => selected.value.delete(t.id))
-    selected.value = new Set(selected.value)
-  },
-})
-const someSelected = computed(
-  () => paginatedTasks.value.some((t) => selected.value.has(t.id)) && !allSelectedOnPage.value,
-)
-function toggleRow(id: number, v: boolean) {
-  if (v) selected.value.add(id)
-  else selected.value.delete(id)
-  selected.value = new Set(selected.value)
-}
 
 function statusLabel(s: string) {
   return { draft: '草稿', published: '已发布', closed: '已关闭' }[s] ?? s
@@ -283,8 +264,7 @@ function closeImportDialog() {
     <BreadcrumbNav
       :items="[
         { label: '工作台', to: '/dashboard' },
-        { label: '实训任务', to: '/teacher/tasks' },
-        { label: '管理列表' },
+        { label: '实训任务' },
       ]"
     />
 
@@ -353,105 +333,82 @@ function closeImportDialog() {
       </div>
     </Card>
 
-    <!-- Selected toolbar -->
-    <div v-if="selected.size > 0" class="px-4 py-2 bg-info-soft border border-info rounded-md flex items-center gap-3 anim-in">
-      <Info class="w-4 h-4 text-info" />
-      <span class="text-xs text-info">已选 {{ selected.size }} 项</span>
-      <span class="text-xs text-info opacity-60">（批量操作即将开放）</span>
-      <Button variant="ghost" size="sm" class="ml-auto" @click="selected = new Set()">取消选择</Button>
+    <!-- Loading skeletons -->
+    <div v-if="loading" class="grid grid-cols-[repeat(auto-fill,minmax(22rem,1fr))] gap-4">
+      <Card v-for="n in 6" :key="n" class="tes-card-container flex flex-col gap-4 p-5">
+        <div class="flex items-start gap-3">
+          <div class="flex-1 space-y-2">
+            <Skeleton class="h-5 w-3/4" />
+            <Skeleton class="h-3 w-full" />
+          </div>
+          <Skeleton class="h-6 w-14 rounded-pill" />
+        </div>
+        <Skeleton class="h-9 w-full rounded-md" />
+      </Card>
     </div>
 
-    <!-- Table -->
-    <Card class="tes-card-container overflow-hidden">
-      <div class="tes-table-shell">
-      <div class="grid min-w-[980px] grid-cols-[40px_minmax(18rem,1fr)_160px_160px_140px_120px_180px] items-center px-5 py-3.5 bg-surface-2 border-b border-border">
-        <Checkbox
-          :model-value="allSelectedOnPage ? true : someSelected ? 'indeterminate' : false"
-          @update:model-value="(v) => allSelectedOnPage = v === true"
-          aria-label="全选当前页"
-        />
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">任务名称</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">所属课程</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">截止时间</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">维度数</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
-      </div>
-
-      <template v-if="loading">
-        <div
-          v-for="n in 6"
-          :key="n"
-          class="grid min-w-[980px] grid-cols-[40px_minmax(18rem,1fr)_160px_160px_140px_120px_180px] items-center px-5 py-4 border-b border-border"
-        >
-          <Skeleton class="h-4 w-4" />
-          <Skeleton class="h-10 w-3/4" />
-          <Skeleton class="h-4 w-20" />
-          <Skeleton class="h-4 w-24" />
-          <Skeleton class="h-4 w-16" />
-          <Skeleton class="h-5 w-12" />
-          <Skeleton class="h-4 w-24 ml-auto" />
-        </div>
-      </template>
-
+    <Card v-else-if="paginatedTasks.length === 0" class="tes-card-container">
       <EmptyState
-        v-else-if="paginatedTasks.length === 0"
         title="暂无任务"
         description="创建任务后可在此页面跟踪批改进度"
         action-label="创建任务"
         @action="goToCreate"
       />
+    </Card>
 
-      <div
+    <!-- Task cards -->
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(22rem,1fr))] gap-4">
+      <Card
         v-for="(task, idx) in paginatedTasks"
-        v-else
         :key="task.id"
-        class="grid min-w-[980px] grid-cols-[40px_minmax(18rem,1fr)_160px_160px_140px_120px_180px] items-center px-5 py-4 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
-        :style="{ animationDelay: idx * 30 + 'ms' }"
+        class="tes-card-container flex flex-col gap-4 p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg anim-in"
+        :style="{ animationDelay: Math.min(idx * 30, 240) + 'ms' }"
       >
-        <Checkbox
-          :model-value="selected.has(task.id)"
-          @update:model-value="(v) => toggleRow(task.id, v === true)"
-          :aria-label="`选择 ${task.name}`"
-        />
-        <div class="min-w-0">
-          <div class="tes-breakable text-sm font-semibold text-ink">{{ task.name }}</div>
-          <div class="text-xs text-muted-foreground mt-1 line-clamp-1">{{ task.description || '暂无描述' }}</div>
-        </div>
-        <div class="text-sm text-foreground">{{ courseName(task.course_id) }}</div>
-        <div>
-          <div class="font-mono text-xs" :class="task.deadline ? 'text-accent' : 'text-subtle-foreground'">
-            {{ formatDeadline(task.deadline) }}
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h3 class="tes-breakable text-base font-semibold text-ink leading-snug">{{ task.name }}</h3>
+            <p class="mt-1 text-xs text-muted-foreground line-clamp-2">{{ task.description || '暂无描述' }}</p>
           </div>
-          <div class="text-xs text-muted-foreground mt-1">{{ deadlineHint(task.deadline, task.status) }}</div>
+          <Badge :variant="statusVariant(task.status)" class="shrink-0">{{ statusLabel(task.status) }}</Badge>
         </div>
-        <div class="text-sm text-ink font-semibold">{{ task.dimensions.length }} 个维度</div>
-        <div>
-          <Badge :variant="statusVariant(task.status)">{{ statusLabel(task.status) }}</Badge>
+
+        <div class="flex flex-col gap-2 text-xs text-muted-foreground">
+          <div class="flex items-center gap-2">
+            <BookOpen class="w-3.5 h-3.5 shrink-0" />
+            <span class="tes-breakable">{{ courseName(task.course_id) }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <CalendarClock class="w-3.5 h-3.5 shrink-0" />
+            <span class="font-mono">{{ formatDeadline(task.deadline) }}</span>
+            <span v-if="deadlineHint(task.deadline, task.status)" class="text-[11px] text-subtle-foreground">· {{ deadlineHint(task.deadline, task.status) }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <Layers class="w-3.5 h-3.5 shrink-0" />
+            <span><b class="font-semibold text-ink">{{ task.dimensions.length }}</b> 个评价维度</span>
+          </div>
         </div>
-        <div class="flex items-center justify-end gap-1">
+
+        <div class="mt-auto flex items-center gap-2 border-t border-border pt-4">
           <Button
             v-if="task.status === 'published'"
-            variant="ghost" size="sm"
-            class="h-7 px-2 text-primary"
+            size="sm" class="flex-1"
             @click="goToGrading(task.id)"
-          >批改</Button>
+          >进入批改</Button>
           <Button
             v-else-if="task.status === 'draft'"
-            variant="ghost" size="sm"
-            class="h-7 px-2 text-primary"
+            size="sm" class="flex-1"
             @click="router.push(`/teacher/tasks/new?edit=${task.id}`)"
-          >编辑</Button>
-          <Button v-else variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="goToReports(task.id)">报表</Button>
+          >编辑任务</Button>
+          <Button v-else size="sm" class="flex-1" @click="goToReports(task.id)">查看报表</Button>
 
           <Button
             v-if="task.status === 'draft'"
-            variant="ghost" size="sm" class="h-7 px-2"
+            variant="outline" size="sm"
             @click="publishTask(task)"
           >发布</Button>
           <Button
             v-else-if="task.status === 'published'"
-            variant="ghost" size="sm" class="h-7 px-2"
+            variant="outline" size="sm"
             @click="closeTask(task)"
           >关闭</Button>
 
@@ -482,35 +439,33 @@ function closeImportDialog() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
+      </Card>
+    </div>
 
-      <!-- Pagination -->
+    <!-- Pagination -->
+    <div v-if="!loading && totalItems > pageSize" class="flex flex-wrap justify-between items-center gap-3">
+      <div class="text-xs text-muted-foreground">
+        显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
       </div>
-
-      <div v-if="!loading && totalItems > 0" class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border-t border-border">
-        <div class="text-xs text-muted-foreground">
-          显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
-        </div>
-        <div class="flex items-center gap-1.5">
-          <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
-            <ChevronLeft class="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            v-for="page in totalPages"
-            :key="page"
-            :variant="page === currentPage ? 'default' : 'outline'"
-            size="sm"
-            class="h-8 min-w-[32px]"
-            @click="currentPage = page"
-          >
-            {{ page }}
-          </Button>
-          <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
-            <ChevronRight class="w-3.5 h-3.5" />
-          </Button>
-        </div>
+      <div class="flex items-center gap-1.5">
+        <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
+          <ChevronLeft class="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          v-for="page in totalPages"
+          :key="page"
+          :variant="page === currentPage ? 'default' : 'outline'"
+          size="sm"
+          class="h-8 min-w-[32px]"
+          @click="currentPage = page"
+        >
+          {{ page }}
+        </Button>
+        <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
+          <ChevronRight class="w-3.5 h-3.5" />
+        </Button>
       </div>
-    </Card>
+    </div>
 
     <!-- Import Dialog -->
     <Teleport to="body">
