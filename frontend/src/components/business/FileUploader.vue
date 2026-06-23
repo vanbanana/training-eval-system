@@ -242,11 +242,42 @@ defineExpose({ clearAll })
 
 <template>
   <div :class="cn('flex flex-col gap-4', $props.class)">
-    <!-- Drop zone -->
+    <!-- Compact drop zone (single row when files already exist) -->
     <div
+      v-if="compact"
       :class="cn(
-        'rounded-lg flex flex-col items-center justify-center transition-colors',
-        compact ? 'p-5 min-h-[100px] gap-2' : 'p-10 min-h-[200px] gap-3.5',
+        'flex items-center gap-3 px-4 py-2.5 rounded-lg border border-dashed transition-colors',
+        disabled
+          ? 'border-border-strong cursor-not-allowed opacity-60 bg-muted'
+          : dragOver
+            ? 'border-primary bg-primary-soft cursor-pointer'
+            : 'border-border cursor-pointer hover:border-primary hover:bg-primary-soft/30',
+      )"
+      @click="pickFile"
+      @dragover.prevent="dragOver = true"
+      @dragleave="dragOver = false"
+      @drop="onDrop"
+    >
+      <CloudUpload class="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      <span class="text-xs text-muted-foreground">
+        <template v-if="disabled">{{ disabledHint }}</template>
+        <template v-else>拖入或点击替换文件 · {{ accept.join(' / ') }} · ≤ {{ maxSizeMb }} MB</template>
+      </span>
+      <input
+        ref="fileInput"
+        type="file"
+        class="hidden"
+        :accept="acceptAttr"
+        :multiple="multiple"
+        @change="onFileChange"
+      />
+    </div>
+
+    <!-- Full drop zone (no files yet) -->
+    <div
+      v-else
+      :class="cn(
+        'rounded-lg flex flex-col items-center justify-center transition-colors p-10 min-h-[200px] gap-3.5',
         disabled
           ? 'bg-muted border-2 border-dashed border-border-strong cursor-not-allowed opacity-60'
           : dragOver
@@ -259,13 +290,12 @@ defineExpose({ clearAll })
       @drop="onDrop"
     >
       <div :class="cn(
-        'rounded-full grid place-items-center transition-colors',
-        compact ? 'w-10 h-10' : 'w-14 h-14',
+        'w-14 h-14 rounded-full grid place-items-center transition-colors',
         disabled ? 'bg-border text-muted-foreground' : 'bg-primary-soft text-primary',
       )">
-        <CloudUpload :class="compact ? 'w-4 h-4' : 'w-6 h-6'" />
+        <CloudUpload class="w-6 h-6" />
       </div>
-      <div :class="compact ? 'text-sm font-medium text-ink' : 'text-base font-semibold text-ink'">
+      <div class="text-base font-semibold text-ink">
         <template v-if="disabled">{{ disabledHint }}</template>
         <template v-else>将文件拖到此处，或点击选择</template>
       </div>

@@ -77,7 +77,7 @@ interface VerifyResult {
 }
 
 const route = useRoute()
-const router = useRouter()
+useRouter() // keep router available for future navigation
 const taskId = computed(() => route.params.id as string)
 const { toast } = useToast()
 const { load: loadCourseMap, courseName } = useCourseMap()
@@ -120,6 +120,11 @@ watch(
         status: d.status,
         score: d.score,
       }))
+      // Clear triggering state when all dimensions are done
+      const allDone = evalDimensions.value.every(d => d.status === 'done' || d.status === 'failed')
+      if (allDone && triggering.value) {
+        triggering.value = null
+      }
     }
 
     if (last.status === 'parsed' || last.status === 'failed' || last.status === 'scored') {
@@ -211,13 +216,16 @@ const deadlineLabel = computed(() => {
 async function triggerEval(uploadId: number) {
   triggering.value = uploadId
   try {
-    const { data } = await axios.post(`/api/evaluations/trigger/${uploadId}`)
-    toast({ description: `评价完成，综合分 ${data.total_score}`, variant: 'success' })
-    setTimeout(() => router.push(`/student/evaluations/${data.evaluation_id}`), 600)
+    await axios.post(`/api/evaluations/trigger/${uploadId}`)
+    toast({ description: 'AI 评价已开始，请等待各维度评分完成', variant: 'info' })
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-    toast({ description: msg ?? '触发评价失败', variant: 'destructive' })
-  } finally {
+    if (msg === 'Evaluation already triggered for this upload') {
+      toast({ description: '该文件已触发过评价，正在刷新结果', variant: 'warning' })
+      fetchAll()
+    } else {
+      toast({ description: msg ?? '触发评价失败', variant: 'destructive' })
+    }
     triggering.value = null
   }
 }
@@ -415,7 +423,7 @@ function onUploadSuccess() {
               <div class="flex items-center gap-2.5">
                 <FileText class="w-4 h-4 text-primary" />
                 <span class="text-sm font-semibold text-ink">我的提交</span>
-                <Badge v-if="currentUpload" variant="info" class="text-[10px]">v{{ currentUpload.version }}</Badge>
+                <Badge v-if="uploads.length" variant="info" class="text-[10px]">v{{ uploads.length }}</Badge>
               </div>
               <span v-if="canUpload" class="text-xs font-medium text-primary cursor-pointer">补充提交 · 替换文件</span>
             </header>

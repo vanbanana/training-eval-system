@@ -256,7 +256,7 @@ const roleLabel = computed(() => {
             <button
               class="flex items-center gap-2 pl-1 pr-3 py-1 bg-surface-2 border border-border rounded-pill transition-colors hover:bg-muted"
             >
-              <Avatar size="sm">{{ userInitial }}</Avatar>
+              <Avatar size="sm" aria-hidden="true">{{ userInitial }}</Avatar>
               <span class="hidden sm:inline text-xs font-medium text-ink">{{ auth.user?.display_name }}</span>
               <span class="hidden md:inline text-[10px] text-muted-foreground">{{ roleLabel }}</span>
               <ChevronDown class="w-3.5 h-3.5 text-muted-foreground" />

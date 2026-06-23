@@ -52,8 +52,9 @@ const parseState = computed<StageState>(() => {
 
 const evalState = computed<StageState>(() => {
   if (!props.evalStatus) return 'idle'
-  if (props.evalStatus === 'scored' || props.evalStatus === 'confirmed' || props.evalStatus === 'rejected') return 'done'
-  if (props.evalStatus === 'pending') return 'active'
+  if (['scored', 'confirmed', 'rejected'].includes(props.evalStatus)) return 'done'
+  if (['pending', 'scoring'].includes(props.evalStatus)) return 'active'
+  if (props.evalStatus === 'failed') return 'failed'
   return 'idle'
 })
 
