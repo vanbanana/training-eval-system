@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"time"
 
 	"github.com/smartedu/training-eval-system/internal/llm"
 	"github.com/smartedu/training-eval-system/internal/model"
@@ -72,9 +73,23 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 		resp, err := s.client.Complete(ctx, messages, []llm.Tool{tool})
 		if err != nil {
 			slog.Error("scorer: LLM call failed", "eval_id", evalID, "attempt", attempt, "error", err.Error())
+			// Fail fast on permanent errors (auth, quota exhaustion): retrying
+			// only hammers the provider and never succeeds within this window.
+			if !llm.IsRetryable(err) {
+				s.publishDimensionProgress(eval.StudentID, eval.UploadID, evalID, dims, nil, "failed")
+				return s.markManualRequired(ctx, eval, fmt.Sprintf("LLM scoring failed (non-retryable): %v", err))
+			}
 			if attempt == maxAttempts-1 {
 				s.publishDimensionProgress(eval.StudentID, eval.UploadID, evalID, dims, nil, "failed")
 				return s.markManualRequired(ctx, eval, fmt.Sprintf("LLM scoring failed after %d attempts: %v", maxAttempts, err))
+			}
+			// Exponential backoff before the next retry to ease provider pressure.
+			backoff := time.Duration(attempt+1) * 2 * time.Second
+			select {
+			case <-time.After(backoff):
+			case <-ctx.Done():
+				s.publishDimensionProgress(eval.StudentID, eval.UploadID, evalID, dims, nil, "failed")
+				return s.markManualRequired(ctx, eval, fmt.Sprintf("LLM scoring cancelled: %v", ctx.Err()))
 			}
 			continue
 		}

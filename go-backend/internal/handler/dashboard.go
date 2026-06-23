@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/smartedu/training-eval-system/internal/middleware"
 	"github.com/smartedu/training-eval-system/internal/store"
@@ -134,6 +136,21 @@ func (h *DashboardHandler) teacherDashboard(ctx context.Context, w http.Response
 		slog.Info("activity data", "count", len(activity), "userID", userID)
 	}
 
+	// Zero-fill into a continuous 7-day series so the chart always renders a
+	// stable x-axis (real dates) instead of a sparse/irregular line. Labels use
+	// UTC %m/%d to match the SQLite strftime grouping above.
+	countByDate := make(map[string]int64, len(activity))
+	for _, a := range activity {
+		countByDate[a.Date] = a.Count
+	}
+	filled := make([]dayActivity, 0, 7)
+	nowUTC := time.Now().UTC()
+	for i := 6; i >= 0; i-- {
+		label := nowUTC.AddDate(0, 0, -i).Format("01/02")
+		filled = append(filled, dayActivity{Date: label, Count: countByDate[label]})
+	}
+	activity = filled
+
 	// Recent notifications
 	type notifBrief struct {
 		ID        int64  `json:"id"`
@@ -261,7 +278,8 @@ func (h *DashboardHandler) studentDashboard(ctx context.Context, w http.Response
 	}
 	var scoreDiff *float64
 	if latestScore != nil && prevScore != nil {
-		d := *latestScore - *prevScore
+		// Round to 1 decimal to avoid binary float artifacts (e.g. 7.50000000001).
+		d := math.Round((*latestScore-*prevScore)*10) / 10
 		scoreDiff = &d
 	}
 

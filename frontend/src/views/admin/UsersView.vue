@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { avatarInitial } from '@/lib/utils'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -178,7 +179,7 @@ function roleBadgeVariant(r: string) {
 }
 
 function avatarChar(name: string) {
-  return name?.charAt(0) ?? '?'
+  return avatarInitial(name)
 }
 
 function formatLastLogin(iso: string | null) {

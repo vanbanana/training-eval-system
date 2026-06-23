@@ -134,17 +134,24 @@ function deriveLevel(action: string | null | undefined): LogRow['level'] {
 }
 
 const uptimeText = computed(() => {
-  if (!startTime.value) return '初始化中…'
-  const sec = Math.floor((now.value - startTime.value) / 1000)
+  if (!startTime.value) return '会话计时中…'
+  // Clamp to 0: `now` initialises a few ms before `startTime` (set on mount),
+  // which otherwise floors to a nonsensical "-1 天 -1h -1m".
+  const sec = Math.max(0, Math.floor((now.value - startTime.value) / 1000))
   const days = Math.floor(sec / 86400)
   const hours = Math.floor((sec % 86400) / 3600)
   const mins = Math.floor((sec % 3600) / 60)
-  return `在线 ${days} 天 ${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`
+  return `本次会话 ${days > 0 ? days + ' 天 ' : ''}${String(hours).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m`
 })
 
-const cpuPct = computed(() => Math.round(data.value?.system_resources?.cpu_percent ?? 0))
-const memPct = computed(() => Math.round(data.value?.system_resources?.mem_percent ?? 0))
-const diskPct = computed(() => Math.round(data.value?.system_resources?.disk_percent ?? 0))
+// Resource percentages are null when the host metrics endpoint is not wired up;
+// keep them null so the UI shows "— 未接入监控" instead of a misleading 0%.
+function pct(v: number | null | undefined): number | null {
+  return v == null ? null : Math.round(v)
+}
+const cpuPct = computed(() => pct(data.value?.system_resources?.cpu_percent))
+const memPct = computed(() => pct(data.value?.system_resources?.mem_percent))
+const diskPct = computed(() => pct(data.value?.system_resources?.disk_percent))
 
 function colorBar(pct: number): string {
   if (pct >= 85) return 'bg-danger'
@@ -326,34 +333,34 @@ function bar(pct: number): string {
     <div v-if="!loading" class="tes-grid-kpi">
       <Card class="tes-card-container p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '50ms' }">
         <span class="text-sm font-medium text-muted-foreground">CPU 使用率</span>
-        <span class="text-[32px] font-bold text-ink leading-none">{{ cpuPct }}%</span>
+        <span class="text-[32px] font-bold text-ink leading-none">{{ cpuPct === null ? '—' : cpuPct + '%' }}</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
-          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(cpuPct)" :style="{ width: bar(cpuPct) }" />
+          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(cpuPct ?? 0)" :style="{ width: bar(cpuPct ?? 0) }" />
         </div>
         <div class="flex justify-between text-[11px] text-muted-foreground">
           <span>4 核 LoongArch</span>
-          <span>实时</span>
+          <span>{{ cpuPct === null ? '未接入监控' : '实时' }}</span>
         </div>
       </Card>
       <Card class="tes-card-container p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '100ms' }">
         <span class="text-sm font-medium text-muted-foreground">内存使用</span>
-        <span class="text-[32px] font-bold text-ink leading-none">{{ memPct }}%</span>
+        <span class="text-[32px] font-bold text-ink leading-none">{{ memPct === null ? '—' : memPct + '%' }}</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
-          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(memPct)" :style="{ width: bar(memPct) }" />
+          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(memPct ?? 0)" :style="{ width: bar(memPct ?? 0) }" />
         </div>
         <div class="flex justify-between text-[11px] text-muted-foreground">
-          <span>{{ memPct }}% 已使用</span>
-          <span>余量 {{ Math.max(0, 100 - memPct) }}%</span>
+          <span>{{ memPct === null ? '未接入监控' : memPct + '% 已使用' }}</span>
+          <span v-if="memPct !== null">余量 {{ Math.max(0, 100 - memPct) }}%</span>
         </div>
       </Card>
       <Card class="tes-card-container p-6 flex flex-col gap-3.5 anim-in" :style="{ animationDelay: '150ms' }">
         <span class="text-sm font-medium text-muted-foreground">磁盘使用</span>
-        <span class="text-[32px] font-bold text-ink leading-none">{{ diskPct }}%</span>
+        <span class="text-[32px] font-bold text-ink leading-none">{{ diskPct === null ? '—' : diskPct + '%' }}</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
-          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(diskPct)" :style="{ width: bar(diskPct) }" />
+          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(diskPct ?? 0)" :style="{ width: bar(diskPct ?? 0) }" />
         </div>
         <div class="flex justify-between text-[11px] text-muted-foreground">
-          <span>{{ diskPct }}% 已使用</span>
+          <span>{{ diskPct === null ? '未接入监控' : diskPct + '% 已使用' }}</span>
           <span>含备份分区</span>
         </div>
       </Card>

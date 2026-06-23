@@ -67,6 +67,9 @@ interface Evaluation {
   status: string
   created_at: string
   scores?: EvalDimScore[]
+  /** AI 评分失败、已转人工评阅（status 仍为 pending） */
+  ai_failed?: boolean
+  overall_comment?: string
 }
 interface VerifyResult {
   is_valid: boolean
@@ -156,8 +159,9 @@ async function fetchAll() {
       (e) => e.task_id === Number(taskId.value),
     )
     const latestEv = myEvs.sort((a, b) => b.id - a.id)[0] ?? null
-    // Fetch full evaluation detail (with per-dimension scores) if eval exists
-    if (latestEv && ['scored', 'confirmed', 'rejected'].includes(latestEv.status)) {
+    // Fetch full evaluation detail (with per-dimension scores) when scored or
+    // when AI failed (so we can show the failure reason and hand-off notice).
+    if (latestEv && (['scored', 'confirmed', 'rejected'].includes(latestEv.status) || latestEv.ai_failed)) {
       try {
         const fullEv = await axios.get(`/api/evaluations/${latestEv.id}`)
         evaluation.value = fullEv.data
@@ -303,16 +307,20 @@ const taskDimensionsAsIdle = computed<DimensionProgress[]>(() => {
       if (s.ai_score != null) scoreMap.set(s.dimension_id, s.ai_score)
     }
   }
+  const done = evaluation.value?.status === 'scored' || evaluation.value?.status === 'confirmed' || evaluation.value?.status === 'rejected'
   return task.value.dimensions.map(d => ({
     id: d.id,
     name: d.name,
     weight: d.weight,
-    status: evaluation.value?.status === 'scored' || evaluation.value?.status === 'confirmed' || evaluation.value?.status === 'rejected'
-      ? 'done' as const
-      : 'idle' as const,
+    status: done ? 'done' as const : evaluation.value?.ai_failed ? 'failed' as const : 'idle' as const,
     score: scoreMap.get(d.id),
   }))
 })
+
+// AI failed => surface a clear failed macro state (status stays pending in DB).
+const evalStatusForPanel = computed(() =>
+  evaluation.value?.ai_failed ? 'failed' : (evaluation.value?.status ?? null),
+)
 
 function onUploadSuccess() {
   fetchAll()
@@ -488,7 +496,8 @@ function onUploadSuccess() {
           <EvaluationProgressPanel
             v-if="currentUpload && (currentUpload.parse_status === 'parsed' || evaluation)"
             :parse-status="currentUpload?.parse_status ?? 'pending'"
-            :eval-status="evaluation?.status ?? null"
+            :eval-status="evalStatusForPanel"
+            :failure-reason="evaluation?.overall_comment"
             :uploaded-at="currentUpload?.created_at"
             :dimensions="evalDimensions.length > 0 ? evalDimensions : taskDimensionsAsIdle"
           />

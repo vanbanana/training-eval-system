@@ -2,16 +2,22 @@ package dto
 
 // EvaluationResponse is the response for a single evaluation.
 type EvaluationResponse struct {
-	ID             int64                `json:"id"`
-	TaskID         int64                `json:"task_id"`
-	StudentID      int64                `json:"student_id"`
-	UploadID       int64                `json:"upload_id"`
-	Status         string               `json:"status"`
-	TotalScore     *float64             `json:"total_score"`
-	TeacherComment string               `json:"teacher_comment"`
-	CreatedAt      string               `json:"created_at"`
-	UpdatedAt      string               `json:"updated_at"`
-	Scores         []DimensionScoreResp `json:"scores"`
+	ID             int64    `json:"id"`
+	TaskID         int64    `json:"task_id"`
+	StudentID      int64    `json:"student_id"`
+	UploadID       int64    `json:"upload_id"`
+	Status         string   `json:"status"`
+	TotalScore     *float64 `json:"total_score"`
+	TeacherComment string   `json:"teacher_comment"`
+	OverallComment string   `json:"overall_comment"`
+	// AIFailed is true when AI scoring failed and the evaluation was left
+	// pending for manual review (status=pending with a recorded failure reason).
+	// The frontend uses this to surface a clear failure state instead of an
+	// indefinite "AI 评价中" spinner.
+	AIFailed  bool                 `json:"ai_failed"`
+	CreatedAt string               `json:"created_at"`
+	UpdatedAt string               `json:"updated_at"`
+	Scores    []DimensionScoreResp `json:"scores"`
 }
 
 // DimensionScoreResp is a dimension score in the evaluation response.

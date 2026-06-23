@@ -28,17 +28,13 @@ const isTeacher = computed(() => auth.user?.role === 'teacher')
 }
 
 .app-shell-inner {
-  max-width: none;
+  /* Constrain + center content on ultra-wide displays so pages read like a
+     focused product surface rather than an edge-to-edge admin console. */
+  max-width: 1600px;
   margin-inline: auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: inherit;
-}
-
-@media (min-width: 1920px) {
-  .app-shell-inner {
-    max-width: none;
-  }
 }
 </style>

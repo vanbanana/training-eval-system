@@ -166,6 +166,16 @@ const router = createRouter({
   routes,
 })
 
+// Role required to enter an area, keyed by path prefix. Mirrors backend RBAC so
+// a student can't render an /admin/* page shell (which previously only showed a
+// toast while the API 403'd). null = accessible to any authenticated role.
+function requiredRoles(path: string): string[] | null {
+  if (path.startsWith('/admin')) return ['admin']
+  if (path.startsWith('/teacher')) return ['teacher', 'admin']
+  if (path.startsWith('/student')) return ['student']
+  return null
+}
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (!auth.user && auth.token) {
@@ -176,6 +186,17 @@ router.beforeEach(async (to) => {
   }
   if (to.name === 'login' && auth.isAuthenticated) {
     return { name: 'dashboard' }
+  }
+  // Admins land on the dedicated operations console rather than the generic
+  // (sparse) dashboard shell, which reads like a bare admin backend.
+  if (to.name === 'dashboard' && auth.user?.role === 'admin') {
+    return { name: 'admin-dashboard' }
+  }
+  if (!to.meta.public && auth.user) {
+    const roles = requiredRoles(to.path)
+    if (roles && !roles.includes(auth.user.role)) {
+      return { name: 'forbidden' }
+    }
   }
 })
 

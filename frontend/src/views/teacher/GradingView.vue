@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { avatarInitial } from '@/lib/utils'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -689,7 +690,7 @@ function goToSimilarity(uploadId: number) {
 
         <div class="flex items-center gap-2.5">
           <Avatar size="sm" :class="suspiciousUploadIds.has(s.upload_id) ? '!bg-danger-soft !text-danger' : ''">
-            {{ (s.student_name || '?').charAt(0) }}
+            {{ avatarInitial(s.student_name) }}
           </Avatar>
           <div class="flex flex-col gap-0.5 min-w-0">
             <span class="text-sm font-semibold text-ink truncate">{{ s.student_name }}</span>

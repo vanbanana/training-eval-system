@@ -44,6 +44,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import GlobalSearch from '@/components/business/GlobalSearch.vue'
+import { avatarInitial } from '@/lib/utils'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -128,7 +129,7 @@ function formatTime(s: string) {
   return d.toLocaleDateString()
 }
 
-const userInitial = computed(() => auth.user?.display_name?.charAt(0) || 'U')
+const userInitial = computed(() => avatarInitial(auth.user?.display_name))
 const roleLabel = computed(() => {
   const name = auth.user?.display_name ?? ''
   switch (auth.user?.role) {

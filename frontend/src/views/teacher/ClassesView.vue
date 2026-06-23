@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { avatarInitial } from '@/lib/utils'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -181,7 +182,7 @@ async function loadStudents(id: number) {
 }
 
 function getInitial(name: string): string {
-  return name.charAt(0)
+  return avatarInitial(name)
 }
 
 function formatJoined(iso: string | null) {

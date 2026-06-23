@@ -10,6 +10,7 @@
  * 顶部多一栏"返回"+ 学生信息卡。
  */
 import { computed, onMounted, ref } from 'vue'
+import { avatarInitial } from '@/lib/utils'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -162,7 +163,7 @@ const radarPolygons = computed(() => {
         <Button variant="outline" size="icon-sm" @click="router.back()">
           <ArrowLeft class="w-4 h-4" />
         </Button>
-        <Avatar size="lg" v-if="student">{{ student.display_name.charAt(0) }}</Avatar>
+        <Avatar size="lg" v-if="student">{{ avatarInitial(student.display_name) }}</Avatar>
         <div class="min-w-0">
           <h1 class="tes-clamp-title text-2xl font-bold text-ink">{{ student?.display_name ?? '学生画像' }}</h1>
           <p class="mt-1 text-sm text-muted-foreground">

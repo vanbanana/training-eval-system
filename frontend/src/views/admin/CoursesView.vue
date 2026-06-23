@@ -145,11 +145,13 @@ async function enrichCourseStats() {
         const { data: clsList } = await axios.get<
           { student_count: number }[]
         >(`/api/courses/${c.id}/classes`)
+        c.class_count = clsList.length
         c.student_count = clsList.reduce(
           (sum, cls) => sum + (cls.student_count || 0),
           0,
         )
       } catch {
+        c.class_count = c.class_count ?? 0
         c.student_count = undefined
       }
       c.task_count = taskCountByCourse.get(c.id) ?? 0
@@ -353,7 +355,7 @@ function exportCourses() {
         </div>
         <div class="px-5 py-3.5 flex justify-between items-center">
           <span class="text-[11px] text-muted-foreground truncate flex-1 mr-2">
-            {{ course.is_archived ? '已归档' : `共 ${course.class_count} 个班级` }}
+            {{ course.is_archived ? '已归档' : `共 ${course.class_count ?? 0} 个班级` }}
           </span>
           <div class="flex items-center gap-1">
             <Button variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="viewDetail(course)">

@@ -70,6 +70,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			})
 		})
 
+		// SSE endpoint for real-time events (replaces WebSocket).
+		// Registered outside the AuthMiddleware group because EventSource cannot
+		// set an Authorization header; the handler authenticates the token itself
+		// (query param ?token= or Authorization: Bearer).
+		r.Get("/sse/events", cfg.SSEHandler.Events)
+
 		// Protected routes
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
@@ -239,9 +245,6 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			})
 
 			r.Get("/parse/{uploadId}/result", cfg.ParseHandler.GetResult)
-
-			// SSE endpoint for real-time events (replaces WebSocket)
-			r.Get("/sse/events", cfg.SSEHandler.Events)
 		})
 	})
 

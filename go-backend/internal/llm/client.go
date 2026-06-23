@@ -6,12 +6,56 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
+
+// APIError represents a non-2xx response from the LLM provider, carrying the
+// HTTP status code so callers can decide whether retrying is worthwhile.
+type APIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("llm: API returned status %d: %s", e.StatusCode, e.Body)
+}
+
+// Retryable reports whether re-issuing the same request could plausibly succeed.
+// Auth (401/403), bad-request (400/404/422) and quota-exhaustion (429) errors are
+// permanent for the current request and should fail fast instead of hammering the
+// provider; only transient server errors (5xx) and rate limits without quota
+// exhaustion are worth retrying.
+func (e *APIError) Retryable() bool {
+	switch e.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden,
+		http.StatusBadRequest, http.StatusNotFound, http.StatusUnprocessableEntity:
+		return false
+	case http.StatusTooManyRequests:
+		// Distinguish transient rate limiting from hard quota exhaustion, which
+		// no amount of retrying will fix within the same plan window.
+		return !strings.Contains(e.Body, "使用上限") &&
+			!strings.Contains(strings.ToLower(e.Body), "quota") &&
+			!strings.Contains(strings.ToLower(e.Body), "insufficient")
+	default:
+		return e.StatusCode >= 500
+	}
+}
+
+// IsRetryable returns true when err is nil-safe retryable. Non-APIError errors
+// (e.g. network failures, timeouts) are treated as retryable.
+func IsRetryable(err error) bool {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.Retryable()
+	}
+	return true
+}
 
 // Client is an OpenAI-compatible LLM HTTP client.
 // Supports MiMo-specific features: api-key header, thinking parameter, max_completion_tokens.
@@ -374,7 +418,7 @@ func (c *Client) doRequest(ctx context.Context, path string, body any) (*ChatRes
 	)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("llm: API returned status %d: %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(respBody)}
 	}
 
 	var chatResp ChatResponse
