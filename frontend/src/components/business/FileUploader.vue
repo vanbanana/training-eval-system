@@ -47,6 +47,8 @@ interface Props {
   concurrency?: number
   /** 自定义 form 字段名 */
   fieldName?: string
+  /** 紧凑模式（已有文件时使用） */
+  compact?: boolean
   class?: string
 }
 
@@ -58,6 +60,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabledHint: '当前不能上传',
   concurrency: 2,
   fieldName: 'file',
+  compact: false,
 })
 
 const emit = defineEmits<{
@@ -242,7 +245,8 @@ defineExpose({ clearAll })
     <!-- Drop zone -->
     <div
       :class="cn(
-        'rounded-lg p-10 min-h-[200px] flex flex-col items-center justify-center gap-3.5 transition-colors',
+        'rounded-lg flex flex-col items-center justify-center transition-colors',
+        compact ? 'p-5 min-h-[100px] gap-2' : 'p-10 min-h-[200px] gap-3.5',
         disabled
           ? 'bg-muted border-2 border-dashed border-border-strong cursor-not-allowed opacity-60'
           : dragOver
@@ -255,12 +259,13 @@ defineExpose({ clearAll })
       @drop="onDrop"
     >
       <div :class="cn(
-        'w-14 h-14 rounded-full grid place-items-center transition-colors',
+        'rounded-full grid place-items-center transition-colors',
+        compact ? 'w-10 h-10' : 'w-14 h-14',
         disabled ? 'bg-border text-muted-foreground' : 'bg-primary-soft text-primary',
       )">
-        <CloudUpload class="w-6 h-6" />
+        <CloudUpload :class="compact ? 'w-4 h-4' : 'w-6 h-6'" />
       </div>
-      <div class="text-base font-semibold text-ink">
+      <div :class="compact ? 'text-sm font-medium text-ink' : 'text-base font-semibold text-ink'">
         <template v-if="disabled">{{ disabledHint }}</template>
         <template v-else>将文件拖到此处，或点击选择</template>
       </div>

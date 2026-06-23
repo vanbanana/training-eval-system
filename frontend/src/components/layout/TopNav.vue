@@ -130,13 +130,14 @@ function formatTime(s: string) {
 
 const userInitial = computed(() => auth.user?.display_name?.charAt(0) || 'U')
 const roleLabel = computed(() => {
+  const name = auth.user?.display_name ?? ''
   switch (auth.user?.role) {
     case 'teacher':
-      return '教师'
+      return name.endsWith('老师') ? '' : '教师'
     case 'student':
-      return '同学'
+      return name.endsWith('同学') ? '' : '同学'
     case 'admin':
-      return '管理员'
+      return name.endsWith('管理员') ? '' : '管理员'
     default:
       return ''
   }

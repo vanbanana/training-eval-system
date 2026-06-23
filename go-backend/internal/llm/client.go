@@ -212,9 +212,10 @@ type ChatRequest struct {
 	Thinking            *ThinkingConfig `json:"thinking,omitempty"` // MiMo thinking mode
 }
 
-// ThinkingConfig controls the MiMo thinking/reasoning mode.
+// ThinkingConfig controls the thinking/reasoning mode.
+// MiniMax uses "adaptive" (enabled) or "disabled"; MiMo uses "enabled" or "disabled".
 type ThinkingConfig struct {
-	Type string `json:"type"` // "disabled" or "enabled"
+	Type string `json:"type"` // "disabled" or "adaptive"
 }
 
 // Tool represents a function calling tool definition.
@@ -306,7 +307,7 @@ func (c *Client) completeWithOpts(ctx context.Context, messages []ChatMessage, t
 	}
 
 	if thinking {
-		req.Thinking = &ThinkingConfig{Type: "enabled"}
+		req.Thinking = &ThinkingConfig{Type: "adaptive"}
 	} else {
 		req.Thinking = &ThinkingConfig{Type: "disabled"}
 	}
