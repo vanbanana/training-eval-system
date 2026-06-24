@@ -47,6 +47,8 @@ interface Props {
   concurrency?: number
   /** 自定义 form 字段名 */
   fieldName?: string
+  /** 紧凑模式（已有文件时使用） */
+  compact?: boolean
   class?: string
 }
 
@@ -58,6 +60,7 @@ const props = withDefaults(defineProps<Props>(), {
   disabledHint: '当前不能上传',
   concurrency: 2,
   fieldName: 'file',
+  compact: false,
 })
 
 const emit = defineEmits<{
@@ -239,10 +242,42 @@ defineExpose({ clearAll })
 
 <template>
   <div :class="cn('flex flex-col gap-4', $props.class)">
-    <!-- Drop zone -->
+    <!-- Compact drop zone (single row when files already exist) -->
     <div
+      v-if="compact"
       :class="cn(
-        'rounded-lg p-10 min-h-[200px] flex flex-col items-center justify-center gap-3.5 transition-colors',
+        'flex items-center gap-3 px-4 py-2.5 rounded-lg border border-dashed transition-colors',
+        disabled
+          ? 'border-border-strong cursor-not-allowed opacity-60 bg-muted'
+          : dragOver
+            ? 'border-primary bg-primary-soft cursor-pointer'
+            : 'border-border cursor-pointer hover:border-primary hover:bg-primary-soft/30',
+      )"
+      @click="pickFile"
+      @dragover.prevent="dragOver = true"
+      @dragleave="dragOver = false"
+      @drop="onDrop"
+    >
+      <CloudUpload class="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      <span class="text-xs text-muted-foreground">
+        <template v-if="disabled">{{ disabledHint }}</template>
+        <template v-else>拖入或点击替换文件 · {{ accept.join(' / ') }} · ≤ {{ maxSizeMb }} MB</template>
+      </span>
+      <input
+        ref="fileInput"
+        type="file"
+        class="hidden"
+        :accept="acceptAttr"
+        :multiple="multiple"
+        @change="onFileChange"
+      />
+    </div>
+
+    <!-- Full drop zone (no files yet) -->
+    <div
+      v-else
+      :class="cn(
+        'rounded-lg flex flex-col items-center justify-center transition-colors p-10 min-h-[200px] gap-3.5',
         disabled
           ? 'bg-muted border-2 border-dashed border-border-strong cursor-not-allowed opacity-60'
           : dragOver

@@ -265,7 +265,7 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
       <!-- Header -->
       <div class="tes-page-header">
         <div class="min-w-0">
-          <h1 class="tes-clamp-title text-2xl font-bold text-ink">{{ greeting }}，{{ auth.user?.display_name }} 同学</h1>
+          <h1 class="tes-clamp-title text-2xl font-bold text-ink">{{ greeting }}，{{ auth.user?.display_name }}{{ (auth.user?.display_name ?? '').endsWith('同学') ? '' : ' 同学' }}</h1>
           <p class="mt-1 text-sm text-muted-foreground">
             <template v-if="studentData.rank && studentData.class_size">
               班级排名第 {{ studentData.rank }} · 共 {{ studentData.class_size }} 人 ·

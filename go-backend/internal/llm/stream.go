@@ -44,6 +44,7 @@ func (c *Client) StreamChat(ctx context.Context, w http.ResponseWriter, messages
 		Model:    c.model,
 		Messages: messages,
 		Stream:   true,
+		Thinking: &ThinkingConfig{Type: "disabled"},
 	}
 
 	jsonBody, err := json.Marshal(req)

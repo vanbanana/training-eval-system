@@ -133,13 +133,14 @@ function formatTime(s: string) {
 
 const userInitial = computed(() => auth.user?.display_name?.charAt(0) || 'U')
 const roleLabel = computed(() => {
+  const name = auth.user?.display_name ?? ''
   switch (auth.user?.role) {
     case 'teacher':
-      return '教师'
+      return name.endsWith('老师') ? '' : '教师'
     case 'student':
-      return '同学'
+      return name.endsWith('同学') ? '' : '同学'
     case 'admin':
-      return '管理员'
+      return name.endsWith('管理员') ? '' : '管理员'
     default:
       return ''
   }
@@ -258,7 +259,7 @@ const roleLabel = computed(() => {
             <button
               class="flex items-center gap-2 pl-1 pr-3 py-1 bg-surface-2 border border-border rounded-pill transition-colors hover:bg-muted"
             >
-              <Avatar size="sm">{{ userInitial }}</Avatar>
+              <Avatar size="sm" aria-hidden="true">{{ userInitial }}</Avatar>
               <span class="hidden sm:inline text-xs font-medium text-ink">{{ auth.user?.display_name }}</span>
               <span class="hidden md:inline text-[10px] text-muted-foreground">{{ roleLabel }}</span>
               <ChevronDown class="w-3.5 h-3.5 text-muted-foreground" />
