@@ -54,6 +54,13 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 	// Read objective ratio from system_config or use default
 	objRatio := s.getObjectiveRatio(ctx)
 
+	// Publish per-dimension "scoring" status via SSE
+	dimNames := make(map[int64]string, len(dims))
+	for _, d := range dims {
+		dimNames[d.ID] = d.Name
+	}
+	s.publishDimensionProgress(eval.StudentID, eval.UploadID, evalID, dims, nil, "scoring")
+
 	// Build prompt and tool schema
 	messages := llm.BuildScoringPrompt(task, dims, rawText)
 	tool := llm.ScoringToolSchema(dims)
@@ -66,7 +73,7 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 		if err != nil {
 			slog.Error("scorer: LLM call failed", "eval_id", evalID, "attempt", attempt, "error", err.Error())
 			if attempt == maxAttempts-1 {
-				// Final attempt failed — set evaluation to manual mode
+				s.publishDimensionProgress(eval.StudentID, eval.UploadID, evalID, dims, nil, "failed")
 				return s.markManualRequired(ctx, eval, fmt.Sprintf("LLM scoring failed after %d attempts: %v", maxAttempts, err))
 			}
 			continue
@@ -77,6 +84,7 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 			slog.Warn("scorer: parse tool_call failed, retrying", "eval_id", evalID, "attempt", attempt, "error", err.Error())
 			if attempt == maxAttempts-1 {
 				slog.Error("scorer: no valid tool_call after retries", "eval_id", evalID, "raw_response", formatResponse(resp))
+				s.publishDimensionProgress(eval.StudentID, eval.UploadID, evalID, dims, nil, "failed")
 				return s.markManualRequired(ctx, eval, fmt.Sprintf("No valid tool_call after %d attempts", maxAttempts))
 			}
 			continue
@@ -132,6 +140,9 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 		AfterValue:   scores,
 	})
 
+	// Publish per-dimension "scored" status via SSE
+	s.publishDimensionProgress(eval.StudentID, eval.UploadID, evalID, dims, scores, "scored")
+
 	// Publish SSE
 	data, _ := json.Marshal(map[string]any{
 		"evaluation_id":   evalID,
@@ -141,6 +152,12 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 	})
 	s.broker.Publish(sse.Event{
 		UserID: task.TeacherID,
+		Type:   "score_complete",
+		Data:   string(data),
+	})
+	// Also notify student
+	s.broker.Publish(sse.Event{
+		UserID: eval.StudentID,
 		Type:   "score_complete",
 		Data:   string(data),
 	})
@@ -293,6 +310,60 @@ func ComputeTotalScoreWithRatio(aiScores []ScoreItem, subjScores map[int64]float
 		total += finalDimScore * float64(weight) / 100.0
 	}
 	return math.Round(total*10) / 10
+}
+
+// publishDimensionProgress sends SSE event with per-dimension evaluation status.
+func (s *Scorer) publishDimensionProgress(userID, uploadID, evalID int64, dims []model.Dimension, scores []ScoreItem, status string) {
+	if s.broker == nil {
+		return
+	}
+
+	type dimStatus struct {
+		ID     int64   `json:"id"`
+		Name   string  `json:"name"`
+		Weight int     `json:"weight"`
+		Status string  `json:"status"`
+		Score  float64 `json:"score,omitempty"`
+	}
+
+	dimStatuses := make([]dimStatus, 0, len(dims))
+	scoreMap := make(map[int64]float64, len(scores))
+	for _, sc := range scores {
+		scoreMap[sc.DimensionID] = sc.Score
+	}
+
+	for _, d := range dims {
+		ds := dimStatus{
+			ID:     d.ID,
+			Name:   d.Name,
+			Weight: d.Weight,
+		}
+		switch status {
+		case "scoring":
+			ds.Status = "evaluating"
+		case "scored":
+			ds.Status = "done"
+			if sc, ok := scoreMap[d.ID]; ok {
+				ds.Score = sc
+			}
+		case "failed":
+			ds.Status = "failed"
+		}
+		dimStatuses = append(dimStatuses, ds)
+	}
+
+	data, _ := json.Marshal(map[string]any{
+		"upload_id":     uploadID,
+		"evaluation_id": evalID,
+		"status":        status,
+		"stage":         "eval_dimensions",
+		"dimensions":    dimStatuses,
+	})
+	s.broker.Publish(sse.Event{
+		UserID: userID,
+		Type:   "progress",
+		Data:   string(data),
+	})
 }
 
 // ComputeTotalScoreFromModel calculates weighted total from model scores.
