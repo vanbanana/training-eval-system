@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -16,7 +16,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   ChevronLeft,
   ChevronRight,
@@ -64,7 +63,6 @@ const router = useRouter()
 const { toast } = useToast()
 
 const evalId = computed(() => Number(route.params.id))
-const uploadId = computed(() => submission.value?.upload_id ?? 0)
 const evaluation = ref<EvaluationDetail | null>(null)
 const submission = ref<Submission | null>(null)
 const submissionsList = ref<Submission[]>([])
@@ -128,9 +126,6 @@ onMounted(() => {
   fetchAll()
   window.addEventListener('beforeunload', beforeUnload)
 })
-
-// Reset dirty flag after explicit save
-function afterSave() { dirty.value = false }
 
 const currentIndex = computed(() => {
   if (!submission.value) return -1
