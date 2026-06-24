@@ -56,6 +56,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Run legacy chat → agent session migration (idempotent, T9.1).
+	if err := db.MigrateChatSessions(context.Background()); err != nil {
+		slog.Warn("chat migration failed (non-fatal, legacy sessions still readable)", "error", err)
+	}
+
 	// 5. Initialize infrastructure
 	pool := worker.NewPool(cfg.WorkerCount, cfg.TaskBufferSize)
 	broker := sse.NewBroker()
@@ -74,12 +79,13 @@ func main() {
 	templateRepo := repository.NewTemplateRepo(db)
 	profileRepo := repository.NewProfileRepo(db)
 	llmConfigRepo := repository.NewLLMConfigRepo(db)
+	usageRepo := repository.NewUsageRepo(db)
 
 	// 7. Initialize services
 	authSvc := service.NewAuthService(userRepo, auditRepo, lockout, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo)
 	notifSvc := service.NewNotificationService(notifRepo, broker)
-	taskSvc := service.NewTaskService(taskRepo, notifSvc)
+	taskSvc := service.NewTaskService(taskRepo, classRepo, notifSvc)
 	uploadSvc := service.NewUploadService(uploadRepo, taskRepo, cfg.UploadRoot, cfg.MaxUploadSizeMB)
 	evalSvc := service.NewEvaluationService(evalRepo, taskRepo)
 	chatSvc := service.NewChatService(chatRepo)
@@ -89,12 +95,33 @@ func main() {
 	profileSvc := service.NewProfileService(profileRepo)
 	llmConfigSvc := service.NewLLMConfigService(llmConfigRepo)
 	auditSvc := service.NewAuditService(auditRepo)
+	usageSvc := service.NewUsageService(usageRepo)
 
 	slog.Info("services initialized", "worker_pool_size", cfg.WorkerCount)
 
 	// 6b. Seed default admin user if no users exist
-	if seedDefaultAdmin(userSvc) {
-		slog.Info("seeded default admin user")
+	if cfg.Env == "dev" {
+		// Dev mode: use a predictable password for convenience
+		if seedDefaultAdmin(userSvc, "admin123") {
+			slog.Warn("dev mode: seeded admin user with password 'admin123' — change before production")
+		}
+	} else {
+		// Non-dev: require TES_SEED_ADMIN_PASSWORD env var, refuse weak passwords
+		seedPwd := os.Getenv("TES_SEED_ADMIN_PASSWORD")
+		users, _, err := userSvc.List(context.Background(), repository.ListParams{Page: 1, PageSize: 1})
+		if err == nil && len(users) == 0 {
+			if seedPwd == "" {
+				slog.Error("no users exist: set TES_SEED_ADMIN_PASSWORD (min 8 chars) to create initial admin, or restore from backup")
+				return
+			}
+			if len(seedPwd) < 8 {
+				slog.Error("TES_SEED_ADMIN_PASSWORD must be at least 8 characters")
+				return
+			}
+			if seedDefaultAdmin(userSvc, seedPwd) {
+				slog.Info("seeded admin user from TES_SEED_ADMIN_PASSWORD")
+			}
+		}
 	}
 
 	// 7b. Initialize LLM client if configured
@@ -147,7 +174,7 @@ func main() {
 	tasksHandler := handler.NewTasksHandler(taskSvc)
 	uploadsHandler := handler.NewUploadsHandler(uploadSvc, orch)
 	evaluationsHandler := handler.NewEvaluationsHandler(evalSvc, taskSvc, uploadSvc)
-	gradingHandler := handler.NewGradingHandler(evalSvc, uploadSvc, userSvc, db)
+	gradingHandler := handler.NewGradingHandler(evalSvc, uploadSvc, userSvc, db, orch, llmClient)
 	coursesHandler := handler.NewCoursesHandler(courseSvc, classSvc)
 	classesHandler := handler.NewClassesHandler(classSvc, userSvc)
 	notificationsHandler := handler.NewNotificationsHandler(notifSvc)
@@ -155,9 +182,36 @@ func main() {
 	// when an LLM is configured; otherwise chat falls back to the "not configured" message.
 	var chatOrch *pipeline.ChatOrchestrator
 	if llmClient != nil {
+		// T8.2: Wire configurable resilience parameters
+		llmClient.SetBreaker(llm.NewCircuitBreaker(cfg.LLMBreakerThreshold, cfg.LLMBreakerCooldown))
+		llmClient.SetFirstTokenTimeout(cfg.LLMFirstTokenTimeout)
+		llmClient.SetHTTPTimeout(cfg.LLMTotalTimeout)
+
 		chatOrch = pipeline.NewChatOrchestrator(llmClient, evalRepo, uploadRepo, taskRepo, profileRepo)
+		chatOrch.SetMaxToolRounds(cfg.LLMMaxToolRounds)
+		chatOrch.SetClassRepo(classRepo)
+		chatOrch.SetCourseRepo(courseRepo)
+		chatOrch.SetSimilarityRepo(repository.NewSimilarityRepo(db))
+		chatOrch.SetUserRepo(userRepo)
+		chatOrch.SetLLMConfigRepo(llmConfigRepo)
+		chatOrch.SetAuditRepo(auditRepo)
+		chatOrch.SetUsageRepo(usageRepo)
 	}
 	chatHandler := handler.NewChatHandler(chatSvc, broker, llmClient, chatOrch, uploadRepo, taskRepo, evalRepo)
+	agentRepo := repository.NewAgentRepo(db)
+	agentQuotas := map[string]service.RoleQuota{
+		"student": {SessionLimit: cfg.AgentStudentSessionLimit, DailyLimit: cfg.AgentStudentDailyLimit},
+		"teacher": {SessionLimit: cfg.AgentTeacherSessionLimit, DailyLimit: cfg.AgentTeacherDailyLimit},
+		"admin":   {SessionLimit: cfg.AgentAdminSessionLimit, DailyLimit: cfg.AgentAdminDailyLimit},
+	}
+	agentSvc := service.NewAgentServiceWithQuotas(agentRepo, agentQuotas)
+	var roleOrch *service.RoleAgentOrchestrator
+	if llmClient != nil {
+		roleOrch = service.NewRoleAgentOrchestrator(llmClient)
+	}
+	agentHandler := handler.NewAgentHandler(agentSvc, llmClient, evalRepo, uploadRepo, taskRepo, classRepo, courseRepo, chatOrch, roleOrch, auditRepo, usageSvc)
+	streamTracker := handler.NewStreamTracker(cfg.AgentUserConcurrentLimit, cfg.AgentGlobalConcurrentLimit)
+	agentHandler.SetStreamTracker(streamTracker)
 	similarityHandler := handler.NewSimilarityHandler(repository.NewSimilarityRepo(db), uploadRepo)
 	templatesHandler := handler.NewTemplatesHandler(templateSvc, taskSvc)
 	importsHandler := handler.NewImportsHandler(service.NewImportService(repository.NewImportRepo(db), userRepo), userSvc, taskSvc)
@@ -166,6 +220,7 @@ func main() {
 	profilesHandler := handler.NewProfilesHandler(profileSvc, db, llmClient)
 	llmHandler := handler.NewLLMHandler(llmConfigSvc, masterKey)
 	auditHandler := handler.NewAuditHandler(auditSvc)
+	usageHandler := handler.NewUsageHandler(usageSvc)
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
 	sseHandler := handler.NewSSEHandler(broker, cfg.JWTSecret)
@@ -173,9 +228,18 @@ func main() {
 	staticHandler := handler.NewStaticHandler(cfg.DistDir)
 
 	// 9. Build router
+	featureFlags := middleware.FeatureFlags{
+		AgentV2Enabled:         cfg.AgentV2Enabled,
+		StudentAgentV2Enabled:  cfg.StudentAgentV2Enabled,
+		TeacherAgentEnabled:    cfg.TeacherAgentEnabled,
+		AdminAgentEnabled:      cfg.AdminAgentEnabled,
+		AgentToolEventsEnabled: cfg.AgentToolEventsEnabled,
+	}
+
 	router := handler.NewRouter(handler.RouterConfig{
 		JWTSecret:            cfg.JWTSecret,
 		CORSOrigins:          cfg.CORSOrigins,
+		FeatureFlags:         featureFlags,
 		AuthHandler:          authHandler,
 		UsersHandler:         usersHandler,
 		TasksHandler:         tasksHandler,
@@ -186,6 +250,7 @@ func main() {
 		ClassesHandler:       classesHandler,
 		NotificationsHandler: notificationsHandler,
 		ChatHandler:          chatHandler,
+		AgentHandler:         agentHandler,
 		SimilarityHandler:    similarityHandler,
 		TemplatesHandler:     templatesHandler,
 		ImportsHandler:       importsHandler,
@@ -194,11 +259,13 @@ func main() {
 		ProfilesHandler:      profilesHandler,
 		LLMHandler:           llmHandler,
 		AuditHandler:         auditHandler,
+		UsageHandler:         usageHandler,
 		AccountHandler:       accountHandler,
 		ParseHandler:         parseHandler,
 		SSEHandler:           sseHandler,
 		HealthHandler:        healthHandler,
 		StaticHandler:        staticHandler,
+		CapabilitiesHandler:  handler.NewCapabilitiesHandler(featureFlags),
 	})
 
 	// 10. Start HTTP server
@@ -206,7 +273,7 @@ func main() {
 		Addr:         cfg.ListenAddr,
 		Handler:      router,
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 300 * time.Second,
+		WriteTimeout: 0, // SSE streaming requires unlimited write timeout
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -251,7 +318,7 @@ func setupLogger(level string) {
 }
 
 // seedDefaultAdmin creates the default admin user if no users exist.
-func seedDefaultAdmin(userSvc *service.UserService) bool {
+func seedDefaultAdmin(userSvc *service.UserService, password string) bool {
 	ctx := context.Background()
 	users, _, err := userSvc.List(ctx, repository.ListParams{Page: 1, PageSize: 1})
 	if err != nil || len(users) > 0 {
@@ -262,6 +329,6 @@ func seedDefaultAdmin(userSvc *service.UserService) bool {
 		DisplayName: "系统管理员",
 		Role:        "admin",
 		IsActive:    true,
-	}, "admin123")
+	}, password)
 	return err == nil
 }

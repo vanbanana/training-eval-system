@@ -19,7 +19,7 @@ const DefaultObjectiveRatio = 0.6
 
 // Scorer handles LLM-based evaluation scoring via Function Calling.
 type Scorer struct {
-	client        *llm.Client
+	client        llm.LLMClient
 	evalRepo      repository.EvaluationRepo
 	taskRepo      repository.TaskRepo
 	systemCfgRepo repository.SystemConfigRepo
@@ -107,12 +107,26 @@ func (s *Scorer) Score(ctx context.Context, evalID int64, rawText string) error 
 		break
 	}
 
-	// Validate scores
-	for _, sc := range scores {
-		if sc.Score < 0 || sc.Score > 100 {
-			return fmt.Errorf("scorer: invalid score %f for dimension %d (must be 0-100)", sc.Score, sc.DimensionID)
+// Validate scores
+		if len(scores) != len(dims) {
+			return fmt.Errorf("scorer: expected %d dimension scores, got %d", len(dims), len(scores))
 		}
-	}
+		// Check all dimensions are present
+		scoredDims := make(map[int64]bool)
+		for _, sc := range scores {
+			if math.IsNaN(sc.Score) || math.IsInf(sc.Score, 0) {
+				return fmt.Errorf("scorer: invalid score (NaN/Inf) for dimension %d", sc.DimensionID)
+			}
+			if sc.Score < 0 || sc.Score > 100 {
+				return fmt.Errorf("scorer: invalid score %f for dimension %d (must be 0-100)", sc.Score, sc.DimensionID)
+			}
+			scoredDims[sc.DimensionID] = true
+		}
+		for _, d := range dims {
+			if !scoredDims[d.ID] {
+				return s.markManualRequired(ctx, eval, fmt.Sprintf("Dimension %q (ID=%d) is missing from AI scoring result", d.Name, d.ID))
+			}
+		}
 
 	// Build weight map
 	weightMap := make(map[int64]int)
@@ -299,9 +313,9 @@ func ComputeTotalScore(scores []ScoreItem, weightMap map[int64]int) float64 {
 // total = Σ(weight_i × (ai_i × α + subj_i × (1-α))) / 100
 // If subjScores is nil or missing, uses 100% AI score.
 func ComputeTotalScoreWithRatio(aiScores []ScoreItem, subjScores map[int64]float64, weightMap map[int64]int, objRatio float64) float64 {
-	if objRatio <= 0 {
-		objRatio = DefaultObjectiveRatio
-	}
+		if objRatio < 0 {
+			objRatio = DefaultObjectiveRatio
+		}
 
 	// Build lookup for fast access
 	subjMap := subjScores

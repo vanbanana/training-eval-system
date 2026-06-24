@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
-	"math"
 	"os"
 
 	"github.com/go-pdf/fpdf"
@@ -158,4 +157,3 @@ func drawBarChart(pdf *fpdf.Fpdf, dist ScoreDistribution, total int, font string
 	}
 }
 
-var _ = math.Round

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -20,10 +19,10 @@ import (
 type ProfilesHandler struct {
 	svc       *service.ProfileService
 	db        *store.DB
-	llmClient *llm.Client
-}
-
-func NewProfilesHandler(svc *service.ProfileService, db *store.DB, llmClient *llm.Client) *ProfilesHandler {
+llmClient llm.LLMClient
+	}
+	
+	func NewProfilesHandler(svc *service.ProfileService, db *store.DB, llmClient llm.LLMClient) *ProfilesHandler {
 	return &ProfilesHandler{svc: svc, db: db, llmClient: llmClient}
 }
 
@@ -33,6 +32,18 @@ func (h *ProfilesHandler) GetStudent(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid user ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+	// Only teachers, admins, or the student themselves can view the profile
+	if claims.Role == "student" && claims.Sub != id {
+		Error(w, http.StatusNotFound, "Profile not found")
+		return
+	}
+	// Teachers can view any student profile (part of their job)
+	// Admins have full access
 	profile, err := h.svc.GetByStudentID(r.Context(), id)
 	if err != nil || profile == nil {
 		Error(w, http.StatusNotFound, "Profile not found")
@@ -392,7 +403,3 @@ func joinInts(vals []int) string {
 	}
 	return strings.Join(parts, ", ")
 }
-
-// suppress unused import
-var _ = json.Marshal
-var _ = middleware.GetClaims

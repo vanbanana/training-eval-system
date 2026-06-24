@@ -25,6 +25,30 @@ func (p ListParams) Offset() int {
 	return (p.Page - 1) * p.PageSize
 }
 
+// allowedSortColumns is the allow-list of column names for ORDER BY.
+// Any SortBy value not in this list is rejected to prevent SQL injection.
+var allowedSortColumns = map[string]bool{
+	"id":              true,
+	"name":            true,
+	"username":        true,
+	"display_name":    true,
+	"role":            true,
+	"status":          true,
+	"created_at":      true,
+	"updated_at":      true,
+	"deadline":        true,
+	"teacher_id":      true,
+	"course_id":       true,
+	"total_score":     true,
+	"student_count":   true,
+	"last_login_at":   true,
+}
+
+// isValidSortColumn checks that sortBy is a known, safe column name.
+func isValidSortColumn(sortBy string) bool {
+	return allowedSortColumns[sortBy]
+}
+
 // TaskListParams extends ListParams with task-specific filters.
 type TaskListParams struct {
 	ListParams
@@ -74,6 +98,7 @@ type TaskRepo interface {
 	SetClasses(ctx context.Context, taskID int64, classIDs []int64) error
 	GetDimensions(ctx context.Context, taskID int64) ([]model.Dimension, error)
 	SetDimensions(ctx context.Context, taskID int64, dims []model.Dimension) error
+	EnsureTaskHasClasses(ctx context.Context, taskID int64) error
 }
 
 // UploadRepo defines data access for file uploads.
@@ -100,6 +125,8 @@ type EvaluationRepo interface {
 	SaveScores(ctx context.Context, evalID int64, scores []model.DimensionScore) error
 	AppendHistory(ctx context.Context, h *model.EvaluationHistory) error
 	GetHistory(ctx context.Context, evalID int64) ([]model.EvaluationHistory, error)
+	GetDimensionScores(ctx context.Context, evalID int64) ([]model.DimensionScore, error)
+	UpdateDimensionTeacherScore(ctx context.Context, evalID, dimID int64, teacherScore *float64) error
 }
 
 // CourseRepo defines data access for courses.
@@ -203,4 +230,21 @@ type LLMConfigRepo interface {
 	Create(ctx context.Context, c *model.LLMConfig) error
 	Update(ctx context.Context, c *model.LLMConfig) error
 	Delete(ctx context.Context, id int64) error
+}
+
+// AgentRepo defines data access for role-aware agent sessions and messages.
+type AgentRepo interface {
+	GetSession(ctx context.Context, id int64) (*model.AgentSession, error)
+	ListSessions(ctx context.Context, ownerID int64) ([]model.AgentSession, error)
+	CreateSession(ctx context.Context, s *model.AgentSession) error
+	DeleteSession(ctx context.Context, id int64) error
+	GetMessages(ctx context.Context, sessionID int64, limit int) ([]model.AgentMessage, error)
+	CreateMessage(ctx context.Context, m *model.AgentMessage) error
+	CountTodayMessages(ctx context.Context, ownerID int64) (int, error)
+	CountSessionMessages(ctx context.Context, sessionID int64) (int, error)
+	UpdateSessionContext(ctx context.Context, sessionID int64, contextJSON string) error
+	// Legacy chat_sessions backward compatibility
+	ListLegacySessions(ctx context.Context, ownerID int64) ([]model.AgentSession, error)
+	GetLegacySession(ctx context.Context, id int64) (*model.AgentSession, error)
+	GetLegacyMessages(ctx context.Context, sessionID int64, limit int) ([]model.AgentMessage, error)
 }

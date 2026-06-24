@@ -2,12 +2,14 @@
 package testutil
 
 import (
-	"context"
-	"encoding/json"
-	"sync"
+		"context"
+		"encoding/json"
+		"net/http"
+		"sync"
+		"time"
 
-	"github.com/smartedu/training-eval-system/internal/llm"
-)
+		"github.com/smartedu/training-eval-system/internal/llm"
+	)
 
 // FakeLLM is a mock LLM client that returns preset responses for testing.
 // Supports:
@@ -15,14 +17,18 @@ import (
 // - Function Calling simulation (tool_calls)
 // - Error injection
 // - Delay simulation
+// - Call recording for test assertions
 type FakeLLM struct {
 	mu        sync.Mutex
 	responses []fakeResponse
 	index     int
 	// If set to true, all calls return error
 	failAll bool
+	failErr error // the error to return when failAll is true
 	// Simulated delay in milliseconds (0 = no delay)
 	delayMs int
+	// Optional call recorder for assertions
+	recorder *FakeCallRecorder
 }
 
 type fakeResponse struct {
@@ -94,7 +100,8 @@ func (f *FakeLLM) FailAll(err error) *FakeLLM {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.failAll = true
-	// Keep the last response as the error
+	f.failErr = err
+	// Ensure at least one response exists for Complete to reference safely
 	f.responses = append(f.responses, fakeResponse{err: err})
 	return f
 }
@@ -107,18 +114,70 @@ func (f *FakeLLM) WithDelay(ms int) *FakeLLM {
 	return f
 }
 
-// Complete returns the next preset response. Implements the LLM calling interface.
-// If WithCallRecorder was used, records the call.
-func (f *FakeLLM) Complete(ctx context.Context, messages []llm.ChatMessage, tools []llm.Tool) (*llm.ChatResponse, error) {
+// WithCallRecorder attaches a call recorder that captures all LLM calls for test assertions.
+func (f *FakeLLM) WithCallRecorder(r *FakeCallRecorder) *FakeLLM {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.recorder = r
+	return f
+}
+
+// Complete returns the next preset response. Implements the LLM calling interface.
+// If WithCallRecorder was used, records the call.
+// If WithDelay was used, simulates the delay before returning.
+func (f *FakeLLM) Complete(ctx context.Context, messages []llm.ChatMessage, tools []llm.Tool) (*llm.ChatResponse, error) {
+	// Phase 1: snapshot state under lock, handle delay outside lock
+	f.mu.Lock()
+	delay := f.delayMs
+	recorder := f.recorder
 
 	if f.failAll {
-		return nil, f.responses[len(f.responses)-1].err
+		// Capture the error to return immediately
+		lastErr := f.failErr
+		// Record the call
+		if recorder != nil {
+			recorder.mu.Lock()
+			recorder.Calls = append(recorder.Calls, FakeCall{
+				Messages: copyMessages(messages),
+				Tools:    copyTools(tools),
+			})
+			recorder.mu.Unlock()
+		}
+		f.mu.Unlock()
+
+		// Simulate delay
+		if delay > 0 {
+			select {
+			case <-time.After(time.Duration(delay) * time.Millisecond):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		return nil, lastErr
 	}
 
 	if f.index >= len(f.responses) {
-		// No more responses: return empty
+		f.mu.Unlock()
+
+		if delay > 0 {
+			select {
+			case <-time.After(time.Duration(delay) * time.Millisecond):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		// Record the call if a recorder is attached
+		if recorder != nil {
+			recorder.mu.Lock()
+			recorder.Calls = append(recorder.Calls, FakeCall{
+				Messages: copyMessages(messages),
+				Tools:    copyTools(tools),
+			})
+			recorder.mu.Unlock()
+		}
+
 		return &llm.ChatResponse{
 			Choices: []llm.ChatChoice{
 				{Message: llm.ChatMessage{Role: "assistant", Content: ""}, FinishReason: "stop"},
@@ -126,8 +185,29 @@ func (f *FakeLLM) Complete(ctx context.Context, messages []llm.ChatMessage, tool
 		}, nil
 	}
 
-	resp := f.responses[f.index]
+	idx := f.index
+	resp := f.responses[idx]
 	f.index++
+	f.mu.Unlock()
+
+	// Simulate delay outside lock
+	if delay > 0 {
+		select {
+		case <-time.After(time.Duration(delay) * time.Millisecond):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	// Record the call if a recorder is attached
+	if recorder != nil {
+		recorder.mu.Lock()
+		recorder.Calls = append(recorder.Calls, FakeCall{
+			Messages: copyMessages(messages),
+			Tools:    copyTools(tools),
+		})
+		recorder.mu.Unlock()
+	}
 
 	if resp.err != nil {
 		return nil, resp.err
@@ -172,7 +252,9 @@ func (f *FakeLLM) Reset() {
 	f.responses = nil
 	f.index = 0
 	f.failAll = false
+	f.failErr = nil
 	f.delayMs = 0
+	f.recorder = nil
 }
 
 // Remaining returns the number of unconsumed responses.
@@ -180,4 +262,41 @@ func (f *FakeLLM) Remaining() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return len(f.responses) - f.index
+}
+
+// Model returns "fake-llm" as the model identifier.
+func (f *FakeLLM) Model() string {
+	return "fake-llm"
+}
+
+// StreamChat is a no-op stub that writes a done event and returns empty content.
+func (f *FakeLLM) StreamChat(ctx context.Context, w http.ResponseWriter, messages []llm.ChatMessage) (*llm.StreamResult, error) {
+	return &llm.StreamResult{}, nil
+}
+
+// ExtractTextFromImage is a no-op stub that returns empty text.
+func (f *FakeLLM) ExtractTextFromImage(ctx context.Context, base64Image string, mimeType string) (string, error) {
+	return "", nil
+}
+
+// IsBreakerOpen returns false — the fake LLM is always available.
+func (f *FakeLLM) IsBreakerOpen() bool {
+	return false
+}
+
+// Compile-time assertion that *FakeLLM implements llm.LLMClient.
+var _ llm.LLMClient = (*FakeLLM)(nil)
+
+// copyMessages deep-copies a message slice to avoid aliasing issues in recordings.
+func copyMessages(src []llm.ChatMessage) []llm.ChatMessage {
+	dst := make([]llm.ChatMessage, len(src))
+	copy(dst, src)
+	return dst
+}
+
+// copyTools deep-copies a tool slice for recording.
+func copyTools(src []llm.Tool) []llm.Tool {
+	dst := make([]llm.Tool, len(src))
+	copy(dst, src)
+	return dst
 }

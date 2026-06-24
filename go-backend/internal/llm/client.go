@@ -57,6 +57,16 @@ func IsRetryable(err error) bool {
 	return true
 }
 
+// Error sentinels for LLM resilience (T8.2).
+var (
+	// ErrFirstTokenTimeout is returned when the LLM does not start responding within the configured timeout.
+	ErrFirstTokenTimeout = errors.New("llm: first token timeout")
+	// ErrTotalTimeout is returned when the total LLM response time exceeds the configured limit.
+	ErrTotalTimeout = errors.New("llm: total response timeout")
+	// ErrCircuitOpen is returned when the circuit breaker is open and requests are being rejected.
+	ErrCircuitOpen = errors.New("llm: circuit breaker open")
+)
+
 // Client is an OpenAI-compatible LLM HTTP client.
 // Supports MiMo-specific features: api-key header, thinking parameter, max_completion_tokens.
 type Client struct {
@@ -73,6 +83,9 @@ type Client struct {
 	sem chan struct{}
 	// Separate concurrency limiter for OCR calls so they don't starve scoring
 	ocrSem chan struct{}
+	// FirstTokenTimeout is the max time to wait for the first response byte in streaming.
+	// Zero means no separate first-token timeout (only the overall HTTP client timeout applies).
+	firstTokenTimeout time.Duration
 }
 
 // NewClient creates a new LLM client.
@@ -328,7 +341,7 @@ func (c *Client) CompleteWithThinking(ctx context.Context, messages []ChatMessag
 
 func (c *Client) completeWithOpts(ctx context.Context, messages []ChatMessage, tools []Tool, thinking bool, maxTokens int, stream bool) (*ChatResponse, error) {
 	if err := c.breaker.Allow(); err != nil {
-		return nil, fmt.Errorf("llm: circuit breaker open: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrCircuitOpen, err)
 	}
 
 	// Acquire concurrency slot
@@ -377,7 +390,16 @@ func (c *Client) doRequest(ctx context.Context, path string, body any) (*ChatRes
 	}
 
 	url := c.baseURL + path
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+
+	// T8.2: Apply first-token timeout to the HTTP connect phase for non-streaming calls.
+	reqCtx := ctx
+	if c.firstTokenTimeout > 0 {
+		var cancel context.CancelFunc
+		reqCtx, cancel = context.WithTimeout(ctx, c.firstTokenTimeout)
+		defer cancel()
+	}
+
+	httpReq, err := http.NewRequestWithContext(reqCtx, http.MethodPost, url, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("llm: create request: %w", err)
 	}
@@ -396,6 +418,10 @@ func (c *Client) doRequest(ctx context.Context, path string, body any) (*ChatRes
 
 	if err != nil {
 		slog.Error("llm request failed", "url", url, "duration_ms", duration.Milliseconds(), "error", err.Error())
+		// Distinguish first-token timeout from other errors
+		if reqCtx.Err() != nil && ctx.Err() == nil {
+			return nil, fmt.Errorf("%w: %v", ErrFirstTokenTimeout, err)
+		}
 		return nil, fmt.Errorf("llm: http request: %w", err)
 	}
 	defer resp.Body.Close()
@@ -437,7 +463,7 @@ func (c *Client) Embed(ctx context.Context, texts []string) ([][]float64, error)
 	}
 
 	if err := c.breaker.Allow(); err != nil {
-		return nil, fmt.Errorf("llm: circuit breaker open: %w", err)
+		return nil, fmt.Errorf("%w: %v", ErrCircuitOpen, err)
 	}
 
 	// Acquire concurrency slot
@@ -515,3 +541,31 @@ func (c *Client) Model() string {
 func (c *Client) EmbedModel() string {
 	return c.embedModel
 }
+
+// IsBreakerOpen returns true if the circuit breaker is currently open (rejecting requests).
+func (c *Client) IsBreakerOpen() bool {
+	return c.breaker.State() == StateOpen
+}
+
+// Breaker returns the circuit breaker for external inspection or testing.
+func (c *Client) Breaker() *CircuitBreaker {
+	return c.breaker
+}
+
+// SetBreaker replaces the circuit breaker (useful for configuring threshold/cooldown from config).
+func (c *Client) SetBreaker(b *CircuitBreaker) {
+	c.breaker = b
+}
+
+// SetFirstTokenTimeout configures the max time to wait for the first response byte in streaming.
+func (c *Client) SetFirstTokenTimeout(d time.Duration) {
+	c.firstTokenTimeout = d
+}
+
+// SetHTTPTimeout sets the overall HTTP client timeout (T8.2: configurable total timeout).
+func (c *Client) SetHTTPTimeout(d time.Duration) {
+	c.httpClient.Timeout = d
+}
+
+// Compile-time assertion that *Client implements LLMClient.
+var _ LLMClient = (*Client)(nil)

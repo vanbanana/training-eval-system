@@ -7,7 +7,7 @@
  *   - ChatHistoryView 是独立页面（左 session 列表 + 右消息流）
  *   - 本组件是 fixed 定位的常驻 panel：右下角浮动按钮，点击展开 sidebar
  *
- * 后端：使用 /api/chat/stream（SSE 流式）；session_id 由后端首次响应自动分配
+ * 后端：使用 /api/agent/stream（SSE 流式）；session 由组件自动创建
  */
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import {
@@ -98,26 +98,57 @@ async function send(text?: string) {
       }
     }
 
+    // Auto-create session on first message
+    if (!sessionId.value) {
+      const createResp = await fetch('/api/agent/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title: msg.slice(0, 30), agent_role: 'student' }),
+      })
+      if (createResp.status === 401) {
+        window.location.href = '/login'
+        return
+      }
+      if (!createResp.ok) throw new Error(`创建会话失败: HTTP ${createResp.status}`)
+      const sessionData = await createResp.json()
+      sessionId.value = sessionData.id
+    }
+
+    // Build request body with agent_role and optional evaluation context
+    const reqBody: Record<string, unknown> = {
+      session_id: sessionId.value,
+      message: msg,
+      agent_role: 'student',
+    }
+    if (props.evaluationId) {
+      reqBody.context = { evaluation_id: props.evaluationId }
+    }
+
     streamAbort = new AbortController()
-    const res = await fetch('/api/chat/stream', {
+    const res = await fetch('/api/agent/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({
-        session_id: sessionId.value,
-        message: msg,
-        evaluation_id: props.evaluationId ?? null,
-      }),
+      body: JSON.stringify(reqBody),
       signal: streamAbort.signal,
     })
 
+    if (res.status === 401) {
+      window.location.href = '/login'
+      return
+    }
+    if (res.status === 429) {
+      const errBody = await res.json().catch(() => null)
+      throw new Error(errBody?.message ?? '请求过于频繁，请稍后再试')
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-    const sid = res.headers.get('X-Session-Id')
-    if (sid) sessionId.value = Number(sid)
-
+    // Structured SSE event parsing
     const reader = res.body?.getReader()
     const decoder = new TextDecoder()
     if (reader) {
@@ -129,12 +160,43 @@ async function send(text?: string) {
         const lines = buf.split('\n')
         buf = lines.pop() ?? ''
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') continue
-            aiMsg.content += data
-            scrollBottom()
+          if (!line.startsWith('data: ')) continue
+          const payload = line.slice(6).trim()
+          if (!payload || payload === '[DONE]') continue
+
+          try {
+            const event = JSON.parse(payload) as {
+              type: string
+              content?: string
+              message?: string
+              name?: string
+              tool?: string
+            }
+            switch (event.type) {
+              case 'text':
+                aiMsg.content += event.content ?? ''
+                break
+              case 'tool_call':
+                aiMsg.toolCall = event.name ?? event.tool ?? '调用工具'
+                break
+              case 'tool_start':
+                aiMsg.toolCall = event.tool ?? event.name ?? '调用工具'
+                break
+              case 'tool_result':
+                // tool result received, clear tool indicator
+                aiMsg.toolCall = undefined
+                break
+              case 'error':
+                aiMsg.content += `\n[错误] ${event.message ?? '未知错误'}`
+                break
+              case 'done':
+                break
+            }
+          } catch {
+            // Fallback: treat as plain text
+            aiMsg.content += payload
           }
+          scrollBottom()
         }
       }
     }

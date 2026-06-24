@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
+	"github.com/smartedu/training-eval-system/internal/middleware"
 	"github.com/smartedu/training-eval-system/internal/model"
 	"github.com/smartedu/training-eval-system/internal/repository"
 	"github.com/smartedu/training-eval-system/internal/service"
@@ -72,10 +73,25 @@ func (h *CoursesHandler) GetClasses(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid course ID")
 		return
 	}
-	classes, err := h.classSvc.List(r.Context(), &id, nil)
+	if _, err := h.svc.GetByID(r.Context(), id); err != nil {
+		Error(w, http.StatusNotFound, "Course not found")
+		return
+	}
+	claims := middleware.GetClaims(r.Context())
+	var teacherID *int64
+	if claims.Role == "teacher" {
+		teacherID = &claims.Sub
+	} else if claims.Role == "student" {
+		Error(w, http.StatusForbidden, "Students cannot access class management")
+		return
+	}
+	classes, err := h.classSvc.List(r.Context(), &id, teacherID)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if classes == nil {
+		classes = []model.Class{}
 	}
 	JSON(w, http.StatusOK, classes)
 }

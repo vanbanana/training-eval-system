@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, History as HistoryIcon, ChevronRight } from 'lucide-vue-next'
+import { Search, History as HistoryIcon, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 interface Evaluation {
   id: number
@@ -42,6 +43,8 @@ const loading = ref(true)
 const search = ref('')
 const statusFilter = ref<string>('all')
 const sortBy = ref<'date_desc' | 'date_asc' | 'score_desc' | 'score_asc'>('date_desc')
+const currentPage = ref(1)
+const pageSize = 10
 
 async function fetchAll() {
   loading.value = true
@@ -119,6 +122,19 @@ const statusTabs = computed(() => [
 function fmtTime(s: string): string {
   return s?.slice(0, 16).replace('T', ' ') ?? ''
 }
+
+// Pagination
+const totalItems = computed(() => filtered.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
+const paged = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filtered.value.slice(start, start + pageSize)
+})
+
+function selectStatus(key: string) {
+  statusFilter.value = key
+  currentPage.value = 1
+}
 </script>
 
 <template>
@@ -139,7 +155,7 @@ function fmtTime(s: string): string {
       <div class="flex flex-wrap items-center gap-3">
         <div class="relative flex-1 min-w-[12rem]">
           <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input v-model="search" placeholder="按任务名搜索" class="pl-9" />
+          <Input v-model="search" placeholder="按任务名搜索" class="pl-9" @update:model-value="currentPage = 1" />
         </div>
         <Select v-model="sortBy">
           <SelectTrigger class="w-[9.5rem]"><SelectValue /></SelectTrigger>
@@ -158,7 +174,7 @@ function fmtTime(s: string): string {
           type="button"
           class="inline-flex items-center gap-1.5 rounded-pill px-3.5 py-1.5 text-[13px] font-medium transition-colors"
           :class="statusFilter === t.key ? 'bg-primary text-primary-foreground' : 'bg-surface-2 text-muted-foreground hover:text-ink'"
-          @click="statusFilter = t.key"
+          @click="selectStatus(t.key)"
         >
           {{ t.label }}
           <span class="text-[11px] opacity-80">{{ t.count }}</span>
@@ -189,7 +205,7 @@ function fmtTime(s: string): string {
 
     <div v-else class="flex flex-col gap-3">
       <RouterLink
-        v-for="(e, idx) in filtered"
+        v-for="(e, idx) in paged"
         :key="e.id"
         :to="`/student/evaluations/${e.id}`"
         class="tes-card-container group flex items-center gap-4 px-5 py-4 transition-all hover:-translate-y-0.5 hover:shadow-lg anim-in"
@@ -214,6 +230,31 @@ function fmtTime(s: string): string {
         <Badge :variant="statusVariant(e.status)">{{ statusLabel(e.status) }}</Badge>
         <ChevronRight class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
       </RouterLink>
+
+      <!-- Pagination -->
+      <div v-if="totalItems > pageSize" class="flex flex-wrap justify-between items-center gap-3 pt-2">
+        <div class="text-xs text-muted-foreground">
+          显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
+        </div>
+        <div class="flex items-center gap-1.5">
+          <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
+            <ChevronLeft class="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            v-for="page in totalPages"
+            :key="page"
+            :variant="page === currentPage ? 'default' : 'outline'"
+            size="sm"
+            class="h-8 min-w-[32px]"
+            @click="currentPage = page"
+          >
+            {{ page }}
+          </Button>
+          <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
+            <ChevronRight class="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
     </div>
   </AppShell>
 </template>

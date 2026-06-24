@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/smartedu/training-eval-system/internal/middleware"
 	"github.com/smartedu/training-eval-system/internal/report"
 	"github.com/smartedu/training-eval-system/internal/repository"
 	"github.com/smartedu/training-eval-system/internal/service"
@@ -32,10 +33,30 @@ func (h *ReportsHandler) GetPersonal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
 	eval, err := h.evalSvc.GetByID(r.Context(), evalID)
 	if err != nil || eval == nil {
 		Error(w, http.StatusNotFound, "Evaluation not found")
 		return
+	}
+
+	// Ownership check: students can only view their own evaluations
+	if claims.Role == "student" && eval.StudentID != claims.Sub {
+		Error(w, http.StatusNotFound, "Evaluation not found")
+		return
+	}
+	// Teachers/admins can view evaluations for tasks they own/manage
+	if claims.Role == "teacher" {
+		task, err := h.taskSvc.GetByID(r.Context(), eval.TaskID)
+		if err != nil || task.TeacherID != claims.Sub {
+			Error(w, http.StatusNotFound, "Evaluation not found")
+			return
+		}
 	}
 
 	data, err := h.buildReportData(r, eval.TaskID)

@@ -56,6 +56,8 @@ import {
   KeyRound,
   Pencil,
   Power,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-vue-next'
 
 interface User {
@@ -75,6 +77,16 @@ const loading = ref(true)
 const searchQuery = ref('')
 const filterRole = ref<'all' | 'teacher' | 'student' | 'admin' | 'disabled'>('all')
 const selected = ref<Set<number>>(new Set())
+
+// Pagination
+const pageSize = 10
+const currentPage = ref(1)
+const totalItems = computed(() => filtered.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
+const paged = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filtered.value.slice(start, start + pageSize)
+})
 
 // Create / Edit user modal
 const showUserModal = ref(false)
@@ -451,7 +463,7 @@ function downloadTemplate() {
 
       <!-- Rows -->
       <div
-        v-for="(u, idx) in filtered"
+        v-for="(u, idx) in paged"
         v-else
         :key="u.id"
         class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors hover:bg-surface-2 anim-in"
@@ -532,8 +544,28 @@ function downloadTemplate() {
       </div>
 
       <div class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border-t border-border">
-        <div class="text-xs text-muted-foreground">显示 {{ filtered.length }} 共 {{ counts.all }} 条</div>
-      </div>
+          <div class="text-xs text-muted-foreground">
+            显示 {{ filtered.length > 0 ? (currentPage - 1) * pageSize + 1 : 0 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
+          </div>
+          <div v-if="totalItems > pageSize" class="flex items-center gap-1.5">
+            <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
+              <ChevronLeft class="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              v-for="page in totalPages"
+              :key="page"
+              :variant="page === currentPage ? 'default' : 'outline'"
+              size="sm"
+              class="h-8 min-w-[32px]"
+              @click="currentPage = page"
+            >
+              {{ page }}
+            </Button>
+            <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
+              <ChevronRight class="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
     </Card>
 
     <!-- Create/Edit User Dialog -->

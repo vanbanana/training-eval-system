@@ -66,6 +66,16 @@ func (h *UsersHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	validRoles := map[string]bool{"admin": true, "teacher": true, "student": true}
+	if !validRoles[req.Role] {
+		Error(w, http.StatusBadRequest, "Invalid role: must be admin, teacher, or student")
+		return
+	}
+	if len(req.Password) < 8 {
+		Error(w, http.StatusBadRequest, "Password must be at least 8 characters")
+		return
+	}
+
 	user := &model.User{
 		Username:    req.Username,
 		DisplayName: req.DisplayName,

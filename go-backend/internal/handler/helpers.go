@@ -1,13 +1,16 @@
 package handler
 
 import (
-	"encoding/json"
-	"net/http"
-	"reflect"
-	"strconv"
+		"encoding/json"
+		"net/http"
+		"reflect"
+		"strconv"
+		"strings"
 
-	"github.com/smartedu/training-eval-system/internal/dto"
-)
+		"github.com/smartedu/training-eval-system/internal/dto"
+
+		"log/slog"
+	)
 
 // JSON writes a JSON response with the given status code.
 // Nil slices are converted to empty arrays to avoid null in JSON.
@@ -24,13 +27,36 @@ func JSON(w http.ResponseWriter, status int, v any) {
 }
 
 // Error writes a JSON error response.
+// For 500-level errors, internal details (repo:/service:/sql: prefixes) are
+// logged server-side and replaced with a generic message to prevent info leakage (J).
 func Error(w http.ResponseWriter, status int, message string) {
+	if status >= 500 {
+		slog.Error("handler error", "status", status, "detail", message)
+		// Sanitize: if message looks like internal detail, hide it from client
+		if isInternalMsg(message) {
+			message = http.StatusText(status)
+		}
+	}
 	JSON(w, status, dto.ErrorResponse{Detail: message})
 }
 
+// isInternalMsg checks if an error message appears to contain internal details.
+func isInternalMsg(msg string) bool {
+	internalPrefixes := []string{"repo:", "service:", "store:", "llm:", "pipeline:", "crypto:", "sql:", "handler:", "task_repo:", "user_repo:"}
+	msgLower := strings.ToLower(msg)
+	for _, p := range internalPrefixes {
+		if strings.Contains(msgLower, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // Decode reads and decodes a JSON request body into v.
+// Body is limited to 1MB to prevent resource exhaustion (M-1).
 func Decode(r *http.Request, v any) error {
 	defer r.Body.Close()
+	r.Body = http.MaxBytesReader(nil, r.Body, 1<<20) // 1MB limit
 	return json.NewDecoder(r.Body).Decode(v)
 }
 

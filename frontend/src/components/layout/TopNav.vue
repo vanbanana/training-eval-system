@@ -58,8 +58,10 @@ const navItems = computed(() => {
       return [
         { label: '首页', to: '/dashboard', icon: 'Home' },
         { label: '实训任务', to: '/teacher/tasks', icon: 'ClipboardList' },
+        { label: '批改工作台', to: '/teacher/grading', icon: 'PenLine' },
         { label: '班级管理', to: '/teacher/classes', icon: 'Users' },
         { label: '报表中心', to: '/teacher/reports', icon: 'BarChart3' },
+        { label: 'AI 助教', to: '/teacher/agent', icon: 'MessageSquare' },
         { label: '评价模板', to: '/templates', icon: 'FileText' },
         { label: '评价看板', to: '/profiles', icon: 'PenLine' },
       ]
@@ -79,6 +81,7 @@ const navItems = computed(() => {
         { label: '课程管理', to: '/admin/courses', icon: 'BookOpen' },
         { label: 'LLM 配置', to: '/admin/llm', icon: 'Cpu' },
         { label: '审计日志', to: '/admin/audit', icon: 'Shield' },
+        { label: 'AI 管理助手', to: '/admin/agent', icon: 'MessageSquare' },
         { label: '通知中心', to: '/notifications', icon: 'Bell' },
       ]
     default:

@@ -23,6 +23,7 @@ import {
   Upload,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
 } from 'lucide-vue-next'
 
 interface Dimension {
@@ -83,7 +84,7 @@ async function fetchAll() {
     const counts: Record<number, number> = {}
     await Promise.all(
       tasks.value.map(async (t) => {
-        const r = await safeGet<unknown[]>(`/api/uploads/${t.id}`, [])
+        const r = await safeGet<unknown[]>(`/api/uploads/by-task/${t.id}`, [])
         counts[t.id] = (r.data ?? []).length
       }),
     )
@@ -187,9 +188,23 @@ const filtered = computed(() => {
 })
 
 function formatDeadline(iso: string | null) {
-  if (!iso) return '——'
-  return iso.slice(0, 16).replace('T', ' ')
-}
+	  if (!iso) return '——'
+	  return iso.slice(0, 16).replace('T', ' ')
+	}
+
+	// Pagination
+	const pageSize = 8
+	const currentPage = ref(1)
+	const totalItems = computed(() => filtered.value.length)
+	const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
+	const paged = computed(() => {
+	  const start = (currentPage.value - 1) * pageSize
+	  return filtered.value.slice(start, start + pageSize)
+	})
+	// Reset to page 1 when filter/search changes
+	function resetPagination() {
+	  currentPage.value = 1
+	}
 </script>
 
 <template>
@@ -220,7 +235,7 @@ function formatDeadline(iso: string | null) {
     </div>
 
     <Card class="px-5 py-3.5 flex justify-between items-center gap-4">
-      <Tabs v-model="filterStatus">
+      <Tabs v-model="filterStatus" @update:model-value="currentPage = 1">
         <TabsList>
           <TabsTrigger value="all">全部 {{ counts.all }}</TabsTrigger>
           <TabsTrigger value="pending">待提交 {{ counts.pending }}</TabsTrigger>
@@ -231,7 +246,7 @@ function formatDeadline(iso: string | null) {
 
       <div class="relative w-[280px]">
         <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-        <Input v-model="searchQuery" placeholder="搜索任务名称 / 描述" class="pl-9" />
+        <Input v-model="searchQuery" placeholder="搜索任务名称 / 描述" class="pl-9" @input="currentPage = 1" />
       </div>
     </Card>
 
@@ -247,110 +262,138 @@ function formatDeadline(iso: string | null) {
       :description="filterStatus === 'all' ? '老师还未发布任务，敬请期待' : '试试切换其他状态筛选'"
     />
 
-    <div v-else class="grid grid-cols-2 gap-4">
-      <RouterLink
-        v-for="(t, idx) in filtered"
-        :key="t.id"
-        :to="t.status === 'closed' ? '#' : `/student/tasks/${t.id}`"
-        class="block anim-in"
-        :style="{ animationDelay: Math.min(idx * 40, 240) + 'ms' }"
-      >
-        <Card
-          :class="[
-            'p-5 flex flex-col gap-3.5 transition-all duration-200',
-            urgencyRingClass(t.deadline),
-            t.status === 'closed' ? 'cursor-not-allowed pointer-events-none' : 'hover:shadow-lg cursor-pointer',
-          ]"
+    <template v-else>
+      <div class="grid grid-cols-2 gap-4">
+        <RouterLink
+          v-for="(t, idx) in paged"
+          :key="t.id"
+          :to="t.status === 'closed' ? '#' : `/student/tasks/${t.id}`"
+          class="block anim-in"
+          :style="{ animationDelay: Math.min(idx * 40, 240) + 'ms' }"
         >
-          <div class="flex justify-between items-start gap-3">
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 mb-1.5">
-                <span class="text-sm font-bold text-ink truncate">{{ t.name }}</span>
-                <Badge v-if="urgencyBadge(t.deadline)" :variant="urgencyBadge(t.deadline)!.variant" class="flex-shrink-0">
-                  {{ urgencyBadge(t.deadline)!.label }}
-                </Badge>
+          <!-- card content unchanged -->
+          <Card
+            :class="[
+              'p-5 flex flex-col gap-3.5 transition-all duration-200',
+              urgencyRingClass(t.deadline),
+              t.status === 'closed' ? 'cursor-not-allowed pointer-events-none' : 'hover:shadow-lg cursor-pointer',
+            ]"
+          >
+            <div class="flex justify-between items-start gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="text-sm font-bold text-ink truncate">{{ t.name }}</span>
+                  <Badge v-if="urgencyBadge(t.deadline)" :variant="urgencyBadge(t.deadline)!.variant" class="flex-shrink-0">
+                    {{ urgencyBadge(t.deadline)!.label }}
+                  </Badge>
+                </div>
+                <p class="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                  {{ t.description || '暂无描述' }}
+                </p>
               </div>
-              <p class="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                {{ t.description || '暂无描述' }}
-              </p>
+              <Badge :variant="statusBadge(t).variant" class="flex-shrink-0">
+                {{ statusBadge(t).label }}
+              </Badge>
             </div>
-            <Badge :variant="statusBadge(t).variant" class="flex-shrink-0">
-              {{ statusBadge(t).label }}
-            </Badge>
-          </div>
 
-          <div class="h-px bg-border"></div>
+            <div class="h-px bg-border"></div>
 
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center justify-between text-xs">
-              <span class="flex items-center gap-1.5 text-muted-foreground">
-                <Calendar class="w-3 h-3" />
-                <span>截止时间</span>
-              </span>
-              <span
-                class="font-mono font-semibold"
-                :class="getCountdown(t.deadline)?.expired
-                  ? 'text-muted-foreground'
-                  : (getCountdown(t.deadline)?.days ?? 99) < 3
-                    ? 'text-accent'
-                    : 'text-foreground'"
-              >
-                {{ formatDeadline(t.deadline) }}
-              </span>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="flex items-center gap-1.5 text-muted-foreground">
-                <AlarmClock class="w-3 h-3" />
-                <span>剩余</span>
-              </span>
-              <span
-                class="font-semibold"
-                :class="getCountdown(t.deadline)?.expired
-                  ? 'text-muted-foreground'
-                  : (getCountdown(t.deadline)?.days ?? 99) < 1
-                    ? 'text-danger'
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar class="w-3 h-3" />
+                  <span>截止时间</span>
+                </span>
+                <span
+                  class="font-mono font-semibold"
+                  :class="getCountdown(t.deadline)?.expired
+                    ? 'text-muted-foreground'
                     : (getCountdown(t.deadline)?.days ?? 99) < 3
                       ? 'text-accent'
                       : 'text-foreground'"
-              >
-                {{ getCountdown(t.deadline)?.label ?? '不限' }}
-              </span>
+                >
+                  {{ formatDeadline(t.deadline) }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 text-muted-foreground">
+                  <AlarmClock class="w-3 h-3" />
+                  <span>剩余</span>
+                </span>
+                <span
+                  class="font-semibold"
+                  :class="getCountdown(t.deadline)?.expired
+                    ? 'text-muted-foreground'
+                    : (getCountdown(t.deadline)?.days ?? 99) < 1
+                      ? 'text-danger'
+                      : (getCountdown(t.deadline)?.days ?? 99) < 3
+                        ? 'text-accent'
+                        : 'text-foreground'"
+                >
+                  {{ getCountdown(t.deadline)?.label ?? '不限' }}
+                </span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 text-muted-foreground">
+                  <FileText class="w-3 h-3" />
+                  <span>评价维度</span>
+                </span>
+                <span class="font-semibold text-foreground">{{ t.dimensions.length }} 项</span>
+              </div>
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1.5 text-muted-foreground">
+                  <Upload class="w-3 h-3" />
+                  <span>已提交</span>
+                </span>
+                <span class="font-semibold text-foreground">{{ uploadCountByTask[t.id] || 0 }} 次</span>
+              </div>
             </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="flex items-center gap-1.5 text-muted-foreground">
-                <FileText class="w-3 h-3" />
-                <span>评价维度</span>
-              </span>
-              <span class="font-semibold text-foreground">{{ t.dimensions.length }} 项</span>
-            </div>
-            <div class="flex items-center justify-between text-xs">
-              <span class="flex items-center gap-1.5 text-muted-foreground">
-                <Upload class="w-3 h-3" />
-                <span>已提交</span>
-              </span>
-              <span class="font-semibold text-foreground">{{ uploadCountByTask[t.id] || 0 }} 次</span>
-            </div>
-          </div>
 
-          <div class="flex items-center justify-between mt-auto pt-2 border-t border-border">
-            <div class="flex items-center gap-2">
-              <CheckCircle2 v-if="evalByTask[t.id]" class="w-4 h-4 text-success" />
-              <span class="text-[11px] text-muted-foreground">
-                <template v-if="evalByTask[t.id]">
-                  综合得分 <span class="text-success font-bold">{{ evalByTask[t.id].total_score ?? '—' }}</span>
-                </template>
-                <template v-else-if="(uploadCountByTask[t.id] || 0) > 0">等待评分</template>
-                <template v-else-if="t.status === 'closed'">任务已关闭</template>
-                <template v-else>尚未提交</template>
+            <div class="flex items-center justify-between mt-auto pt-2 border-t border-border">
+              <div class="flex items-center gap-2">
+                <CheckCircle2 v-if="evalByTask[t.id]" class="w-4 h-4 text-success" />
+                <span class="text-[11px] text-muted-foreground">
+                  <template v-if="evalByTask[t.id]">
+                    综合得分 <span class="text-success font-bold">{{ evalByTask[t.id].total_score ?? '—' }}</span>
+                  </template>
+                  <template v-else-if="(uploadCountByTask[t.id] || 0) > 0">等待评分</template>
+                  <template v-else-if="t.status === 'closed'">任务已关闭</template>
+                  <template v-else>尚未提交</template>
+                </span>
+              </div>
+              <span class="text-xs font-medium text-primary flex items-center gap-1">
+                {{ t.status === 'closed' ? '已结束' : '查看详情' }}
+                <ChevronRight v-if="t.status !== 'closed'" class="w-3 h-3" />
               </span>
             </div>
-            <span class="text-xs font-medium text-primary flex items-center gap-1">
-              {{ t.status === 'closed' ? '已结束' : '查看详情' }}
-              <ChevronRight v-if="t.status !== 'closed'" class="w-3 h-3" />
-            </span>
-          </div>
-        </Card>
-      </RouterLink>
-    </div>
+          </Card>
+        </RouterLink>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="totalItems > pageSize" class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border border-border rounded-lg">
+        <div class="text-xs text-muted-foreground">
+          显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
+        </div>
+        <div class="flex items-center gap-1.5">
+          <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
+            <ChevronLeft class="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            v-for="page in totalPages"
+            :key="page"
+            :variant="page === currentPage ? 'default' : 'outline'"
+            size="sm"
+            class="h-8 min-w-[32px]"
+            @click="currentPage = page"
+          >
+            {{ page }}
+          </Button>
+          <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
+            <ChevronRight class="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+    </template>
   </AppShell>
 </template>

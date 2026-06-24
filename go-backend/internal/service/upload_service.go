@@ -86,13 +86,19 @@ func (s *UploadService) Upload(ctx context.Context, taskID, studentID int64, fil
 	}
 	defer f.Close()
 
-	// Write file and compute SHA-256
-	hasher := sha256.New()
-	written, err := io.Copy(io.MultiWriter(f, hasher), reader)
-	if err != nil {
-		os.Remove(storagePath)
-		return nil, fmt.Errorf("upload_service: write file: %w", err)
-	}
+// Write file and compute SHA-256
+		hasher := sha256.New()
+		// Use LimitReader to enforce actual byte cap (prevents declared-size bypass, M-2)
+		limitedReader := io.LimitReader(reader, maxBytes+1)
+		written, err := io.Copy(io.MultiWriter(f, hasher), limitedReader)
+		if err != nil {
+			os.Remove(storagePath)
+			return nil, fmt.Errorf("upload_service: write file: %w", err)
+		}
+		if written > maxBytes {
+			os.Remove(storagePath)
+			return nil, fmt.Errorf("upload_service: file exceeds maximum size of %dMB", s.maxSizeMB)
+		}
 
 	checksum := hex.EncodeToString(hasher.Sum(nil))
 

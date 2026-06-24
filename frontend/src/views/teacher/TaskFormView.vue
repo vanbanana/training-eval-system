@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import axios from 'axios'
 import { GripVertical, Trash2, Bookmark, Save, CalendarClock, Info, Plus, X } from 'lucide-vue-next'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -84,6 +84,26 @@ const requirementsLength = computed(() => requirements.value.length)
 
 const submitting = ref(false)
 const error = ref('')
+const dirty = ref(false) // tracks unsaved changes for navigation guard
+
+// Mark form as dirty when user interacts with any field
+watch([name, description, requirements, courseId, deadline, selectedClassIds, dimensions], () => {
+  if (!loadingTask.value) dirty.value = true
+}, { deep: true })
+
+// Guard against accidental navigation with unsaved changes
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!dirty.value) { next(); return }
+  const ok = window.confirm('有未保存的更改，确定离开吗？')
+  if (ok) next()
+  else next(false)
+})
+// Also guard browser refresh / tab close
+function beforeUnload(e: BeforeUnloadEvent) {
+  if (dirty.value) e.preventDefault()
+}
+onMounted(() => window.addEventListener('beforeunload', beforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
 // Templates
 const templates = ref<Template[]>([])
@@ -115,33 +135,33 @@ const filteredClassesForPicker = computed(() => {
 })
 
 async function loadCourses() {
-  try {
-    const { data } = await axios.get('/api/courses')
-    allCourses.value = data
-    if (allCourses.value.length > 0 && !courseId.value) {
-      courseId.value = allCourses.value[0].id
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-async function loadClasses() {
-  try {
-    const { data } = await axios.get('/api/classes')
-    allClasses.value = data
-  } catch {
-    /* ignore */
-  }
-}
-
-async function loadTemplates() {
-  try {
-    const { data } = await axios.get('/api/templates')
-    templates.value = data
-  } catch {
-    /* ignore */
-  }
+	  try {
+	    const { data } = await axios.get('/api/courses')
+	    allCourses.value = data
+	    if (allCourses.value.length > 0 && !courseId.value) {
+	      courseId.value = allCourses.value[0].id
+	    }
+	  } catch {
+	    toast({ description: '加载课程列表失败', variant: 'warning' })
+	  }
+	}
+	
+	async function loadClasses() {
+	  try {
+	    const { data } = await axios.get('/api/courses/' + courseId.value + '/classes')
+	    allClasses.value = data
+	  } catch {
+	    toast({ description: '加载班级列表失败', variant: 'warning' })
+	  }
+	}
+	
+	async function loadTemplates() {
+	  try {
+	    const { data } = await axios.get('/api/templates')
+	    templates.value = data
+	  } catch {
+	    toast({ description: '加载评语模板失败', variant: 'warning' })
+	  }
 }
 
 async function loadTaskForEdit(id: number) {
@@ -162,7 +182,7 @@ async function loadTaskForEdit(id: number) {
       }))
     }
     if (Array.isArray(data.class_ids)) {
-      selectedClassIds.value = new Set(data.class_ids)
+      selectedClassIds.value = new Set(data.class_ids); const { data: cl } = await axios.get("/api/courses/" + data.course_id + "/classes"); allClasses.value = Array.isArray(cl) ? cl : []
     }
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -508,7 +528,7 @@ async function doSubmit(status: 'draft' | 'published') {
             <RouterLink to="/templates" class="text-xs text-primary font-medium">管理 ›</RouterLink>
           </header>
           <div v-if="templates.length === 0" class="px-5 py-6 text-center text-xs text-muted-foreground">
-            暂无可用模板
+            暂无模板
           </div>
           <div v-else class="max-h-[280px] overflow-auto">
             <button

@@ -10,10 +10,6 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
-    path: '/forgot-password',
-    redirect: '/login',
-  },
-  {
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('@/views/shared/DashboardView.vue'),
@@ -50,7 +46,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/teacher/grading',
-    redirect: '/teacher/tasks',
+    component: () => import('@/views/teacher/GradingHomeView.vue'),
   },
   {
     path: '/teacher/reports',
@@ -136,6 +132,19 @@ const routes: RouteRecordRaw[] = [
     path: '/student/chat',
     name: 'student-chat',
     component: () => import('@/views/student/ChatView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: '/teacher/agent',
+    name: 'teacher-agent',
+    component: () => import('@/views/teacher/AgentView.vue'),
+    meta: { roles: ['teacher'] },
+  },
+  {
+    path: '/admin/agent',
+    name: 'admin-agent',
+    component: () => import('@/views/admin/AgentView.vue'),
+    meta: { roles: ['admin'] },
   },
   {
     path: '/templates',
@@ -197,6 +206,11 @@ router.beforeEach(async (to) => {
     if (roles && !roles.includes(auth.user.role)) {
       return { name: 'forbidden' }
     }
+  }
+  // Per-route role guard (meta.roles) for finer-grained control.
+  const metaRoles = to.meta.roles as string[] | undefined
+  if (metaRoles && auth.user && !metaRoles.includes(auth.user.role)) {
+    return { name: 'forbidden' }
   }
 })
 

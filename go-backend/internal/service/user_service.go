@@ -57,6 +57,9 @@ func (s *UserService) ToggleActive(ctx context.Context, id int64, active bool) e
 
 // ResetPassword sets a new password for a user.
 func (s *UserService) ResetPassword(ctx context.Context, id int64, newPassword string) error {
+	if len(newPassword) < 8 {
+		return fmt.Errorf("user_service: password must be at least 8 characters")
+	}
 	hash, err := crypto.HashPassword(newPassword)
 	if err != nil {
 		return err

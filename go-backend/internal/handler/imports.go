@@ -1,12 +1,19 @@
 package handler
 
 import (
+	"encoding/csv"
+	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
 	"github.com/smartedu/training-eval-system/internal/middleware"
+	"github.com/smartedu/training-eval-system/internal/model"
 	"github.com/smartedu/training-eval-system/internal/service"
+	"github.com/xuri/excelize/v2"
 )
 
 type ImportsHandler struct {
@@ -19,84 +26,42 @@ func NewImportsHandler(svc *service.ImportService, userSvc *service.UserService,
 	return &ImportsHandler{svc: svc, userSvc: userSvc, taskSvc: taskSvc}
 }
 
-// maxImportFileSize caps the in-memory import upload at 10MB.
 const maxImportFileSize = 10 << 20
 
-func (h *ImportsHandler) ImportUsers(w http.ResponseWriter, r *http.Request) {
-	h.handleImport(w, r, "user")
-}
-
-func (h *ImportsHandler) ImportStudents(w http.ResponseWriter, r *http.Request) {
-	h.handleImport(w, r, "student")
-}
-
-func (h *ImportsHandler) handleImport(w http.ResponseWriter, r *http.Request, jobType string) {
-	claims := middleware.GetClaims(r.Context())
-	if claims == nil {
-		Error(w, http.StatusUnauthorized, "Unauthorized")
-		return
-	}
-
-	if err := r.ParseMultipartForm(maxImportFileSize); err != nil {
-		Error(w, http.StatusBadRequest, "Invalid multipart form or file too large")
-		return
-	}
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		Error(w, http.StatusBadRequest, "Missing file field")
-		return
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(io.LimitReader(file, maxImportFileSize))
-	if err != nil {
-		Error(w, http.StatusBadRequest, "Failed to read file")
-		return
-	}
-
-	result, err := h.svc.ImportUsers(r.Context(), claims.Sub, jobType, header.Filename, data, h.userSvc)
-	if err != nil {
-		Error(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	status := "done"
-	if result.FailedCount > 0 && result.SuccessCount == 0 {
-		status = "failed"
-	}
-	JSON(w, http.StatusOK, dto.ImportResultResponse{
-		JobID:        result.JobID,
-		TotalCount:   result.TotalCount,
-		SuccessCount: result.SuccessCount,
-		FailedCount:  result.FailedCount,
-		Status:       status,
-	})
-}
-
+// DownloadTemplate generates and serves a user import XLSX template.
 func (h *ImportsHandler) DownloadTemplate(w http.ResponseWriter, r *http.Request) {
-	data, err := service.BuildUserTemplateXLSX()
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "Failed to build template")
-		return
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheet := "Sheet1"
+	headers := []string{"username", "display_name", "role", "password"}
+	for i, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheet, cell, h)
 	}
+	// Example row
+	examples := []string{"student001", "张三", "student", "Pass@1234"}
+	for i, v := range examples {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 2)
+		f.SetCellValue(sheet, cell, v)
+	}
+
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", "attachment; filename=user_template.xlsx")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+	w.Header().Set("Content-Disposition", "attachment; filename=user_import_template.xlsx")
+	if err := f.Write(w); err != nil {
+		slog.Error("write template xlsx", "error", err.Error())
+	}
 }
 
-// ImportTasks handles task batch import from xlsx/csv upload.
-func (h *ImportsHandler) ImportTasks(w http.ResponseWriter, r *http.Request) {
+// ImportUsers handles POST /api/imports/users — CSV or XLSX upload.
+func (h *ImportsHandler) ImportUsers(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetClaims(r.Context())
-	if claims == nil {
-		Error(w, http.StatusUnauthorized, "Unauthorized")
+
+	if err := r.ParseMultipartForm(maxImportFileSize); err != nil {
+		Error(w, http.StatusBadRequest, "Failed to parse multipart form")
 		return
 	}
 
-	if err := r.ParseMultipartForm(maxImportFileSize); err != nil {
-		Error(w, http.StatusBadRequest, "Invalid multipart form or file too large")
-		return
-	}
 	file, header, err := r.FormFile("file")
 	if err != nil {
 		Error(w, http.StatusBadRequest, "Missing file field")
@@ -104,40 +69,219 @@ func (h *ImportsHandler) ImportTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	data, err := io.ReadAll(io.LimitReader(file, maxImportFileSize))
+	var rows [][]string
+	filename := strings.ToLower(header.Filename)
+
+	switch {
+	case strings.HasSuffix(filename, ".csv"):
+		rows, err = parseCSVFile(file)
+	case strings.HasSuffix(filename, ".xlsx") || strings.HasSuffix(filename, ".xls"):
+		rows, err = parseXLSXFile(file)
+	default:
+		Error(w, http.StatusBadRequest, "Unsupported file format. Use .csv or .xlsx")
+		return
+	}
 	if err != nil {
-		Error(w, http.StatusBadRequest, "Failed to read file")
+		Error(w, http.StatusBadRequest, fmt.Sprintf("Failed to parse file: %s", err.Error()))
 		return
 	}
 
-	result, err := h.svc.ImportTasks(r.Context(), claims.Sub, header.Filename, data, h.taskSvc)
-	if err != nil {
-		Error(w, http.StatusBadRequest, err.Error())
+	if len(rows) < 2 {
+		Error(w, http.StatusBadRequest, "File has no data rows")
 		return
 	}
 
-	status := "done"
-	if result.FailedCount > 0 && result.SuccessCount == 0 {
-		status = "failed"
+	// Create import job
+	job := &model.ImportJob{
+		OperatorID: claims.Sub,
+		JobType:    "users",
+		Status:     "processing",
+		TotalCount: len(rows) - 1, // exclude header
+		CreatedAt:  time.Now(),
 	}
+
+	successCount := 0
+	failedCount := 0
+
+	// Process each data row (skip header)
+	for i, row := range rows[1:] {
+		rowNum := i + 2 // 1-indexed, skip header
+		if len(row) < 4 {
+			failedCount++
+			slog.Warn("import row: insufficient columns", "row", rowNum)
+			continue
+		}
+
+		username := strings.TrimSpace(row[0])
+		displayName := strings.TrimSpace(row[1])
+		role := strings.TrimSpace(row[2])
+		password := strings.TrimSpace(row[3])
+
+		if username == "" || displayName == "" || role == "" || password == "" {
+			failedCount++
+			slog.Warn("import row: empty required fields", "row", rowNum)
+			continue
+		}
+
+		// Validate role
+		if role != "admin" && role != "teacher" && role != "student" {
+			failedCount++
+			slog.Warn("import row: invalid role", "row", rowNum, "role", role)
+			continue
+		}
+
+		user := &model.User{
+			Username:    username,
+			DisplayName: displayName,
+			Role:        role,
+		}
+		if err := h.userSvc.Create(r.Context(), user, password); err != nil {
+			failedCount++
+			slog.Warn("import row: create user failed", "row", rowNum, "error", err.Error())
+			continue
+		}
+		successCount++
+	}
+
+	job.SuccessCount = successCount
+	job.FailedCount = failedCount
+	job.Status = "done"
+	now := time.Now()
+	job.CompletedAt = &now
+
+	// Persist import job (best-effort — don't fail the response)
+	if err := h.svc.CreateJob(r.Context(), job); err != nil {
+		slog.Warn("import job persist failed", "error", err.Error())
+	}
+
 	JSON(w, http.StatusOK, dto.ImportResultResponse{
-		JobID:        result.JobID,
-		TotalCount:   result.TotalCount,
-		SuccessCount: result.SuccessCount,
-		FailedCount:  result.FailedCount,
-		Status:       status,
+		JobID:        job.ID,
+		TotalCount:   job.TotalCount,
+		SuccessCount: successCount,
+		FailedCount:  failedCount,
+		Status:       "done",
 	})
 }
 
-// DownloadTaskTemplate serves the task import xlsx template.
-func (h *ImportsHandler) DownloadTaskTemplate(w http.ResponseWriter, r *http.Request) {
-	data, err := service.BuildTaskTemplateXLSX()
-	if err != nil {
-		Error(w, http.StatusInternalServerError, "Failed to build template")
+// ImportStudents handles POST /api/imports/students — CSV or XLSX upload.
+func (h *ImportsHandler) ImportStudents(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r.Context())
+
+	if err := r.ParseMultipartForm(maxImportFileSize); err != nil {
+		Error(w, http.StatusBadRequest, "Failed to parse multipart form")
 		return
 	}
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", "attachment; filename=task_template.xlsx")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Missing file field")
+		return
+	}
+	defer file.Close()
+
+	var rows [][]string
+	filename := strings.ToLower(header.Filename)
+
+	switch {
+	case strings.HasSuffix(filename, ".csv"):
+		rows, err = parseCSVFile(file)
+	case strings.HasSuffix(filename, ".xlsx") || strings.HasSuffix(filename, ".xls"):
+		rows, err = parseXLSXFile(file)
+	default:
+		Error(w, http.StatusBadRequest, "Unsupported file format. Use .csv or .xlsx")
+		return
+	}
+	if err != nil {
+		Error(w, http.StatusBadRequest, fmt.Sprintf("Failed to parse file: %s", err.Error()))
+		return
+	}
+
+	if len(rows) < 2 {
+		Error(w, http.StatusBadRequest, "File has no data rows")
+		return
+	}
+
+	job := &model.ImportJob{
+		OperatorID: claims.Sub,
+		JobType:    "students",
+		Status:     "processing",
+		TotalCount: len(rows) - 1,
+		CreatedAt:  time.Now(),
+	}
+
+	successCount := 0
+	failedCount := 0
+
+	for _, row := range rows[1:] {
+		if len(row) < 4 {
+			failedCount++
+			continue
+		}
+
+		username := strings.TrimSpace(row[0])
+		displayName := strings.TrimSpace(row[1])
+		password := strings.TrimSpace(row[3])
+
+		if username == "" || displayName == "" {
+			failedCount++
+			continue
+		}
+
+		user := &model.User{
+			Username:    username,
+			DisplayName: displayName,
+			Role:        "student",
+		}
+		if err := h.userSvc.Create(r.Context(), user, password); err != nil {
+			failedCount++
+			continue
+		}
+		successCount++
+	}
+
+	job.SuccessCount = successCount
+	job.FailedCount = failedCount
+	job.Status = "done"
+	now := time.Now()
+	job.CompletedAt = &now
+
+	if err := h.svc.CreateJob(r.Context(), job); err != nil {
+		slog.Warn("import job persist failed", "error", err.Error())
+	}
+
+	JSON(w, http.StatusOK, dto.ImportResultResponse{
+		JobID:        job.ID,
+		TotalCount:   job.TotalCount,
+		SuccessCount: successCount,
+		FailedCount:  failedCount,
+		Status:       "done",
+	})
+}
+
+// parseCSVFile reads a CSV file and returns rows including header.
+func parseCSVFile(r io.Reader) ([][]string, error) {
+	reader := csv.NewReader(r)
+	reader.LazyQuotes = true
+	reader.TrimLeadingSpace = true
+	return reader.ReadAll()
+}
+
+// parseXLSXFile reads an XLSX file and returns rows including header.
+func parseXLSXFile(r io.Reader) ([][]string, error) {
+	f, err := excelize.OpenReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("open xlsx: %w", err)
+	}
+	defer f.Close()
+
+	sheet := f.GetSheetName(0)
+	if sheet == "" {
+		return nil, fmt.Errorf("no sheets in xlsx")
+	}
+
+	rows, err := f.GetRows(sheet)
+	if err != nil {
+		return nil, fmt.Errorf("read rows: %w", err)
+	}
+	return rows, nil
 }

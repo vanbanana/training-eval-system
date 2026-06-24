@@ -48,6 +48,11 @@ func NewImportService(repo repository.ImportRepo, userRepo repository.UserRepo) 
 	return &ImportService{repo: repo, userRepo: userRepo}
 }
 
+// CreateJob persists a new import job record.
+func (s *ImportService) CreateJob(ctx context.Context, j *model.ImportJob) error {
+	return s.repo.Create(ctx, j)
+}
+
 // --- TemplateService ---
 
 type TemplateService struct {

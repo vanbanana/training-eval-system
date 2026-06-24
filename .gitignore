@@ -70,3 +70,45 @@ backend/tes_*.db
 # Tool binaries
 tools/*/*.exe
 tools/*/*.exe~
+
+# Build artifacts
+*.exe~
+go-backend/nul
+go-backend/cover/
+
+# E2E test artifacts
+e2e_test/
+
+# IDE configs
+.kiro/
+.trae/
+
+# Dataset and exports
+export/
+export.zip
+dataset_*.json
+数据集*/
+
+# Temp scripts
+*.py
+!go-backend/internal/parser/*.py
+add-real-data.mjs
+test-api.mjs
+test-routes.mjs
+
+# Generated reports
+student_report.pdf
+test_report.pdf
+test_report.xlsx
+
+# Fonts (build-time dependency, not in repo)
+go-backend/fonts/
+
+# Screenshots
+*.png
+*.svg
+
+# AI agent task files
+AGENTS.md
+AI_AGENT_TASK.md
+FIX_TODO.md

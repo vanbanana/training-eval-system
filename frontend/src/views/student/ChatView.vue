@@ -1,19 +1,13 @@
 <script setup lang="ts">
 /**
- * AI 问答助手 — Agent 风格 UI
+ * AI 问答助手 — Agent 风格 UI (学生角色)
  *
- * 特性：
- * - 结构化 SSE 事件解析（thinking / tool_call / tool_result / text / done / error）
- * - Markdown 渲染（代码高亮、表格、链接）
- * - 工具调用过程可视化（可折叠卡片）
- * - 思考状态动画
- * - 增强输入框（附件上传占位、快捷问题）
- * - 会话管理（左侧列表）
+ * 使用 useAgentChat composable 封装所有聊天逻辑。
  */
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import axios from 'axios'
+import { ref, nextTick, watch } from 'vue'
 import AppShell from '@/components/layout/AppShell.vue'
 import { renderMarkdown } from '@/lib/markdown'
+import { useAgentChat, formatRelativeTime, useToolCollapse, autoResizeTextarea } from '@/composables/useAgentChat'
 import {
   ChevronRight,
   Search,
@@ -31,102 +25,35 @@ import {
   XCircle,
 } from 'lucide-vue-next'
 
-// ============ Types ============
-interface Session {
-  id: number
-  title: string
-  evaluation_id: number | null
-  created_at: string
-}
+const {
+  activeSessionId,
+  messages,
+  input,
+  sending,
+  searchQuery,
+  filteredSessions,
+  activeSession,
+  hasMoreHistory,
+  loadSession,
+  newSession,
+  removeSession,
+  send,
+  loadMoreHistory,
+} = useAgentChat({ agentRole: 'student' })
 
-// 消息中的一个"块"（文本 / 工具调用 / 思考）
-interface MessageBlock {
-  type: 'text' | 'thinking' | 'tool_call' | 'tool_result' | 'error'
-  content?: string
-  name?: string
-  args?: Record<string, unknown>
-  success?: boolean
-  data?: unknown
-  error?: string
-}
-
-interface ChatMessage {
-  id?: number
-  role: 'user' | 'assistant'
-  content: string // 纯文本（用于持久化）
-  blocks: MessageBlock[] // 结构化块（用于渲染）
-  created_at?: string
-  isStreaming?: boolean
-}
-
-// ============ State ============
-const sessions = ref<Session[]>([])
-const activeSessionId = ref<number | null>(null)
-const messages = ref<ChatMessage[]>([])
-const input = ref('')
-const sending = ref(false)
-const searchQuery = ref('')
 const chatBodyRef = ref<HTMLElement | null>(null)
-const collapsedTools = ref<Set<number>>(new Set())
+const { collapsed, toggle: toggleToolCollapse } = useToolCollapse()
 
-// ============ Session Management ============
-async function fetchSessions() {
-  try {
-    const { data } = await axios.get('/api/chat/sessions')
-    sessions.value = Array.isArray(data) ? data : []
-    if (sessions.value.length > 0 && !activeSessionId.value) {
-      await loadSession(sessions.value[0].id)
-    }
-  } catch {
-    // ignore
-  }
-}
+// 快捷问题 (T7.2 角色化)
+const quickQuestions = [
+  '帮我解释这次评价',
+  '我下一步怎么提高',
+  '推荐学习资源',
+]
 
-async function loadSession(id: number) {
-  activeSessionId.value = id
-  try {
-    const { data } = await axios.get(`/api/chat/sessions/${id}/messages`)
-    messages.value = (Array.isArray(data) ? data : []).map((m: { id: number; role: string; content: string; created_at: string }) => ({
-      id: m.id,
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-      blocks: [{ type: 'text' as const, content: m.content }],
-      created_at: m.created_at,
-    }))
-    scrollToBottom()
-  } catch {
-    messages.value = []
-  }
-}
-
-async function newSession() {
-  try {
-    const { data } = await axios.post('/api/chat/sessions', { title: '新对话' })
-    sessions.value.unshift({
-      id: data.id,
-      title: data.title ?? '新对话',
-      evaluation_id: null,
-      created_at: new Date().toISOString(),
-    })
-    activeSessionId.value = data.id
-    messages.value = []
-  } catch {
-    activeSessionId.value = null
-    messages.value = []
-  }
-}
-
-async function deleteSession() {
-  if (!activeSessionId.value) return
-  if (!confirm('删除当前会话？此操作不可撤销。')) return
-  try {
-    await axios.delete(`/api/chat/sessions/${activeSessionId.value}`)
-    sessions.value = sessions.value.filter((s) => s.id !== activeSessionId.value)
-    activeSessionId.value = null
-    messages.value = []
-  } catch {
-    // ignore
-  }
+function askQuick(q: string) {
+  input.value = q
+  void send()
 }
 
 function scrollToBottom() {
@@ -137,246 +64,7 @@ function scrollToBottom() {
   })
 }
 
-onMounted(fetchSessions)
 watch(messages, scrollToBottom, { deep: true })
-
-// Abort any in-flight SSE stream when the component unmounts.
-let streamAbort: AbortController | null = null
-onUnmounted(() => {
-  if (streamAbort) {
-    streamAbort.abort()
-    streamAbort = null
-  }
-})
-
-// ============ Send Message (SSE with structured events) ============
-async function send() {
-  const msg = input.value.trim()
-  if (!msg || sending.value) return
-  sending.value = true
-  input.value = ''
-
-  // 用户消息
-  messages.value.push({
-    role: 'user',
-    content: msg,
-    blocks: [{ type: 'text', content: msg }],
-    created_at: new Date().toISOString(),
-  })
-
-  // AI 消息占位（流式填充）
-  const aiMsg: ChatMessage = {
-    role: 'assistant',
-    content: '',
-    blocks: [],
-    created_at: new Date().toISOString(),
-    isStreaming: true,
-  }
-  messages.value.push(aiMsg)
-  scrollToBottom()
-
-  try {
-    const raw = localStorage.getItem('tes_token')
-    let token = ''
-    if (raw) {
-      try { token = JSON.parse(raw) } catch { token = raw }
-    }
-
-    streamAbort = new AbortController()
-    const response = await fetch('/api/chat/stream', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ session_id: activeSessionId.value, message: msg }),
-      signal: streamAbort.signal,
-    })
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-
-    // 更新 session ID
-    const sid = response.headers.get('X-Session-Id')
-    if (sid) {
-      const newId = parseInt(sid, 10)
-      if (newId !== activeSessionId.value) {
-        activeSessionId.value = newId
-        if (!sessions.value.find((s) => s.id === newId)) {
-          sessions.value.unshift({
-            id: newId,
-            title: msg.slice(0, 30),
-            evaluation_id: null,
-            created_at: new Date().toISOString(),
-          })
-        }
-      }
-    }
-
-    // 解析 SSE 流
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
-    if (reader) {
-      let buffer = ''
-      let currentTextBlock: MessageBlock | null = null
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const payload = line.slice(6).trim()
-          if (!payload) continue
-
-          try {
-            const event = JSON.parse(payload) as {
-              type: string
-              content?: string
-              name?: string
-              args?: Record<string, unknown>
-              success?: boolean
-              data?: unknown
-              error?: string
-              message?: string
-              full_content?: string
-            }
-
-            switch (event.type) {
-              case 'thinking':
-                currentTextBlock = null
-                aiMsg.blocks.push({ type: 'thinking', content: event.content })
-                // 强制触发响应式更新 + 渲染
-                messages.value = [...messages.value]
-                await nextTick()
-                break
-
-              case 'tool_call':
-                currentTextBlock = null
-                aiMsg.blocks.push({
-                  type: 'tool_call',
-                  name: event.name,
-                  args: event.args,
-                })
-                messages.value = [...messages.value]
-                await nextTick()
-                break
-
-              case 'tool_result':
-                currentTextBlock = null
-                aiMsg.blocks.push({
-                  type: 'tool_result',
-                  name: event.name,
-                  success: event.success,
-                  data: event.data,
-                  error: event.error ?? undefined,
-                })
-                messages.value = [...messages.value]
-                await nextTick()
-                break
-
-              case 'text':
-                if (!currentTextBlock || currentTextBlock.type !== 'text') {
-                  currentTextBlock = { type: 'text', content: '' }
-                  aiMsg.blocks.push(currentTextBlock)
-                }
-                currentTextBlock.content = (currentTextBlock.content ?? '') + (event.content ?? '')
-                aiMsg.content += event.content ?? ''
-                // 文本流式：每次触发更新（逐字效果）
-                messages.value = [...messages.value]
-                break
-
-              case 'done':
-                aiMsg.isStreaming = false
-                if (event.full_content) aiMsg.content = event.full_content
-                messages.value = [...messages.value]
-                break
-
-              case 'error':
-                currentTextBlock = null
-                aiMsg.blocks.push({ type: 'error', content: event.message })
-                messages.value = [...messages.value]
-                break
-            }
-          } catch {
-            // 兼容旧格式（纯文本）
-            if (payload === '[DONE]') {
-              aiMsg.isStreaming = false
-            } else {
-              if (!currentTextBlock || currentTextBlock.type !== 'text') {
-                currentTextBlock = { type: 'text', content: '' }
-                aiMsg.blocks.push(currentTextBlock)
-              }
-              currentTextBlock.content = (currentTextBlock.content ?? '') + payload
-              aiMsg.content += payload
-            }
-            messages.value = [...messages.value]
-          }
-          scrollToBottom()
-        }
-      }
-    }
-    aiMsg.isStreaming = false
-  } catch (e: unknown) {
-    aiMsg.blocks.push({ type: 'error', content: `发送失败：${(e as Error).message || '网络错误'}` })
-    aiMsg.isStreaming = false
-  } finally {
-    sending.value = false
-    streamAbort = null
-    scrollToBottom()
-  }
-}
-
-// ============ Helpers ============
-const filteredSessions = computed(() => {
-  if (!searchQuery.value.trim()) return sessions.value
-  const q = searchQuery.value.trim().toLowerCase()
-  return sessions.value.filter((s) => s.title.toLowerCase().includes(q))
-})
-
-const activeSession = computed(() =>
-  sessions.value.find((s) => s.id === activeSessionId.value) ?? null,
-)
-
-function formatTime(iso: string) {
-  if (!iso) return ''
-  const diff = Date.now() - new Date(iso).getTime()
-  const min = Math.floor(diff / 60000)
-  if (min < 1) return '刚刚'
-  if (min < 60) return `${min} 分钟前`
-  const hour = Math.floor(min / 60)
-  if (hour < 24) return `${hour} 小时前`
-  return iso.slice(5, 10)
-}
-
-function toggleToolCollapse(blockIdx: number) {
-  if (collapsedTools.value.has(blockIdx)) {
-    collapsedTools.value.delete(blockIdx)
-  } else {
-    collapsedTools.value.add(blockIdx)
-  }
-  collapsedTools.value = new Set(collapsedTools.value)
-}
-
-// 快捷问题
-const quickQuestions = [
-  '我最近的评分怎么样？',
-  '我的薄弱点是什么？',
-  '怎么提高代码规范性？',
-]
-
-function askQuick(q: string) {
-  input.value = q
-  void send()
-}
-
-function autoResize(e: Event) {
-  const el = e.target as HTMLTextAreaElement
-  el.style.height = 'auto'
-  el.style.height = Math.min(el.scrollHeight, 160) + 'px'
-}
 </script>
 
 <template>
@@ -403,11 +91,11 @@ function autoResize(e: Event) {
         </p>
       </div>
       <div class="flex items-center gap-3">
-        <button class="inline-flex items-center gap-1.5 h-9 px-4 bg-surface border border-border-strong rounded-md text-sm font-semibold text-ink hover:bg-surface-2 transition-colors" @click="deleteSession" :disabled="!activeSessionId">
+        <button class="inline-flex items-center gap-1.5 h-9 px-4 bg-surface border border-border-strong rounded-md text-sm font-semibold text-ink hover:bg-surface-2 transition-colors" @click="removeSession()" :disabled="!activeSessionId">
           <Trash2 class="w-4 h-4" />
           删除会话
         </button>
-        <button class="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-strong transition-colors" @click="newSession">
+        <button class="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-strong transition-colors" @click="newSession()">
           <Plus class="w-4 h-4" />
           新建对话
         </button>
@@ -436,8 +124,8 @@ function autoResize(e: Event) {
             :class="activeSessionId === s.id ? 'bg-primary-soft border-l-[3px] border-l-primary pl-[13px]' : 'hover:bg-surface-2'"
             @click="loadSession(s.id)"
           >
-            <span class="text-sm font-semibold text-ink truncate">{{ s.title }}</span>
-            <span class="text-[11px] text-muted-foreground">{{ formatTime(s.created_at) }}</span>
+            <span class="text-sm font-semibold text-ink truncate">{{ s.title || '新对话' }}</span>
+            <span class="text-[11px] text-muted-foreground">{{ formatRelativeTime(s.created_at) }}</span>
           </div>
         </div>
       </aside>
@@ -449,7 +137,7 @@ function autoResize(e: Event) {
           <div class="flex flex-col gap-1">
             <span class="text-md font-bold text-ink">{{ activeSession?.title ?? '新建对话' }}</span>
             <span class="text-[11px] text-muted-foreground">
-              {{ messages.length }} 条消息 · {{ activeSession ? formatTime(activeSession.created_at) : '开始新对话' }}
+              {{ messages.length }} 条消息 · {{ activeSession ? formatRelativeTime(activeSession.created_at) : '开始新对话' }}
             </span>
           </div>
           <div v-if="activeSession" class="flex gap-1">
@@ -461,6 +149,12 @@ function autoResize(e: Event) {
 
         <!-- Chat Body -->
         <div ref="chatBodyRef" class="flex-1 px-6 py-5 overflow-y-auto flex flex-col gap-5">
+          <!-- Load More History -->
+          <div v-if="hasMoreHistory" class="text-center">
+            <button class="px-4 py-2 text-xs font-medium text-primary hover:text-primary-strong bg-primary-soft hover:bg-primary-soft/70 rounded-lg transition-colors" @click="loadMoreHistory">
+              加载更多历史消息
+            </button>
+          </div>
           <!-- Empty State -->
           <div v-if="messages.length === 0" class="flex-1 flex flex-col items-center justify-center text-center gap-4">
             <div class="w-16 h-16 bg-primary-soft text-primary rounded-2xl grid place-items-center">
@@ -523,14 +217,13 @@ function autoResize(e: Event) {
                     >
                       <Wrench class="w-3.5 h-3.5 text-info flex-shrink-0" />
                       <span class="text-xs font-semibold text-ink flex-1">调用工具：{{ block.name }}</span>
-                      <!-- 只在下一个块还没出现（即还在等结果）时转圈 -->
                       <Loader2 v-if="m.isStreaming && bIdx === m.blocks.length - 1" class="w-3.5 h-3.5 text-info animate-spin" />
                       <template v-else>
-                        <ChevronDown v-if="collapsedTools.has(mIdx * 100 + bIdx)" class="w-3.5 h-3.5 text-muted-foreground" />
+                        <ChevronDown v-if="collapsed.has(mIdx * 100 + bIdx)" class="w-3.5 h-3.5 text-muted-foreground" />
                         <ChevronUp v-else class="w-3.5 h-3.5 text-muted-foreground" />
                       </template>
                     </button>
-                    <div v-if="!collapsedTools.has(mIdx * 100 + bIdx)" class="px-3.5 py-2.5 border-t border-border bg-surface">
+                    <div v-if="!collapsed.has(mIdx * 100 + bIdx)" class="px-3.5 py-2.5 border-t border-border bg-surface">
                       <div class="text-[11px] text-muted-foreground font-mono">
                         <span class="text-subtle-foreground">参数：</span>
                         <pre class="mt-1 text-[10px] leading-relaxed overflow-x-auto">{{ JSON.stringify(block.args, null, 2) }}</pre>
@@ -590,15 +283,15 @@ function autoResize(e: Event) {
                 :disabled="sending"
                 rows="1"
                 class="w-full min-h-[44px] max-h-[160px] px-4 py-3 bg-surface border border-border-strong rounded-xl text-sm text-ink placeholder:text-subtle-foreground resize-none outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
-                @keydown.ctrl.enter="send"
-                @keydown.meta.enter="send"
-                @input="autoResize"
+                @keydown.ctrl.enter="send()"
+                @keydown.meta.enter="send()"
+                @input="autoResizeTextarea($event)"
               ></textarea>
             </div>
             <button
               class="w-11 h-11 bg-primary text-white border-0 rounded-xl cursor-pointer grid place-items-center flex-shrink-0 hover:bg-primary-strong disabled:opacity-50 transition-colors"
               :disabled="sending || !input.trim()"
-              @click="send"
+              @click="send()"
               title="发送 (Ctrl+Enter)"
             >
               <Loader2 v-if="sending" class="w-4 h-4 animate-spin" />

@@ -48,6 +48,12 @@ func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 
+			// Reject refresh tokens on protected routes (token-type enforcement)
+			if claims.Type != "access" {
+				http.Error(w, `{"detail":"Access token required"}`, http.StatusUnauthorized)
+				return
+			}
+
 			// Inject claims into context
 			ctx := context.WithValue(r.Context(), ClaimsKey, claims)
 			next.ServeHTTP(w, r.WithContext(ctx))

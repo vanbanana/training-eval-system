@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/smartedu/training-eval-system/internal/dto"
+	"github.com/smartedu/training-eval-system/internal/middleware"
 	"github.com/smartedu/training-eval-system/internal/service"
 )
 
@@ -17,6 +18,23 @@ func (h *ParseHandler) GetResult(w http.ResponseWriter, r *http.Request) {
 	uploadID, err := PathInt64(r, "uploadId")
 	if err != nil {
 		Error(w, http.StatusBadRequest, "Invalid upload ID")
+		return
+	}
+
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	// Check upload ownership: students can only see their own parse results
+	upload, err := h.svc.GetByID(r.Context(), uploadID)
+	if err != nil || upload == nil {
+		Error(w, http.StatusNotFound, "Parse result not found")
+		return
+	}
+	if claims.Role == "student" && upload.StudentID != claims.Sub {
+		Error(w, http.StatusNotFound, "Parse result not found")
 		return
 	}
 

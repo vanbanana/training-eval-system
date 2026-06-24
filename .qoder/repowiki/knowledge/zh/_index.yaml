@@ -1,0 +1,42 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: feat/teacher-grading-workflow-optimization
+exported_at: "2026-06-17T09:42:58Z"
+modules:
+    e2e_test:
+        dir_name: 端到端自动化测试与数据注入
+        title: 端到端自动化测试与数据注入
+        scope:
+            - e2e_test/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend:
+        dir_name: 教学评估系统前端应用
+        title: 教学评估系统前端应用
+        scope:
+            - frontend/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    frontend_preview:
+        dir_name: 智能实训评价管理系统前端预览
+        title: 智能实训评价管理系统前端预览
+        scope:
+            - frontend-preview/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []
+    go_backend:
+        dir_name: 智能培训评估系统后端
+        title: 智能培训评估系统后端
+        scope:
+            - go-backend/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

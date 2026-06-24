@@ -13,7 +13,7 @@ import (
 
 // Verifier handles LLM-based requirement verification.
 type Verifier struct {
-	client     *llm.Client
+	client     llm.LLMClient
 	uploadRepo repository.UploadRepo
 	taskRepo   repository.TaskRepo
 	broker     *sse.Broker

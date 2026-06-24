@@ -16,6 +16,18 @@ func AssertStatus(t *testing.T, resp *http.Response, expected int) {
 	}
 }
 
+// AssertStatusOneOf checks that the response has one of the expected status codes.
+func AssertStatusOneOf(t *testing.T, resp *http.Response, codes ...int) {
+	t.Helper()
+	for _, c := range codes {
+		if resp.StatusCode == c {
+			return
+		}
+	}
+	body, _ := io.ReadAll(resp.Body)
+	t.Fatalf("expected one of %v, got %d. Body: %s", codes, resp.StatusCode, string(body))
+}
+
 // AssertJSON checks that the response has Content-Type application/json.
 func AssertJSON(t *testing.T, resp *http.Response) {
 	t.Helper()

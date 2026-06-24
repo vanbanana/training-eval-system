@@ -52,14 +52,18 @@ func (r *SQLiteUserRepo) List(ctx context.Context, params ListParams) ([]model.U
 	}
 
 	// Query
-	orderBy := "id ASC"
-	if params.SortBy != "" {
-		dir := "ASC"
-		if params.SortDir == "desc" {
-			dir = "DESC"
+orderBy := "id ASC"
+		if params.SortBy != "" {
+			dir := "ASC"
+			if params.SortDir == "desc" {
+				dir = "DESC"
+			}
+			// Validate SortBy against allow-list to prevent SQL injection
+			if !isValidSortColumn(params.SortBy) {
+				return nil, 0, fmt.Errorf("user_repo: invalid sort column: %q", params.SortBy)
+			}
+			orderBy = fmt.Sprintf("%s %s", params.SortBy, dir)
 		}
-		orderBy = fmt.Sprintf("%s %s", params.SortBy, dir)
-	}
 
 	querySQL := fmt.Sprintf(
 		`SELECT id, username, display_name, password_hash, role, is_active,

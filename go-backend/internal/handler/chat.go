@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -21,9 +22,9 @@ import (
 type ChatHandler struct {
 	svc          *service.ChatService
 	broker       *sse.Broker
-	llmClient    *llm.Client
-	orchestrator *pipeline.ChatOrchestrator
-	uploadRepo   repository.UploadRepo
+llmClient    llm.LLMClient
+		orchestrator *pipeline.ChatOrchestrator
+		uploadRepo   repository.UploadRepo
 	taskRepo     repository.TaskRepo
 	evalRepo     repository.EvaluationRepo
 }
@@ -31,7 +32,7 @@ type ChatHandler struct {
 func NewChatHandler(
 	svc *service.ChatService,
 	broker *sse.Broker,
-	llmClient *llm.Client,
+	llmClient llm.LLMClient,
 	orchestrator *pipeline.ChatOrchestrator,
 	uploadRepo repository.UploadRepo,
 	taskRepo repository.TaskRepo,
@@ -95,6 +96,13 @@ func (h *ChatHandler) GetMessages(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid session ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	// Verify session ownership
+	sess, err := h.svc.GetSession(r.Context(), id)
+	if err != nil || sess.StudentID != claims.Sub {
+		Error(w, http.StatusNotFound, "Session not found")
+		return
+	}
 	msgs, err := h.svc.GetMessages(r.Context(), id)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
@@ -118,6 +126,12 @@ func (h *ChatHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid session ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	sess, err := h.svc.GetSession(r.Context(), id)
+	if err != nil || sess.StudentID != claims.Sub {
+		Error(w, http.StatusNotFound, "Session not found")
+		return
+	}
 	_ = h.svc.DeleteSession(r.Context(), id)
 	JSON(w, http.StatusOK, dto.SuccessResponse{Message: "Session deleted"})
 }
@@ -132,14 +146,29 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetClaims(r.Context())
 	studentID := claims.Sub
 
-	// --- Quota enforcement (requirement 22.8) ---
-	if req.SessionID > 0 {
-		msg := &model.ChatMessage{
-			SessionID: req.SessionID,
-			Role:      "user",
-			Content:   req.Message,
+	// --- Sensitive content check (requirement 22.6) — BEFORE persisting message ---
+	for _, kw := range sensitiveKeywords {
+		if strings.Contains(strings.ToLower(req.Message), kw) {
+			Error(w, http.StatusBadRequest, "Your message contains content that cannot be processed. Please rephrase your question.")
+			return
 		}
-		if err := h.svc.SendMessage(r.Context(), studentID, msg); err != nil {
+	}
+
+// --- Session ownership check + quota enforcement ---
+		if req.SessionID > 0 {
+			// Verify session ownership before reading/writing (prevents cross-user IDOR)
+			sess, err := h.svc.GetSession(r.Context(), req.SessionID)
+			if err != nil || sess.StudentID != studentID {
+				Error(w, http.StatusNotFound, "Session not found")
+				return
+			}
+
+			msg := &model.ChatMessage{
+				SessionID: req.SessionID,
+				Role:      "user",
+				Content:   req.Message,
+			}
+			if err := h.svc.SendMessage(r.Context(), studentID, msg); err != nil {
 			if strings.Contains(err.Error(), "daily message limit") {
 				Error(w, http.StatusTooManyRequests, "Daily message limit exceeded (50/day).")
 				return
@@ -152,13 +181,9 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 				Error(w, http.StatusBadRequest, fmt.Sprintf("Message too long. Maximum %d characters.", 500))
 				return
 			}
-		}
-	}
-
-	// --- Sensitive content check (requirement 22.6) ---
-	for _, kw := range sensitiveKeywords {
-		if strings.Contains(strings.ToLower(req.Message), kw) {
-			Error(w, http.StatusBadRequest, "Your message contains content that cannot be processed. Please rephrase your question.")
+			// Generic SendMessage error: log and return
+			slog.Error("chat: send message failed", "error", err.Error())
+			Error(w, http.StatusInternalServerError, "Failed to save message")
 			return
 		}
 	}
@@ -205,55 +230,55 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	flusher, hasFlusher := w.(http.Flusher)
 
-	// If orchestrator is available, use it for tool-augmented response
-	if h.orchestrator != nil && h.llmClient != nil && tctx != nil {
-		// Set callback to emit tool_call progress events to frontend
-		h.orchestrator.OnToolCall = func(toolName string) {
-			evt, _ := json.Marshal(map[string]string{"type": "tool_call", "name": toolName})
-			fmt.Fprintf(w, "data: %s\n\n", evt)
-			if hasFlusher {
-				flusher.Flush()
+// If orchestrator is available, use it for tool-augmented response
+		if h.orchestrator != nil && h.llmClient != nil && tctx != nil {
+			// Use per-request OnToolCall callback to avoid data race on shared orchestrator
+			tctx.OnToolCall = func(toolName string) {
+				evt, _ := json.Marshal(map[string]string{"type": "tool_call", "name": toolName})
+				fmt.Fprintf(w, "data: %s\n\n", evt)
+				if hasFlusher {
+					flusher.Flush()
+				}
 			}
-		}
 
 		resp, err := h.orchestrator.Run(r.Context(), history, req.Message, tctx)
 		if err != nil {
 			slog.Error("chat orchestrator failed", "error", err.Error())
 			// Fall through to basic streaming
 		} else if resp != nil && len(resp.Choices) > 0 && resp.Choices[0].Message.Content != "" {
-			// Pseudo-stream: send content in small chunks for better UX
-			content := resp.Choices[0].Message.Content
-			chunkSize := 40
-			for i := 0; i < len(content); i += chunkSize {
-				end := i + chunkSize
-				if end > len(content) {
-					end = len(content)
+// Pseudo-stream: send content in small chunks for better UX
+				// Use rune-aware chunking to avoid splitting multi-byte UTF-8 chars
+				content := resp.Choices[0].Message.Content
+				chunks := chunkString(content, 40)
+				for _, chunk := range chunks {
+					tokenJSON, _ := json.Marshal(map[string]string{"type": "text", "content": chunk})
+					fmt.Fprintf(w, "data: %s\n\n", tokenJSON)
+					if hasFlusher {
+						flusher.Flush()
+					}
+					time.Sleep(30 * time.Millisecond)
 				}
-				chunk := content[i:end]
-				tokenJSON, _ := json.Marshal(map[string]string{"type": "text", "content": chunk})
-				fmt.Fprintf(w, "data: %s\n\n", tokenJSON)
-				if hasFlusher {
-					flusher.Flush()
-				}
-				time.Sleep(30 * time.Millisecond)
-			}
 			fmt.Fprintf(w, "data: {\"type\":\"done\"}\n\n")
 			if hasFlusher {
 				flusher.Flush()
 			}
 
-			// Save assistant message
+			// Save assistant message (WithoutCancel survives client disconnect)
 			if req.SessionID > 0 {
+				saveContent := content
+				if len([]rune(saveContent)) > 500 {
+					saveContent = string([]rune(saveContent)[:497]) + "..."
+				}
 				asstMsg := &model.ChatMessage{
 					SessionID: req.SessionID,
 					Role:      "assistant",
-					Content:   content,
+					Content:   saveContent,
 				}
 				if resp.Usage != nil {
 					asstMsg.PromptTokens = resp.Usage.PromptTokens
 					asstMsg.CompletionTokens = resp.Usage.CompletionTokens
 				}
-				_ = h.svc.SendMessage(r.Context(), studentID, asstMsg)
+				_ = h.svc.SendMessage(context.WithoutCancel(r.Context()), studentID, asstMsg)
 			}
 			return
 		}
@@ -294,15 +319,19 @@ func (h *ChatHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Save assistant response
+	// Save assistant response (WithoutCancel survives client disconnect)
 	if req.SessionID > 0 && result != nil {
+		saveContent := result.Content
+		if len([]rune(saveContent)) > 500 {
+			saveContent = string([]rune(saveContent)[:497]) + "..."
+		}
 		asstMsg := &model.ChatMessage{
 			SessionID:        req.SessionID,
 			Role:             "assistant",
-			Content:          result.Content,
+			Content:          saveContent,
 			PromptTokens:     result.PromptTokens,
 			CompletionTokens: result.CompletionTokens,
 		}
-		_ = h.svc.SendMessage(r.Context(), studentID, asstMsg)
+		_ = h.svc.SendMessage(context.WithoutCancel(r.Context()), studentID, asstMsg)
 	}
 }

@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: e2e_test
+title: 端到端自动化测试与数据注入
+scope:
+    - e2e_test/
+source_files: []
+depends_on: []
+related_to: []

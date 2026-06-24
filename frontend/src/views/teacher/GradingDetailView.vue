@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
 import BreadcrumbNav from '@/components/business/BreadcrumbNav.vue'
+import ReportViewer from '@/components/business/ReportViewer.vue'
 import EvaluationProgressPanel from '@/components/business/EvaluationProgressPanel.vue'
 import RejectConfirmDialog from '@/components/business/RejectConfirmDialog.vue'
 import { useToast } from '@/components/ui/toast'
@@ -21,7 +22,6 @@ import {
   ChevronRight,
   CheckCircle2,
   XCircle,
-  FileSearch,
   Save,
   History,
 } from 'lucide-vue-next'
@@ -47,14 +47,6 @@ interface EvaluationDetail {
   scores: DimensionScore[]
 }
 
-interface ParseResult {
-  upload_id: number
-  raw_text?: string
-  pages?: number
-  word_count?: number
-  parse_status?: string
-}
-
 interface Submission {
   upload_id: number
   student_id: number
@@ -72,13 +64,14 @@ const router = useRouter()
 const { toast } = useToast()
 
 const evalId = computed(() => Number(route.params.id))
+const uploadId = computed(() => submission.value?.upload_id ?? 0)
 const evaluation = ref<EvaluationDetail | null>(null)
-const parseResult = ref<ParseResult | null>(null)
 const submission = ref<Submission | null>(null)
 const submissionsList = ref<Submission[]>([])
 const loading = ref(true)
 const teacherComment = ref('')
 const subjScores = ref<Record<number, number>>({})
+const dirty = ref(false)
 const submitting = ref(false)
 
 // reject dialog
@@ -93,17 +86,11 @@ async function fetchAll() {
     teacherComment.value = ev.teacher_comment ?? ''
     subjScores.value = {}
     for (const d of ev.scores ?? []) {
-      subjScores.value[d.dimension_id] = d.subj_score ?? d.obj_score
+      subjScores.value[d.dimension_id] = d.teacher_score ?? undefined
     }
 
-    // 拉解析文本（左栏）
+    // 拉报告预览（左栏 ReportViewer 只依赖 uploadId）
     if (ev.upload_id) {
-      try {
-        const { data: pr } = await axios.get(`/api/parse/${ev.upload_id}/result`)
-        parseResult.value = pr
-      } catch {
-        parseResult.value = null
-      }
     }
 
     // 上下条切换：拉同任务的提交列表
@@ -123,6 +110,27 @@ async function fetchAll() {
 }
 
 onMounted(fetchAll)
+
+// Track unsaved grading edits
+watch([teacherComment, subjScores], () => { dirty.value = true }, { deep: true })
+
+// Guard against navigation with unsaved changes (prev/next, refresh, tab close)
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!dirty.value) { next(); return }
+  const ok = window.confirm('有未保存的更改，确定离开吗？')
+  if (ok) next()
+  else next(false)
+})
+function beforeUnload(e: BeforeUnloadEvent) {
+  if (dirty.value) e.preventDefault()
+}
+onMounted(() => {
+  fetchAll()
+  window.addEventListener('beforeunload', beforeUnload)
+})
+
+// Reset dirty flag after explicit save
+function afterSave() { dirty.value = false }
 
 const currentIndex = computed(() => {
   if (!submission.value) return -1
@@ -156,32 +164,22 @@ function goNext() {
   if (nextEvalId.value) router.push(`/teacher/evaluations/${nextEvalId.value}`)
 }
 
-const previewSubjTotal = computed(() => {
+const previewFinalTotal = computed(() => {
   if (!evaluation.value?.scores) return 0
   return Math.round(
     evaluation.value.scores.reduce((sum, d) => {
-      const subj = subjScores.value[d.dimension_id] ?? d.obj_score
-      return sum + subj * (d.weight / 100)
+      const dimSubj = subjScores.value[d.dimension_id]
+      const adoptedScore = dimSubj !== undefined ? dimSubj : d.obj_score;
+      return sum + adoptedScore * (d.weight / 100);
     }, 0),
-  )
-})
-
-const previewObjTotal = computed(() => {
-  if (!evaluation.value?.scores) return 0
-  return Math.round(
-    evaluation.value.scores.reduce((s, d) => s + d.obj_score * (d.weight / 100), 0),
-  )
-})
-
-const previewFinalTotal = computed(() =>
-  Math.round(previewObjTotal.value * 0.6 + previewSubjTotal.value * 0.4),
-)
+  );
+});
 
 async function submitConfirm() {
   if (!evaluation.value) return
   const ok = await confirm({
     title: '确认评价',
-    description: `综合分将记为 ${previewFinalTotal.value}（AI×60% + 教师×40%）。确认提交？`,
+    description: `最终分将记为 ${previewFinalTotal.value}（AI 默认，教师覆盖后生效）。确认提交？`,
   })
   if (!ok) return
   submitting.value = true
@@ -226,7 +224,7 @@ async function saveDraft() {
         const newVal = subjScores.value[d.dimension_id]
         if (newVal !== undefined && newVal !== d.subj_score) {
           return axios.patch(`/api/evaluations/${evalId.value}/dimensions/${d.dimension_id}`, {
-            subj_score: newVal,
+            teacher_score: newVal,
             comment: d.comment ?? '',
           })
         }
@@ -297,25 +295,15 @@ function openHistory() {
     </div>
 
     <div v-else-if="evaluation" class="tes-grid-main-aside">
-      <!-- LEFT: parsed text -->
+      <!-- LEFT: report preview via ReportViewer -->
       <Card class="tes-card-container flex flex-col overflow-hidden max-h-[44rem]">
-        <header class="px-5 py-3.5 border-b border-border flex justify-between items-center bg-surface-2">
-          <div class="flex items-center gap-2">
-            <FileSearch class="w-4 h-4 text-primary" />
-            <span class="text-sm font-semibold text-ink">{{ submission?.filename ?? '提交原文' }}</span>
-          </div>
-          <span v-if="parseResult?.pages" class="text-xs text-muted-foreground">{{ parseResult.pages }} 页</span>
-        </header>
-        <ScrollArea class="flex-1">
-          <div class="p-5 text-sm leading-relaxed text-foreground whitespace-pre-wrap font-mono">
-            <template v-if="parseResult?.raw_text">{{ parseResult.raw_text }}</template>
-            <template v-else>
-              <p class="text-center text-muted-foreground py-12">
-                {{ parseResult ? '解析文本暂未提供（可能文件类型不支持文本提取）' : '加载中…' }}
-              </p>
-            </template>
-          </div>
-        </ScrollArea>
+        <ReportViewer
+          v-if="submission?.upload_id"
+          :upload-id="submission.upload_id"
+        />
+        <div v-else class="flex-1 flex items-center justify-center p-8">
+          <p class="text-sm text-muted-foreground">暂无提交原文</p>
+        </div>
       </Card>
 
       <!-- RIGHT: AI scores + teacher input -->
@@ -333,8 +321,7 @@ function openHistory() {
             <span class="text-2xl font-bold text-primary num-tabular">{{ previewFinalTotal }}</span>
           </header>
           <div class="px-5 py-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-xs text-muted-foreground">
-            <div>AI 客观分（×60%）：<span class="text-ink font-semibold">{{ previewObjTotal }}</span></div>
-            <div>教师主观分（×40%）：<span class="text-ink font-semibold">{{ previewSubjTotal }}</span></div>
+            <div>最终分（AI 默认，教师覆盖后生效）：<span class="text-ink font-semibold">{{ previewFinalTotal }}</span></div>
           </div>
         </Card>
 

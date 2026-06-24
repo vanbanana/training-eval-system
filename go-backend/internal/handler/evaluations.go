@@ -28,10 +28,28 @@ func (h *EvaluationsHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusBadRequest, "Invalid evaluation ID")
 		return
 	}
+	claims := middleware.GetClaims(r.Context())
+	if claims == nil {
+		Error(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	eval, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		Error(w, http.StatusNotFound, "Evaluation not found")
 		return
+	}
+	// Ownership check: students can only view their own evaluations
+	if claims.Role == "student" && eval.StudentID != claims.Sub {
+		Error(w, http.StatusNotFound, "Evaluation not found")
+		return
+	}
+	// Teachers: must own the task
+	if claims.Role == "teacher" {
+		task, err := h.taskSvc.GetByID(r.Context(), eval.TaskID)
+		if err != nil || task.TeacherID != claims.Sub {
+			Error(w, http.StatusNotFound, "Evaluation not found")
+			return
+		}
 	}
 	JSON(w, http.StatusOK, h.evalToFullDTO(r.Context(), eval))
 }
@@ -75,14 +93,13 @@ func (h *EvaluationsHandler) Trigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a pending evaluation for this upload
-	claims := middleware.GetClaims(r.Context())
-	eval := &model.Evaluation{
-		TaskID:    upload.TaskID,
-		UploadID:  uploadID,
-		StudentID: claims.Sub,
-		Status:    "pending",
-	}
+// Create a pending evaluation for this upload
+		eval := &model.Evaluation{
+			TaskID:    upload.TaskID,
+			UploadID:  uploadID,
+			StudentID: upload.StudentID, // use the upload owner, not the triggering teacher
+			Status:    "pending",
+		}
 	if err := h.svc.Create(r.Context(), eval); err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -101,24 +118,26 @@ func (h *EvaluationsHandler) BulkAction(w http.ResponseWriter, r *http.Request) 
 
 	switch req.Action {
 	case "confirm":
-		if err := h.svc.BatchConfirm(ctx, req.EvaluationIDs); err != nil {
-			// BatchConfirm is all-or-nothing; on failure, fall back to per-item processing
-			// so we can still report partial success rather than failing the whole batch.
-			for _, id := range req.EvaluationIDs {
-				eval, gErr := h.svc.GetByID(ctx, id)
-				if gErr != nil {
+		for _, id := range req.EvaluationIDs {
+			eval, gErr := h.svc.GetByID(ctx, id)
+			if gErr != nil {
+				failed++
+				continue
+			}
+			// Verify teacher owns the task
+			if claims := middleware.GetClaims(r.Context()); claims.Role == "teacher" {
+				task, tErr := h.taskSvc.GetByID(ctx, eval.TaskID)
+				if tErr != nil || task.TeacherID != claims.Sub {
 					failed++
 					continue
 				}
-				eval.Status = "confirmed"
-				if uErr := h.svc.Update(ctx, eval); uErr != nil {
-					failed++
-				} else {
-					affected++
-				}
 			}
-		} else {
-			affected = len(req.EvaluationIDs)
+			eval.Status = "confirmed"
+			if uErr := h.svc.Update(ctx, eval); uErr != nil {
+				failed++
+			} else {
+				affected++
+			}
 		}
 	case "reject":
 		for _, id := range req.EvaluationIDs {
@@ -126,6 +145,14 @@ func (h *EvaluationsHandler) BulkAction(w http.ResponseWriter, r *http.Request) 
 			if err != nil {
 				failed++
 				continue
+			}
+			// Verify teacher owns the task
+			if claims := middleware.GetClaims(r.Context()); claims.Role == "teacher" {
+				task, tErr := h.taskSvc.GetByID(ctx, eval.TaskID)
+				if tErr != nil || task.TeacherID != claims.Sub {
+					failed++
+					continue
+				}
 			}
 			eval.Status = "rejected"
 			if req.Reason != "" {
@@ -172,11 +199,21 @@ func (h *EvaluationsHandler) UpdateDimensionScore(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Load evaluation with scores
+// Load evaluation with scores
 	eval, err := h.svc.GetByID(r.Context(), evalID)
 	if err != nil {
 		Error(w, http.StatusNotFound, "Evaluation not found")
 		return
+	}
+
+	// Verify teacher owns the task (prevents cross-teacher tampering)
+	claims := middleware.GetClaims(r.Context())
+	if claims.Role == "teacher" {
+		task, err := h.taskSvc.GetByID(r.Context(), eval.TaskID)
+		if err != nil || task.TeacherID != claims.Sub {
+			Error(w, http.StatusForbidden, "Access denied")
+			return
+		}
 	}
 
 	// Find and update the dimension score
@@ -209,7 +246,6 @@ func (h *EvaluationsHandler) UpdateDimensionScore(w http.ResponseWriter, r *http
 	}
 
 	// Append history
-	claims := middleware.GetClaims(r.Context())
 	_ = h.svc.AppendHistory(r.Context(), &model.EvaluationHistory{
 		EvaluationID: evalID,
 		OperatorID:   &claims.Sub,
@@ -222,12 +258,30 @@ func (h *EvaluationsHandler) UpdateDimensionScore(w http.ResponseWriter, r *http
 }
 
 func (h *EvaluationsHandler) GetHistory(w http.ResponseWriter, r *http.Request) {
-	id, err := PathInt64(r, "id")
-	if err != nil {
-		Error(w, http.StatusBadRequest, "Invalid evaluation ID")
-		return
-	}
-	history, err := h.svc.GetHistory(r.Context(), id)
+		id, err := PathInt64(r, "id")
+		if err != nil {
+			Error(w, http.StatusBadRequest, "Invalid evaluation ID")
+			return
+		}
+		// Verify access: load evaluation and apply same ownership gate as GetByID
+		eval, err := h.svc.GetByID(r.Context(), id)
+		if err != nil {
+			Error(w, http.StatusNotFound, "Evaluation not found")
+			return
+		}
+		claims := middleware.GetClaims(r.Context())
+		if claims.Role == "student" && eval.StudentID != claims.Sub {
+			Error(w, http.StatusNotFound, "Evaluation not found")
+			return
+		}
+		if claims.Role == "teacher" {
+			task, err := h.taskSvc.GetByID(r.Context(), eval.TaskID)
+			if err != nil || task.TeacherID != claims.Sub {
+				Error(w, http.StatusNotFound, "Evaluation not found")
+				return
+			}
+		}
+		history, err := h.svc.GetHistory(r.Context(), id)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, err.Error())
 		return

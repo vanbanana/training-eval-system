@@ -334,16 +334,16 @@ func TestComputeTotalScoreWithRatio_AIOnly(t *testing.T) {
 }
 
 func TestComputeTotalScoreWithRatio_ZeroRatio(t *testing.T) {
-	// objRatio=0 → should use default 0.6
+	// objRatio=0 → 0% AI, 100% subjective (valid config, not overridden)
 	total := ComputeTotalScoreWithRatio(
 		[]ScoreItem{{DimensionID: 1, Score: 100}},
 		map[int64]float64{1: 50},
 		map[int64]int{1: 100},
 		0,
 	)
-	// 100*0.6 + 50*0.4 = 80
-	if total != 80.0 {
-		t.Fatalf("expected 80.0, got %.1f", total)
+	// 100*0.0 + 50*1.0 = 50
+	if total != 50.0 {
+		t.Fatalf("expected 50.0, got %.1f", total)
 	}
 }
 
