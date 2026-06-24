@@ -30,7 +30,6 @@ export interface AgentMessage {
   completion_tokens?: number
   created_at: string
 }
-}
 
 /** Structured SSE event from the streaming endpoint. */
 export interface AgentSSEEvent {

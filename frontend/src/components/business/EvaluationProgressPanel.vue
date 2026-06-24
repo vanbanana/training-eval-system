@@ -35,6 +35,8 @@ interface Props {
   uploadedAt?: string
   /** 从 SSE 推送的各维度进度 */
   dimensions?: DimensionProgress[]
+  /** AI 评分失败原因（status=failed 时展示，指引转人工评阅） */
+  failureReason?: string
   class?: string
 }
 
@@ -67,6 +69,7 @@ const teacherState = computed<StageState>(() => {
 const overallLabel = computed(() => {
   if (teacherState.value === 'done') return props.evalStatus === 'confirmed' ? '教师已确认' : '已打回修改'
   if (evalState.value === 'done') return '待教师确认'
+  if (evalState.value === 'failed') return 'AI 评分失败 · 待人工评阅'
   if (evalState.value === 'active') return 'AI 评价中'
   if (parseState.value === 'active') return '文档解析中'
   if (parseState.value === 'done') return '解析完成，等待评价'
@@ -128,7 +131,7 @@ function formatTime(iso: string) {
           'text-xs font-medium',
           evalState === 'done' || teacherState === 'done' ? 'text-success' :
           evalState === 'active' ? 'text-info' :
-          parseState === 'failed' ? 'text-destructive' : 'text-muted-foreground'
+          evalState === 'failed' || parseState === 'failed' ? 'text-destructive' : 'text-muted-foreground'
         )"
       >
         {{ overallLabel }}
@@ -222,6 +225,22 @@ function formatTime(iso: string) {
     </div>
     <div v-else-if="evalState === 'idle' && parseState !== 'failed'" class="px-5 py-4">
       <span class="text-xs text-muted-foreground">评价完成后将展示各维度得分</span>
+    </div>
+
+    <!-- AI scoring failed: clearly explain hand-off to manual teacher review -->
+    <div v-if="evalState === 'failed'" class="mx-5 my-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+      <div class="flex items-start gap-2.5">
+        <AlertCircle class="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+        <div class="min-w-0">
+          <p class="text-xs font-semibold text-destructive">AI 自动评分暂时不可用</p>
+          <p class="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            本次提交已转交任课教师人工评阅，结果稍后可见，无需重复提交。
+          </p>
+          <p v-if="failureReason" class="mt-1.5 text-[10px] leading-relaxed text-muted-foreground/80 font-mono break-all">
+            原因：{{ failureReason }}
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Upload time footer -->

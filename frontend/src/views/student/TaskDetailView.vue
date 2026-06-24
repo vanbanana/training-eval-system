@@ -61,6 +61,9 @@ interface Evaluation {
   total_score: number | null
   status: string
   created_at: string
+  /** AI 评分失败、已转人工评阅（status 仍为 pending） */
+  ai_failed?: boolean
+  overall_comment?: string
 }
 interface VerifyResult {
   is_valid: boolean
@@ -171,6 +174,11 @@ const deadlineLabel = computed(() => {
   if (!task.value?.deadline) return '——'
   return task.value.deadline.slice(0, 16).replace('T', ' ')
 })
+
+// AI 评分失败时 status 仍为 pending，需显式映射为 failed 让进度面板呈现失败态。
+const evalStatusForPanel = computed(() =>
+  evaluation.value?.ai_failed ? 'failed' : (evaluation.value?.status ?? null),
+)
 
 async function triggerEval(uploadId: number) {
   triggering.value = uploadId
@@ -361,7 +369,8 @@ function onUploadSuccess() {
           <EvaluationProgressPanel
             v-if="currentUpload"
             :parse-status="currentUpload.parse_status"
-            :eval-status="evaluation?.status ?? null"
+            :eval-status="evalStatusForPanel"
+            :failure-reason="evaluation?.overall_comment"
             :uploaded-at="currentUpload.created_at"
           />
 

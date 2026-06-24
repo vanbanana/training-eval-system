@@ -106,7 +106,7 @@ export function useAgentChat(options: UseAgentChatOptions) {
       hasMoreHistory.value = raw.length > HISTORY_PAGE_SIZE
       messages.value = displayed.map((m: AgentMessage) => ({
         id: m.id,
-        role: m.role,
+        role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
         content: m.content,
         blocks: [{ type: 'text' as const, content: m.content }],
         created_at: m.created_at,
@@ -128,7 +128,7 @@ export function useAgentChat(options: UseAgentChatOptions) {
     )
     const olderMapped = older.map((m: AgentMessage) => ({
       id: m.id,
-      role: m.role,
+      role: m.role === 'user' ? ('user' as const) : ('assistant' as const),
       content: m.content,
       blocks: [{ type: 'text' as const, content: m.content }],
       created_at: m.created_at,

@@ -7,7 +7,6 @@ import BreadcrumbNav from '@/components/business/BreadcrumbNav.vue'
 import EmptyState from '@/components/business/EmptyState.vue'
 import { useToast } from '@/components/ui/toast'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
@@ -100,25 +99,42 @@ const counts = computed(() => ({
 }))
 
 function statusVariant(s: string) {
-  return ({ scored: 'info', confirmed: 'success', rejected: 'destructive' } as const)[s] ?? 'secondary'
+  return ({ scored: 'info', confirmed: 'success', rejected: 'destructive', pending: 'secondary', failed: 'destructive' } as const)[s] ?? 'secondary'
 }
 function statusLabel(s: string) {
-  return ({ scored: 'AI 评分', confirmed: '已确认', rejected: '已打回' } as Record<string, string>)[s] ?? s
+  return ({ scored: 'AI 评分', confirmed: '已确认', rejected: '已打回', pending: '评分中', failed: '评分失败' } as Record<string, string>)[s] ?? s
 }
-function scoreColor(score: number | null): string {
-	  if (score === null) return 'text-muted-foreground'
-	  if (score >= 85) return 'text-success'
-	  if (score >= 60) return 'text-ink'
-	  return 'text-danger'
-	}
+// Background tint for the leading score chip.
+function scoreChipClass(score: number | null): string {
+  if (score === null) return 'bg-muted text-muted-foreground'
+  if (score >= 85) return 'bg-success-soft text-success'
+  if (score >= 60) return 'bg-primary-soft text-primary'
+  return 'bg-danger-soft text-danger'
+}
 
-	// Pagination
-	const totalItems = computed(() => filtered.value.length)
-	const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
-	const paged = computed(() => {
-	  const start = (currentPage.value - 1) * pageSize
-	  return filtered.value.slice(start, start + pageSize)
-	})
+const statusTabs = computed(() => [
+  { key: 'all', label: '全部', count: counts.value.all },
+  { key: 'scored', label: 'AI 评分', count: counts.value.scored },
+  { key: 'confirmed', label: '已确认', count: counts.value.confirmed },
+  { key: 'rejected', label: '已打回', count: counts.value.rejected },
+])
+
+function fmtTime(s: string): string {
+  return s?.slice(0, 16).replace('T', ' ') ?? ''
+}
+
+// Pagination
+const totalItems = computed(() => filtered.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
+const paged = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filtered.value.slice(start, start + pageSize)
+})
+
+function selectStatus(key: string) {
+  statusFilter.value = key
+  currentPage.value = 1
+}
 </script>
 
 <template>
@@ -135,103 +151,88 @@ function scoreColor(score: number | null): string {
       <p class="mt-1.5 text-sm text-muted-foreground">查看所有历次评价 · 共 {{ counts.all }} 条记录</p>
     </div>
 
-    <Card class="tes-card-container px-5 py-3.5">
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-3 items-end">
-        <div class="space-y-1.5">
-          <Label class="text-[11px] text-muted-foreground">搜索任务名</Label>
-          <div class="relative">
-            <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input v-model="search" placeholder="按任务名搜索" class="pl-9" />
-          </div>
+    <Card class="tes-card-container px-5 py-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative flex-1 min-w-[12rem]">
+          <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+          <Input v-model="search" placeholder="按任务名搜索" class="pl-9" @update:model-value="currentPage = 1" />
         </div>
-        <div class="space-y-1.5">
-          <Label class="text-[11px] text-muted-foreground">状态</Label>
-          <Select v-model="statusFilter" @update:model-value="currentPage = 1">
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">全部 ({{ counts.all }})</SelectItem>
-              <SelectItem value="scored">AI 评分 ({{ counts.scored }})</SelectItem>
-              <SelectItem value="confirmed">已确认 ({{ counts.confirmed }})</SelectItem>
-              <SelectItem value="rejected">已打回 ({{ counts.rejected }})</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div class="space-y-1.5">
-          <Label class="text-[11px] text-muted-foreground">排序</Label>
-          <Select v-model="sortBy">
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date_desc">最新优先</SelectItem>
-              <SelectItem value="date_asc">最早优先</SelectItem>
-              <SelectItem value="score_desc">高分优先</SelectItem>
-              <SelectItem value="score_asc">低分优先</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <Select v-model="sortBy">
+          <SelectTrigger class="w-[9.5rem]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">最新优先</SelectItem>
+            <SelectItem value="date_asc">最早优先</SelectItem>
+            <SelectItem value="score_desc">高分优先</SelectItem>
+            <SelectItem value="score_asc">低分优先</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button
+          v-for="t in statusTabs"
+          :key="t.key"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-pill px-3.5 py-1.5 text-[13px] font-medium transition-colors"
+          :class="statusFilter === t.key ? 'bg-primary text-primary-foreground' : 'bg-surface-2 text-muted-foreground hover:text-ink'"
+          @click="selectStatus(t.key)"
+        >
+          {{ t.label }}
+          <span class="text-[11px] opacity-80">{{ t.count }}</span>
+        </button>
       </div>
     </Card>
 
-    <Card class="tes-card-container overflow-hidden">
-      <div class="tes-table-shell">
-      <div class="grid min-w-[760px] grid-cols-[80px_minmax(16rem,1fr)_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border bg-surface-2 text-[11px] font-medium text-muted-foreground tracking-wider">
-        <span>编号</span>
-        <span>任务</span>
-        <span class="text-center">综合分</span>
-        <span class="text-center">状态</span>
-        <span>评价时间</span>
-        <span class="text-right">操作</span>
+    <template v-if="loading">
+      <div class="flex flex-col gap-3">
+        <Card v-for="n in 5" :key="n" class="tes-card-container flex items-center gap-4 px-5 py-4">
+          <Skeleton class="h-12 w-12 rounded-2xl" />
+          <div class="flex-1 space-y-2">
+            <Skeleton class="h-4 w-1/2" />
+            <Skeleton class="h-3 w-1/3" />
+          </div>
+          <Skeleton class="h-6 w-16 rounded-pill" />
+        </Card>
       </div>
+    </template>
 
-      <template v-if="loading">
-        <div v-for="n in 5" :key="n" class="grid min-w-[760px] grid-cols-[80px_minmax(16rem,1fr)_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border">
-          <Skeleton class="h-4 w-12" />
-          <Skeleton class="h-4 w-3/4" />
-          <Skeleton class="h-4 w-12 mx-auto" />
-          <Skeleton class="h-5 w-16 mx-auto" />
-          <Skeleton class="h-4 w-32" />
-          <Skeleton class="h-4 w-12 ml-auto" />
-        </div>
-      </template>
-
+    <Card v-else-if="filtered.length === 0" class="tes-card-container">
       <EmptyState
-        v-else-if="filtered.length === 0"
         :icon="HistoryIcon"
         title="无符合条件的评价"
         :description="evaluations.length === 0 ? '尚未完成任何评价' : '调整筛选条件查看更多'"
       />
+    </Card>
 
-      <div
+    <div v-else class="flex flex-col gap-3">
+      <RouterLink
         v-for="(e, idx) in paged"
-        v-else
         :key="e.id"
-        class="grid min-w-[760px] grid-cols-[80px_minmax(16rem,1fr)_120px_120px_180px_80px] items-center px-6 py-3 border-b border-border last:border-0 text-sm hover:bg-surface-2 transition-colors anim-in"
-        :style="{ animationDelay: Math.min(idx * 25, 200) + 'ms' }"
+        :to="`/student/evaluations/${e.id}`"
+        class="tes-card-container group flex items-center gap-4 px-5 py-4 transition-all hover:-translate-y-0.5 hover:shadow-lg anim-in"
+        :style="{ animationDelay: Math.min(idx * 30, 240) + 'ms' }"
       >
-        <span class="text-xs text-muted-foreground font-mono">#{{ e.id }}</span>
-        <RouterLink
-          :to="`/student/evaluations/${e.id}`"
-          class="text-ink font-medium hover:text-primary transition-colors truncate"
+        <div
+          class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl font-mono text-lg font-bold leading-none"
+          :class="scoreChipClass(e.total_score)"
         >
-          {{ taskMap.get(e.task_id)?.name ?? `任务 #${e.task_id}` }}
-        </RouterLink>
-        <span class="text-center font-mono font-semibold" :class="scoreColor(e.total_score)">
           {{ e.total_score ?? '—' }}
-        </span>
-        <Badge :variant="statusVariant(e.status)" class="justify-self-center">
-          {{ statusLabel(e.status) }}
-        </Badge>
-        <span class="text-xs text-muted-foreground font-mono">{{ e.created_at?.slice(0, 16).replace('T', ' ') }}</span>
-        <RouterLink
-          :to="`/student/evaluations/${e.id}`"
-          class="text-xs text-primary font-medium hover:underline text-right"
-        >
-          查看
-        </RouterLink>
-      </div>
-      </div>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="tes-breakable text-[15px] font-semibold text-ink group-hover:text-primary transition-colors">
+            {{ taskMap.get(e.task_id)?.name ?? `任务 #${e.task_id}` }}
+          </div>
+          <div class="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+            <span class="font-mono">#{{ e.id }}</span>
+            <span>·</span>
+            <span class="font-mono">{{ fmtTime(e.created_at) }}</span>
+          </div>
+        </div>
+        <Badge :variant="statusVariant(e.status)">{{ statusLabel(e.status) }}</Badge>
+        <ChevronRight class="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+      </RouterLink>
 
       <!-- Pagination -->
-      <div v-if="totalItems > pageSize" class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border-t border-border">
+      <div v-if="totalItems > pageSize" class="flex flex-wrap justify-between items-center gap-3 pt-2">
         <div class="text-xs text-muted-foreground">
           显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
         </div>
@@ -254,6 +255,6 @@ function scoreColor(score: number | null): string {
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   </AppShell>
 </template>

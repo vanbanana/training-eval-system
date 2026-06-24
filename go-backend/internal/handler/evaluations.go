@@ -304,7 +304,9 @@ func evalToDTO(e *model.Evaluation) dto.EvaluationResponse {
 	resp := dto.EvaluationResponse{
 		ID: e.ID, TaskID: e.TaskID, StudentID: e.StudentID, UploadID: e.UploadID,
 		Status: e.Status, TotalScore: e.TotalScore, TeacherComment: e.TeacherComment,
-		CreatedAt: e.CreatedAt.Format(time.RFC3339), UpdatedAt: e.UpdatedAt.Format(time.RFC3339),
+		OverallComment: e.OverallComment,
+		AIFailed:       e.Status == "pending" && e.OverallComment != "",
+		CreatedAt:      e.CreatedAt.Format(time.RFC3339), UpdatedAt: e.UpdatedAt.Format(time.RFC3339),
 	}
 	for _, s := range e.Scores {
 		resp.Scores = append(resp.Scores, dto.DimensionScoreResp{

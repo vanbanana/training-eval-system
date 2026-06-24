@@ -53,10 +53,25 @@ const greeting = computed(() => {
   if (h < 14) return '中午好'; if (h < 18) return '下午好'; return '晚上好'
 })
 const maxAct = computed(() => Math.max(1, ...(stats.value?.activity_7d?.map(d => d.count) ?? [1])))
-const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+
+// 本周累计活跃次数（真实数据，替代此前硬编码的“较上周 +N%”）
+const weekActivityTotal = computed(() =>
+  stats.value?.activity_7d?.reduce((s, d) => s + d.count, 0) ?? 0,
+)
+
+// 平均分档位标签（依据真实分数派生，分数缺失时不展示）
+const avgScoreTier = computed(() => {
+  const v = stats.value?.class_avg_score
+  if (v == null) return null
+  if (v >= 90) return { label: '优秀', cls: 'g' }
+  if (v >= 75) return { label: '良好', cls: 'g' }
+  if (v >= 60) return { label: '合格', cls: 'o' }
+  return { label: '待提升', cls: 'r' }
+})
 const peakIdx = computed(() => {
   if (!stats.value?.activity_7d?.length) return -1
   const mx = Math.max(...stats.value.activity_7d.map(d => d.count))
+  if (mx <= 0) return -1 // 全为 0 时不标注“活跃度最高”
   return stats.value.activity_7d.findIndex(d => d.count === mx)
 })
 
@@ -117,9 +132,9 @@ function go(p: string) { router.push(p) }
     <div class="td-left">
       <!-- 统计卡片 -->
       <div class="td-stats">
-        <div class="td-st"><Icon3D name="checkbox" :size="56" color="blue"/><div><label>待批改提交</label><div class="td-sv"><b>{{ stats.pending_grading }}</b><em class="o">较昨日 +6</em></div></div></div>
-        <div class="td-st"><Icon3D name="folder" :size="56" color="purple"/><div><label>本周已批改</label><div class="td-sv"><b>{{ stats.graded_this_week }}</b><em class="o">较昨日 +12</em></div></div></div>
-        <div class="td-st"><Icon3D name="trophy" :size="56" color="green"/><div><label>班级平均分</label><div class="td-sv"><b>{{ stats.class_avg_score ?? '—' }}</b><em class="g">优秀</em></div></div></div>
+        <div class="td-st"><Icon3D name="checkbox" :size="56" color="blue"/><div><label>待批改提交</label><div class="td-sv"><b>{{ stats.pending_grading }}</b><em :class="stats.pending_grading > 0 ? 'o' : 'g'">{{ stats.pending_grading > 0 ? '待处理' : '已清空' }}</em></div></div></div>
+        <div class="td-st"><Icon3D name="folder" :size="56" color="purple"/><div><label>本周已批改</label><div class="td-sv"><b>{{ stats.graded_this_week }}</b><em class="b">本周</em></div></div></div>
+        <div class="td-st"><Icon3D name="trophy" :size="56" color="green"/><div><label>班级平均分</label><div class="td-sv"><b>{{ stats.class_avg_score ?? '—' }}</b><em v-if="avgScoreTier" :class="avgScoreTier.cls">{{ avgScoreTier.label }}</em></div></div></div>
         <div class="td-st"><Icon3D name="shield" :size="56" color="orange"/><div><label>疑似抄袭警告</label><div class="td-sv"><b>{{ suspectCount }}</b><em class="r">待处理</em></div></div></div>
       </div>
 
@@ -135,10 +150,11 @@ function go(p: string) { router.push(p) }
           <div class="td-chart-area">
             <!-- Peak badge -->
             <span v-if="peakIdx>=0 && chartPoints.length" class="td-peak-badge" :style="{left:`${(chartPoints[peakIdx].x/chartW)*100}%`}">
-              {{ weekDays[peakIdx] }}活跃度最高
+              {{ stats.activity_7d[peakIdx]?.date }} 活跃度最高
               <i class="td-peak-arrow"></i>
             </span>
-            <svg :viewBox="`0 0 ${chartW} ${chartH}`" preserveAspectRatio="none" class="td-svg">
+            <div v-if="weekActivityTotal === 0" class="td-chart-empty">近 7 天暂无班级提交活跃</div>
+            <svg v-else :viewBox="`0 0 ${chartW} ${chartH}`" preserveAspectRatio="none" class="td-svg">
               <defs>
                 <linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" class="chart-grad-start" stop-opacity="0.12"/>
@@ -158,13 +174,13 @@ function go(p: string) { router.push(p) }
             </svg>
           </div>
           <div class="td-chart-x">
-            <span v-for="(d,i) in stats.activity_7d" :key="i">{{ weekDays[i] || d.date }}</span>
+            <span v-for="(d,i) in stats.activity_7d" :key="i">{{ d.date }}</span>
           </div>
         </div>
         <div class="td-enc">
           <div class="td-enc-txt">
             <h3>保持优秀哦！🎉</h3>
-            <p>本周班级活跃度较上周增加 {{ stats.activity_7d.length ? Math.round(stats.activity_7d.reduce((s,d)=>s+d.count,0) / Math.max(stats.activity_7d.length, 1)) : 0 }}%</p>
+            <p>本周班级累计 {{ weekActivityTotal }} 次提交活跃</p>
           </div>
           <img class="td-enc-img" :src="encourageSvg" alt="" />
         </div>
@@ -263,6 +279,7 @@ function go(p: string) { router.push(p) }
 .td-sv b { font-size:22px; font-weight:700; color:hsl(var(--ink)); line-height:1; }
 .td-sv em { font-style:normal; font-size:10px; font-weight:600; padding:1px 6px; border-radius:8px; }
 .td-sv em.o { background:hsl(var(--warning-soft)); color:hsl(var(--accent)); }
+.td-sv em.b { background:hsl(var(--info-soft)); color:hsl(var(--info)); }
 .td-sv em.g { background:hsl(var(--success-soft)); color:hsl(var(--success)); }
 .td-sv em.r { background:hsl(var(--danger-soft)); color:hsl(var(--danger)); }
 
@@ -277,6 +294,7 @@ function go(p: string) { router.push(p) }
 .td-chart-area { position:relative; height:180px; padding-top:28px; flex:1; }
 .td-svg { width:100%; height:100%; display:block; }
 .td-chart-area svg { width:100%; height:100%; }
+.td-chart-empty { height:100%; display:flex; align-items:center; justify-content:center; font-size:13px; color:hsl(var(--subtle-foreground)); background:hsl(var(--surface-2)); border:1px dashed hsl(var(--border)); border-radius:10px; }
 .td-chart-x { display:flex; justify-content:space-between; font-size:11px; color:hsl(var(--muted-foreground)); margin-top:8px; padding:0 2px; font-weight:500; }
 
 /* SVG chart colors via CSS variables */

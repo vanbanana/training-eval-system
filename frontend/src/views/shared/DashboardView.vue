@@ -166,6 +166,12 @@ const greeting = computed(() => {
 
 // ============ Student helpers ============
 const studentData = computed(() => stats.value as StudentDashboard | null)
+
+// 分数显示统一保留 1 位小数，规避二进制浮点尾差（如 7.500000000000001）
+function fmtScore(v: number | null | undefined): string {
+  if (v == null) return '—'
+  return (Math.round(v * 10) / 10).toString()
+}
 const radarEntries = computed(() => {
   if (!studentData.value?.radar_data) return []
   return Object.entries(studentData.value.radar_data).map(([name, score]) => ({ name, score }))
@@ -270,7 +276,7 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
             <template v-if="studentData.rank && studentData.class_size">
               班级排名第 {{ studentData.rank }} · 共 {{ studentData.class_size }} 人 ·
             </template>
-            已完成 {{ studentData.score_trend.length }} 次实训<template v-if="studentData.latest_score">，平均得分 {{ studentData.latest_score }}</template>
+            已完成 {{ studentData.score_trend.length }} 次实训<template v-if="studentData.latest_score">，最近得分 {{ fmtScore(studentData.latest_score) }}</template>
           </p>
         </div>
         <div class="tes-page-actions">
@@ -303,11 +309,11 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
             <span class="text-xs font-medium tracking-wider text-muted-foreground">近期评分</span>
             <Award class="w-4 h-4 text-subtle-foreground" />
           </div>
-          <div class="text-3xl font-bold text-ink leading-none">{{ studentData.latest_score ?? '—' }}</div>
+          <div class="text-3xl font-bold text-ink leading-none">{{ fmtScore(studentData.latest_score) }}</div>
           <div class="flex items-center gap-1.5 text-xs font-medium" :class="(studentData.score_diff ?? 0) >= 0 ? 'text-success' : 'text-danger'">
             <TrendingUp v-if="(studentData.score_diff ?? 0) >= 0" class="w-3.5 h-3.5" />
             <TrendingDown v-else class="w-3.5 h-3.5" />
-            <span v-if="studentData.score_diff != null">较上次 {{ studentData.score_diff >= 0 ? '+' : '' }}{{ studentData.score_diff }}</span>
+            <span v-if="studentData.score_diff != null">较上次 {{ studentData.score_diff >= 0 ? '+' : '' }}{{ fmtScore(studentData.score_diff) }}</span>
             <span v-else>首次评价</span>
           </div>
         </div>

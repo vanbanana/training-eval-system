@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { avatarInitial } from '@/lib/utils'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -209,7 +210,7 @@ const roleLabel = computed(
         <!-- Side nav -->
         <aside class="bg-surface-2 border-r border-border p-4 max-lg:border-r-0 max-lg:border-b">
           <div class="flex items-center gap-3 px-2 py-3 mb-2">
-            <Avatar size="lg">{{ account.display_name.charAt(0) }}</Avatar>
+            <Avatar size="lg">{{ avatarInitial(account.display_name) }}</Avatar>
             <div class="min-w-0">
               <div class="text-sm font-semibold text-ink truncate">{{ account.display_name }}</div>
               <div class="text-[11px] text-muted-foreground font-mono truncate">{{ account.username }}</div>

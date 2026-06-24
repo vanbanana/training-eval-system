@@ -74,6 +74,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			})
 		})
 
+		// SSE endpoint for real-time events (replaces WebSocket).
+		// Registered outside the AuthMiddleware group because EventSource cannot
+		// set an Authorization header; the handler authenticates the token itself
+		// (query param ?token= or Authorization: Bearer).
+		r.Get("/sse/events", cfg.SSEHandler.Events)
+
 		// Public capabilities endpoint — frontend uses this to show/hide agent entries (T9.2).
 		if cfg.CapabilitiesHandler != nil {
 			r.Get("/capabilities", cfg.CapabilitiesHandler.GetCapabilities)
@@ -136,7 +142,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 					r.Post("/", cfg.TasksHandler.Create)
 					r.Patch("/{id}", cfg.TasksHandler.Update)
 					r.Delete("/{id}", cfg.TasksHandler.Delete)
-r.Post("/{id}/publish", cfg.TasksHandler.Publish)
+					r.Post("/{id}/publish", cfg.TasksHandler.Publish)
 					r.Patch("/{id}/close", cfg.TasksHandler.Close)
 					r.Put("/{id}/dimensions", cfg.TasksHandler.ReplaceDimensions)
 				})
@@ -181,13 +187,13 @@ r.Post("/{id}/publish", cfg.TasksHandler.Publish)
 				})
 			})
 
-// All authenticated users
-				r.Route("/uploads", func(r chi.Router) {
-					r.Get("/by-task/{taskId}", cfg.UploadsHandler.ListByTask)
-					r.Post("/by-task/{taskId}", cfg.UploadsHandler.Upload)
-					r.Get("/{id}/verify-result", cfg.UploadsHandler.VerifyResult)
-					r.Post("/{id}/retry", cfg.UploadsHandler.Retry)
-				})
+			// All authenticated users
+			r.Route("/uploads", func(r chi.Router) {
+				r.Get("/by-task/{taskId}", cfg.UploadsHandler.ListByTask)
+				r.Post("/by-task/{taskId}", cfg.UploadsHandler.Upload)
+				r.Get("/{id}/verify-result", cfg.UploadsHandler.VerifyResult)
+				r.Post("/{id}/retry", cfg.UploadsHandler.Retry)
+			})
 
 			r.Route("/evaluations", func(r chi.Router) {
 				// Read operations available to all authenticated users
@@ -264,9 +270,6 @@ r.Post("/{id}/publish", cfg.TasksHandler.Publish)
 			})
 
 			r.Get("/parse/{uploadId}/result", cfg.ParseHandler.GetResult)
-
-			// SSE endpoint for real-time events (replaces WebSocket)
-			r.Get("/sse/events", cfg.SSEHandler.Events)
 
 			// Agent API — unified AI agent for all roles (gated by feature flags, T9.2)
 			if cfg.AgentHandler != nil {

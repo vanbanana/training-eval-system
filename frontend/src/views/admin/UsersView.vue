@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { avatarInitial } from '@/lib/utils'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -9,8 +10,6 @@ import AnimatedNumber from '@/components/business/AnimatedNumber.vue'
 import { useToast } from '@/components/ui/toast'
 import { confirm } from '@/composables/useConfirm'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar } from '@/components/ui/avatar'
@@ -192,7 +191,7 @@ function roleBadgeVariant(r: string) {
 }
 
 function avatarChar(name: string) {
-  return name?.charAt(0) ?? '?'
+  return avatarInitial(name)
 }
 
 function formatLastLogin(iso: string | null) {

@@ -136,54 +136,60 @@ function statusLabel(s: string) {
       </div>
     </Card>
 
-    <Card class="tes-card-container overflow-hidden">
-      <div class="tes-table-shell">
-      <div class="grid min-w-[760px] grid-cols-[minmax(18rem,1fr)_140px_120px_220px] items-center px-6 py-3 bg-surface-2 border-b border-border text-[11px] font-semibold text-muted-foreground tracking-wider">
-        <span>任务名称</span>
-        <span>课程</span>
-        <span>状态</span>
-        <span class="text-right">操作</span>
-      </div>
-
-      <template v-if="loading">
-        <div v-for="n in 5" :key="n" class="grid min-w-[760px] grid-cols-[minmax(18rem,1fr)_140px_120px_220px] items-center px-6 py-3.5 border-b border-border">
-          <Skeleton class="h-5 w-3/4" />
-          <Skeleton class="h-4 w-20" />
-          <Skeleton class="h-5 w-16" />
-          <Skeleton class="h-8 w-32 ml-auto" />
+    <div v-if="loading" class="grid grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-4">
+      <Card v-for="n in 6" :key="n" class="tes-card-container flex flex-col gap-4 p-5">
+        <div class="flex items-center gap-3">
+          <Skeleton class="h-11 w-11 rounded-2xl" />
+          <div class="flex-1 space-y-2">
+            <Skeleton class="h-4 w-3/4" />
+            <Skeleton class="h-3 w-1/2" />
+          </div>
         </div>
-      </template>
+        <Skeleton class="h-9 w-full rounded-md" />
+      </Card>
+    </div>
 
+    <Card v-else-if="filtered.length === 0" class="tes-card-container">
       <EmptyState
-        v-else-if="filtered.length === 0"
         title="暂无任务"
         description="发布任务后即可在此页面导出报表"
       />
+    </Card>
 
-      <div
+    <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-4">
+      <Card
         v-for="(t, idx) in filtered"
-        v-else
         :key="t.id"
         :id="`task-row-${t.id}`"
-        class="grid min-w-[760px] grid-cols-[minmax(18rem,1fr)_140px_120px_220px] items-center px-6 py-3.5 border-b border-border last:border-b-0 hover:bg-surface-2 transition-colors anim-in"
-        :style="{ animationDelay: Math.min(idx * 25, 200) + 'ms' }"
+        class="tes-card-container flex flex-col gap-4 p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg anim-in"
+        :style="{ animationDelay: Math.min(idx * 30, 240) + 'ms' }"
       >
-        <span class="tes-breakable font-medium text-ink">{{ t.name }}</span>
-        <span class="text-xs text-muted-foreground">{{ courseName(t.course_id) }}</span>
-        <Badge :variant="statusVariant(t.status)">{{ statusLabel(t.status) }}</Badge>
-        <div class="flex items-center justify-end gap-2">
+        <div class="flex items-start gap-3">
+          <div class="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary-soft text-primary">
+            <FileSpreadsheet class="h-5 w-5" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="tes-breakable font-semibold text-ink leading-snug">{{ t.name }}</div>
+            <div class="mt-1 text-xs text-muted-foreground">{{ courseName(t.course_id) }}</div>
+          </div>
+          <Badge :variant="statusVariant(t.status)">{{ statusLabel(t.status) }}</Badge>
+        </div>
+
+        <div class="flex items-center gap-2 border-t border-border pt-4">
           <Button
             variant="outline"
             size="sm"
+            class="flex-1"
             :disabled="exportingId === t.id && exportingFormat === 'task'"
             @click="exportFile(t.id, 'task')"
           >
             <FileText class="w-3.5 h-3.5" />
-            Excel
+            明细 Excel
           </Button>
           <Button
             variant="outline"
             size="sm"
+            class="flex-1"
             :disabled="exportingId === t.id && exportingFormat === 'xlsx'"
             @click="exportFile(t.id, 'xlsx')"
           >
@@ -208,9 +214,8 @@ function statusLabel(s: string) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
-      </div>
-    </Card>
+      </Card>
+    </div>
 
     <p class="text-xs text-muted-foreground">
       个人 PDF 报告导出（针对单个评价）请到「评价详情」页操作。

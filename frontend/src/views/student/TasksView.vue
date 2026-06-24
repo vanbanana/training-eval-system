@@ -201,10 +201,6 @@ function formatDeadline(iso: string | null) {
 	  const start = (currentPage.value - 1) * pageSize
 	  return filtered.value.slice(start, start + pageSize)
 	})
-	// Reset to page 1 when filter/search changes
-	function resetPagination() {
-	  currentPage.value = 1
-	}
 </script>
 
 <template>

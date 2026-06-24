@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/smartedu/training-eval-system/internal/model"
 	"github.com/smartedu/training-eval-system/internal/store"
@@ -122,7 +123,55 @@ orderBy := "id DESC"
 		t.UpdatedAt = parseTime(updatedAt.String)
 		tasks = append(tasks, t)
 	}
-	return tasks, total, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	// Batch-load dimensions for all listed tasks so list responses carry the
+	// dimension set (previously empty, making the UI show "0 个维度").
+	if err := r.attachDimensions(ctx, tasks); err != nil {
+		return nil, 0, err
+	}
+	return tasks, total, nil
+}
+
+// attachDimensions loads dimensions for the given tasks in a single query and
+// assigns them by task ID, avoiding an N+1 query per task.
+func (r *SQLiteTaskRepo) attachDimensions(ctx context.Context, tasks []model.TrainingTask) error {
+	if len(tasks) == 0 {
+		return nil
+	}
+	placeholders := make([]string, len(tasks))
+	args := make([]any, len(tasks))
+	for i := range tasks {
+		placeholders[i] = "?"
+		args[i] = tasks[i].ID
+	}
+	query := fmt.Sprintf(
+		`SELECT id, task_id, name, description, weight, order_index FROM dimensions
+		 WHERE task_id IN (%s) ORDER BY task_id, order_index`,
+		strings.Join(placeholders, ","))
+	rows, err := r.db.Reader.QueryContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("task_repo: list dimensions: %w", err)
+	}
+	defer rows.Close()
+
+	byTask := make(map[int64][]model.Dimension)
+	for rows.Next() {
+		var d model.Dimension
+		if err := rows.Scan(&d.ID, &d.TaskID, &d.Name, &d.Description, &d.Weight, &d.OrderIndex); err != nil {
+			return err
+		}
+		byTask[d.TaskID] = append(byTask[d.TaskID], d)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for i := range tasks {
+		tasks[i].Dimensions = byTask[tasks[i].ID]
+	}
+	return nil
 }
 
 func (r *SQLiteTaskRepo) Create(ctx context.Context, t *model.TrainingTask) error {

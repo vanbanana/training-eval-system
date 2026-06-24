@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { avatarInitial } from '@/lib/utils'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -657,7 +658,15 @@ function goToSimilarity(uploadId: number) {
         </TabsList>
       </Tabs>
 
-      <div class="px-6 py-3.5 bg-surface-2 border-b border-border flex flex-wrap items-center gap-3">
+      <div class="px-5 py-3 bg-surface-2 border-b border-border flex flex-wrap items-center gap-3">
+        <label class="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+          <Checkbox
+            :model-value="allSelectedOnList ? true : someSelectedOnList ? 'indeterminate' : false"
+            @update:model-value="(v) => allSelectedOnList = v === true"
+            aria-label="全选"
+          />
+          全选
+        </label>
         <div class="relative w-full sm:w-[280px]">
           <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input v-model="searchQuery" placeholder="按学号 / 姓名搜索" class="pl-9" />
@@ -665,125 +674,88 @@ function goToSimilarity(uploadId: number) {
         <span v-if="selectedCount > 0" class="text-xs text-primary font-medium">已选 {{ selectedCount }} 项</span>
       </div>
 
-      <div class="tes-table-shell">
-        <div class="grid min-w-[1160px] grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3 bg-surface-2 border-b border-border">
-          <Checkbox
-            :model-value="allSelectedOnList ? true : someSelectedOnList ? 'indeterminate' : false"
-            @update:model-value="(v) => allSelectedOnList = v === true"
-            aria-label="全选"
-          />
-          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">学生</div>
-          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">提交时间</div>
-          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">AI 客观分</div>
-          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">教师主观分</div>
-          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">综合得分</div>
-          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
-          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
-        </div>
+      <div class="flex flex-col">
+        <template v-if="loading">
+          <div
+            v-for="n in 6"
+            :key="n"
+            class="flex items-center gap-4 px-5 py-4 border-b border-border"
+          >
+            <Skeleton class="h-4 w-4" />
+            <Skeleton class="h-9 w-9 rounded-full" />
+            <div class="flex-1 space-y-2">
+              <Skeleton class="h-4 w-40" />
+              <Skeleton class="h-3 w-24" />
+            </div>
+            <Skeleton class="h-8 w-12" />
+            <Skeleton class="h-7 w-28" />
+          </div>
+        </template>
 
-      <template v-if="loading">
-        <div
-          v-for="n in 6"
-          :key="n"
-          class="grid min-w-[1160px] grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3.5 border-b border-border"
-        >
-          <Skeleton class="h-4 w-4" />
-          <Skeleton class="h-9 w-3/4" />
-          <Skeleton class="h-4 w-20" />
-          <Skeleton class="h-4 w-12" />
-          <Skeleton class="h-4 w-12" />
-          <Skeleton class="h-4 w-12" />
-          <Skeleton class="h-5 w-16" />
-          <Skeleton class="h-4 w-32 ml-auto" />
-        </div>
-      </template>
-
-      <EmptyState
-        v-else-if="filtered.length === 0"
-        title="无符合条件的提交"
-        description="调整筛选 / 搜索条件查看更多结果"
-      />
-
-      <div
-        v-for="s in filtered"
-        v-else
-        :key="s.upload_id"
-        class="grid min-w-[1160px] grid-cols-[40px_240px_140px_110px_110px_120px_140px_180px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors"
-        :class="suspiciousUploadIds.has(s.upload_id) ? 'bg-danger-soft hover:bg-danger-soft/80' : 'hover:bg-surface-2'"
-      >
-        <Checkbox
-          :model-value="selectedIds.has(s.upload_id)"
-          @update:model-value="(v) => toggleRow(s.upload_id, v === true)"
-          :aria-label="`选择 ${s.student_name}`"
+        <EmptyState
+          v-else-if="filtered.length === 0"
+          title="无符合条件的提交"
+          description="调整筛选 / 搜索条件查看更多结果"
         />
 
-        <div class="flex items-center gap-2.5">
+        <div
+          v-for="s in filtered"
+          v-else
+          :key="s.upload_id"
+          class="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 border-b border-border last:border-b-0 transition-colors"
+          :class="suspiciousUploadIds.has(s.upload_id) ? 'bg-danger-soft hover:bg-danger-soft/80' : 'hover:bg-surface-2'"
+        >
+          <Checkbox
+            :model-value="selectedIds.has(s.upload_id)"
+            @update:model-value="(v) => toggleRow(s.upload_id, v === true)"
+            :aria-label="`选择 ${s.student_name}`"
+          />
+
           <Avatar size="sm" :class="suspiciousUploadIds.has(s.upload_id) ? '!bg-danger-soft !text-danger' : ''">
-            {{ (s.student_name || '?').charAt(0) }}
+            {{ avatarInitial(s.student_name) }}
           </Avatar>
-          <div class="flex flex-col gap-0.5 min-w-0">
-            <span class="text-sm font-semibold text-ink truncate">{{ s.student_name }}</span>
+
+          <div class="flex min-w-[10rem] flex-1 flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-ink truncate">{{ s.student_name }}</span>
+              <Badge :variant="statusBadge(s).variant">{{ statusBadge(s).label }}</Badge>
+            </div>
             <span class="text-[11px] text-muted-foreground truncate">
-              {{ s.student_id }}{{ similarityHint[s.upload_id] ? ` · ${similarityHint[s.upload_id]}` : '' }}
+              学号 {{ s.student_id }} · {{ formatDate(s.uploaded_at) }}<template v-if="similarityHint[s.upload_id]"> · <span class="text-danger">{{ similarityHint[s.upload_id] }}</span></template>
             </span>
           </div>
-        </div>
 
-        <div class="font-mono text-xs text-muted-foreground">{{ formatDate(s.uploaded_at) }}</div>
-
-        <div>
-          <div v-if="s.eval_status === 'pending'" class="flex items-center gap-1.5 text-info">
-            <Loader2 class="w-3.5 h-3.5 animate-spin" />
-            <span class="text-xs font-medium">评分中</span>
+          <div class="flex w-16 flex-col items-center">
+            <div v-if="s.eval_status === 'pending'" class="flex items-center gap-1.5 text-info">
+              <Loader2 class="w-3.5 h-3.5 animate-spin" />
+              <span class="text-xs font-medium">评分中</span>
+            </div>
+            <template v-else-if="s.total_score !== null">
+              <span
+                class="text-xl font-bold leading-none"
+                :class="s.eval_status === 'confirmed' ? 'text-success' : (s.total_score < 70 ? 'text-accent' : 'text-ink')"
+              >{{ s.total_score }}</span>
+              <span class="mt-0.5 text-[10px] text-muted-foreground">综合得分</span>
+            </template>
+            <span v-else class="font-mono text-sm text-subtle-foreground">——</span>
           </div>
-          <span
-            v-else-if="s.total_score !== null"
-            class="text-base font-semibold"
-            :class="(s.total_score ?? 0) < 70 ? 'text-accent' : 'text-ink'"
-          >
-            {{ s.total_score }}
-          </span>
-          <span v-else class="font-mono text-sm text-subtle-foreground">——</span>
-        </div>
 
-        <div>
-          <span v-if="s.eval_status === 'confirmed' && s.total_score !== null" class="text-base font-semibold text-ink">
-            {{ s.total_score }}
-          </span>
-          <span v-else class="font-mono text-sm text-subtle-foreground">——</span>
+          <div class="flex items-center justify-end gap-1">
+            <Button
+              v-if="suspiciousUploadIds.has(s.upload_id)"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-danger hover:text-danger"
+              @click="goToSimilarity(s.upload_id)"
+              title="查看相似度对比"
+            >
+              <AlertTriangle class="w-3 h-3" />
+            </Button>
+            <Button v-if="s.eval_status === 'scored'" variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="confirmEval(s)">确认</Button>
+            <Button variant="ghost" size="sm" class="h-7 px-2" @click="openDetail(s)">详情</Button>
+            <Button v-if="s.evaluation_id && s.eval_status !== 'rejected'" variant="ghost" size="sm" class="h-7 px-2 text-danger hover:text-danger" @click="rejectEval(s)">打回</Button>
+          </div>
         </div>
-
-        <div>
-          <span
-            v-if="s.total_score !== null"
-            class="font-bold text-md"
-            :class="s.eval_status === 'confirmed' ? 'text-success' : (s.total_score < 70 ? 'text-accent' : 'text-ink')"
-          >
-            {{ s.total_score }}
-          </span>
-          <span v-else class="font-mono text-sm text-subtle-foreground">——</span>
-        </div>
-
-        <div>
-          <Badge :variant="statusBadge(s).variant">{{ statusBadge(s).label }}</Badge>
-        </div>
-
-        <div class="flex items-center justify-end gap-1">
-          <Button
-            v-if="suspiciousUploadIds.has(s.upload_id)"
-            variant="ghost"
-            size="sm"
-            class="h-7 px-2 text-danger hover:text-danger"
-            @click="goToSimilarity(s.upload_id)"
-            title="查看相似度对比"
-          >
-            <AlertTriangle class="w-3 h-3" />
-          </Button>
-          <Button v-if="s.eval_status === 'scored'" variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="confirmEval(s)">确认</Button>
-          <Button variant="ghost" size="sm" class="h-7 px-2" @click="openDetail(s)">详情</Button>
-          <Button v-if="s.evaluation_id && s.eval_status !== 'rejected'" variant="ghost" size="sm" class="h-7 px-2 text-danger hover:text-danger" @click="rejectEval(s)">打回</Button>
-        </div>
-      </div>
       </div>
     </Card>
 
