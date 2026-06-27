@@ -115,7 +115,8 @@ async function fetchAll() {
     recentLogs.value = items.slice(0, 10).map((log) => ({
       ts: log.created_at?.slice(11, 19) ?? '',
       level: deriveLevel(log.action),
-      message: `${log.action} user=${log.username} ${log.target ? 'target=' + log.target : ''}${log.ip ? ' ip=' + log.ip : ''}`.trim(),
+      message:
+        `${log.action} user=${log.username} ${log.target ? 'target=' + log.target : ''}${log.ip ? ' ip=' + log.ip : ''}`.trim(),
     }))
     qpsSeries.value = buildQpsFromAudit(items)
   } catch {
@@ -169,11 +170,7 @@ const auditError = ref<string | null>(null)
 
 async function refreshActivity() {
   // 通过 audit 派生今日活动数
-  const r = await safeGet<{ items: AuditLog[] }>(
-    '/api/audit',
-    { items: [] },
-    { params: { page: 1, page_size: 100 } },
-  )
+  const r = await safeGet<{ items: AuditLog[] }>('/api/audit', { items: [] }, { params: { page: 1, page_size: 100 } })
   if (r.error) auditError.value = r.error
   const items = r.data.items ?? []
   const today = new Date().toISOString().slice(0, 10)
@@ -196,12 +193,14 @@ onUnmounted(() => {
 })
 
 function levelBadgeClass(level: LogRow['level']): string {
-  return ({
-    info: 'bg-info-soft text-info',
-    warn: 'bg-warning-soft text-warning',
-    error: 'bg-danger-soft text-danger',
-    debug: 'bg-muted text-muted-foreground',
-  } as const)[level]
+  return (
+    {
+      info: 'bg-info-soft text-info',
+      warn: 'bg-warning-soft text-warning',
+      error: 'bg-danger-soft text-danger',
+      debug: 'bg-muted text-muted-foreground',
+    } as const
+  )[level]
 }
 
 const maxQps = computed(() => {
@@ -217,12 +216,7 @@ function bar(pct: number): string {
 
 <template>
   <AppShell>
-    <BreadcrumbNav
-      :items="[
-        { label: '管理控制台', to: '/dashboard' },
-        { label: '运行总览' },
-      ]"
-    />
+    <BreadcrumbNav :items="[{ label: '管理控制台', to: '/dashboard' }, { label: '运行总览' }]" />
 
     <div class="tes-page-header">
       <div class="min-w-0">
@@ -250,12 +244,13 @@ function bar(pct: number): string {
       class="flex flex-wrap items-center gap-2 px-4 py-2 bg-warning-soft border border-warning rounded-md"
     >
       <CircleAlert class="w-4 h-4 text-warning" />
-      <span class="text-xs text-warning font-medium">
-        审计日志 {{ auditError }} · "今日活动" 与 QPS 折线可能为空
-      </span>
+      <span class="text-xs text-warning font-medium"> 审计日志 {{ auditError }} · "今日活动" 与 QPS 折线可能为空 </span>
       <button
         class="ml-auto text-xs text-warning underline hover:opacity-80"
-        @click="fetchAll(); refreshActivity()"
+        @click="
+          fetchAll()
+          refreshActivity()
+        "
       >
         重试
       </button>
@@ -270,7 +265,9 @@ function bar(pct: number): string {
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">在线用户</span>
-            <Users class="w-4 h-4 text-subtle-foreground" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary"
+              ><Users class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold text-ink leading-none">
             <AnimatedNumber :value="onlineUsers" />
@@ -285,7 +282,9 @@ function bar(pct: number): string {
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">今日提交</span>
-            <Upload class="w-4 h-4 text-subtle-foreground" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-info-soft text-info"
+              ><Upload class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold text-ink leading-none">
             <AnimatedNumber :value="todayUploads" />
@@ -300,7 +299,9 @@ function bar(pct: number): string {
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">LLM 调用</span>
-            <Sparkles class="w-4 h-4 text-subtle-foreground" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent"
+              ><Sparkles class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold text-ink leading-none">
             <AnimatedNumber :value="todayLLMCalls" />
@@ -315,12 +316,17 @@ function bar(pct: number): string {
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">今日错误</span>
-            <CircleAlert class="w-4 h-4 text-accent" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-danger-soft text-danger"
+              ><CircleAlert class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold leading-none" :class="todayErrors > 0 ? 'text-danger' : 'text-ink'">
             <AnimatedNumber :value="todayErrors" />
           </div>
-          <div class="flex items-center gap-1.5 text-xs font-medium" :class="todayErrors === 0 ? 'text-success' : 'text-danger'">
+          <div
+            class="flex items-center gap-1.5 text-xs font-medium"
+            :class="todayErrors === 0 ? 'text-success' : 'text-danger'"
+          >
             <TrendingDown v-if="todayErrors === 0" class="w-3.5 h-3.5" />
             <CircleAlert v-else class="w-3.5 h-3.5" />
             <span>{{ todayErrors === 0 ? '系统平稳运行' : '需检查日志' }}</span>
@@ -335,7 +341,11 @@ function bar(pct: number): string {
         <span class="text-sm font-medium text-muted-foreground">CPU 使用率</span>
         <span class="text-[32px] font-bold text-ink leading-none">{{ cpuPct === null ? '—' : cpuPct + '%' }}</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
-          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(cpuPct ?? 0)" :style="{ width: bar(cpuPct ?? 0) }" />
+          <div
+            class="h-full rounded-pill transition-[width] duration-700"
+            :class="colorBar(cpuPct ?? 0)"
+            :style="{ width: bar(cpuPct ?? 0) }"
+          />
         </div>
         <div class="flex justify-between text-[11px] text-muted-foreground">
           <span>4 核 LoongArch</span>
@@ -346,7 +356,11 @@ function bar(pct: number): string {
         <span class="text-sm font-medium text-muted-foreground">内存使用</span>
         <span class="text-[32px] font-bold text-ink leading-none">{{ memPct === null ? '—' : memPct + '%' }}</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
-          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(memPct ?? 0)" :style="{ width: bar(memPct ?? 0) }" />
+          <div
+            class="h-full rounded-pill transition-[width] duration-700"
+            :class="colorBar(memPct ?? 0)"
+            :style="{ width: bar(memPct ?? 0) }"
+          />
         </div>
         <div class="flex justify-between text-[11px] text-muted-foreground">
           <span>{{ memPct === null ? '未接入监控' : memPct + '% 已使用' }}</span>
@@ -357,7 +371,11 @@ function bar(pct: number): string {
         <span class="text-sm font-medium text-muted-foreground">磁盘使用</span>
         <span class="text-[32px] font-bold text-ink leading-none">{{ diskPct === null ? '—' : diskPct + '%' }}</span>
         <div class="h-2 bg-muted rounded-pill overflow-hidden">
-          <div class="h-full rounded-pill transition-[width] duration-700" :class="colorBar(diskPct ?? 0)" :style="{ width: bar(diskPct ?? 0) }" />
+          <div
+            class="h-full rounded-pill transition-[width] duration-700"
+            :class="colorBar(diskPct ?? 0)"
+            :style="{ width: bar(diskPct ?? 0) }"
+          />
         </div>
         <div class="flex justify-between text-[11px] text-muted-foreground">
           <span>{{ diskPct === null ? '未接入监控' : diskPct + '% 已使用' }}</span>
@@ -386,7 +404,9 @@ function bar(pct: number): string {
         <div class="flex justify-between items-center mb-[18px]">
           <div>
             <div class="text-base font-semibold text-ink">近 10 小时调用数（按 1 小时聚合）</div>
-            <div class="text-xs text-muted-foreground mt-1">来源：审计日志中 HTTP 与 LLM 调用计数 · 与右侧"今日活动"卡片同源</div>
+            <div class="text-xs text-muted-foreground mt-1">
+              来源：审计日志中 HTTP 与 LLM 调用计数 · 与右侧"今日活动"卡片同源
+            </div>
           </div>
           <div class="flex gap-3.5 text-[11px]">
             <span class="flex items-center gap-1.5 text-muted-foreground">
@@ -399,7 +419,10 @@ function bar(pct: number): string {
             </span>
           </div>
         </div>
-        <div v-if="qpsSeries.length === 0 || maxQps <= 1" class="tes-chart-area flex items-center justify-center text-sm text-muted-foreground">
+        <div
+          v-if="qpsSeries.length === 0 || maxQps <= 1"
+          class="tes-chart-area flex items-center justify-center text-sm text-muted-foreground"
+        >
           暂无审计日志数据
         </div>
         <div v-else class="tes-chart-area flex items-end justify-between gap-1 overflow-x-auto">
@@ -430,9 +453,7 @@ function bar(pct: number): string {
           </button>
         </header>
         <ScrollArea class="max-h-[420px]">
-          <div v-if="recentLogs.length === 0" class="px-5 py-8 text-center text-xs text-muted-foreground">
-            暂无日志
-          </div>
+          <div v-if="recentLogs.length === 0" class="px-5 py-8 text-center text-xs text-muted-foreground">暂无日志</div>
           <div
             v-for="(log, idx) in recentLogs"
             :key="idx"
