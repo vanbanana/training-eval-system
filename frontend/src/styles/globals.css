@@ -66,6 +66,10 @@
   --gold: 35 58% 40%;               /* #a47b2a */
   --gold-soft: 41 65% 90%;          /* #f5edd9 */
 
+  /* Code block tokens */
+  --code-bg: 215 28% 14%;           /* #1a2332 */
+  --code-fg: 215 28% 92%;           /* #e2e8f0 */
+
   --chart-1: 213 52% 25%;
   --chart-2: 22 89% 41%;
   --chart-3: 142 69% 29%;
@@ -73,9 +77,9 @@
   --chart-5: 224 76% 48%;
 
   /* === Soft Shadows (多层低透明度) === */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.04);
-  --shadow-md: 0 2px 4px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04);
-  --shadow-lg: 0 4px 8px rgba(0,0,0,0.03), 0 8px 24px rgba(0,0,0,0.05), 0 16px 48px rgba(0,0,0,0.06);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 6px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05), 0 16px 48px rgba(0,0,0,0.06);
 
   /* === Glassmorphism === */
   --glass-blur: 12px;
@@ -135,10 +139,14 @@
   --gold: 38 60% 60%;
   --gold-soft: 41 30% 22%;
 
+  /* Code block tokens (dark override) */
+  --code-bg: 215 30% 12%;
+  --code-fg: 215 28% 90%;
+
   /* === Soft Shadows (暗色模式加深) === */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.15);
-  --shadow-md: 0 2px 4px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.15);
-  --shadow-lg: 0 4px 8px rgba(0,0,0,0.15), 0 8px 24px rgba(0,0,0,0.2), 0 16px 48px rgba(0,0,0,0.25);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.15);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.15);
+  --shadow-lg: 0 4px 8px rgba(0,0,0,0.18), 0 8px 24px rgba(0,0,0,0.22), 0 16px 48px rgba(0,0,0,0.25);
 
   /* === Glassmorphism === */
   --glass-blur: 12px;
@@ -214,6 +222,9 @@
   --color-info-soft: hsl(var(--info-soft));
   --color-gold: hsl(var(--gold));
   --color-gold-soft: hsl(var(--gold-soft));
+
+  --color-code-bg: hsl(var(--code-bg));
+  --color-code-fg: hsl(var(--code-fg));
 
   --color-chart-1: hsl(var(--chart-1));
   --color-chart-2: hsl(var(--chart-2));
@@ -300,6 +311,8 @@
 .bg-gold { background-color: hsl(var(--gold)); }
 .bg-gold-soft { background-color: hsl(var(--gold-soft)); }
 .bg-muted { background-color: hsl(var(--muted)); }
+.bg-code { background-color: hsl(var(--code-bg)); }
+.bg-code-fg { color: hsl(var(--code-fg)); }
 
 .border-default { border-color: hsl(var(--border)); }
 .border-soft { border-color: hsl(var(--border-soft)); }
@@ -390,6 +403,24 @@
   .tes-chat-panel {
     height: clamp(32rem, 68dvh, 44rem);
     min-height: 0;
+    /* 用阴影替代全包围边框 — 抛弃 border border-border，改用 elevation 分层 */
+    /* 参考 Linear 的 surface 分层哲学 */
+  }
+
+  .tes-panel {
+    /* 精致面板：无全包围边框，用阴影创造浮层感 */
+    border: 0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tes-panel-lg {
+    border: 0;
+    box-shadow: var(--shadow-md);
+  }
+
+  .tes-chat-container {
+    /* 一体化 chat 容器：替代 两张卡片+gap 的布局 */
+    /* 类似 Claude/ChatGPT 的单个容器，左栏用 border-r 分隔 */
   }
 
   .tes-clamp-title,
@@ -447,6 +478,134 @@
   /* 数字滚动占位 */
   .num-tabular {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* ==================== 统一 Markdown Prose 渲染 ==================== */
+  .tes-prose h1, .tes-prose h2, .tes-prose h3 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    font-weight: 700;
+    color: hsl(var(--ink));
+  }
+  .tes-prose h1 { font-size: 1.25rem; }
+  .tes-prose h2 { font-size: 1.1rem; }
+  .tes-prose h3 { font-size: 1rem; }
+  .tes-prose p { margin: 0.5em 0; }
+  .tes-prose ul, .tes-prose ol { margin: 0.5em 0; padding-left: 1.5em; }
+  .tes-prose li { margin: 0.25em 0; }
+  .tes-prose strong { font-weight: 700; color: hsl(var(--ink)); }
+  .tes-prose code:not(.hljs) {
+    background: hsl(var(--surface-2));
+    border: 1px solid hsl(var(--border));
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 0.85em;
+    font-family: var(--font-mono);
+  }
+  .tes-prose .hljs-code-block {
+    background: hsl(var(--code-bg));
+    border-radius: 8px;
+    padding: 16px;
+    margin: 0.75em 0;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .tes-prose .hljs-code-block code {
+    color: hsl(var(--code-fg));
+    font-family: var(--font-mono);
+  }
+  .tes-prose blockquote {
+    border-left: 3px solid hsl(var(--primary));
+    padding-left: 12px;
+    margin: 0.75em 0;
+    color: hsl(var(--muted-foreground));
+  }
+  .tes-prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75em 0;
+    font-size: 0.875em;
+  }
+  .tes-prose th, .tes-prose td {
+    border: 1px solid hsl(var(--border));
+    padding: 6px 10px;
+    text-align: left;
+  }
+  .tes-prose th {
+    background: hsl(var(--surface-2));
+    font-weight: 600;
+  }
+  .tes-prose a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+  }
+
+  /* ==================== Agent 消息入场动效 ==================== */
+  .anim-message-enter {
+    animation: messageEnter 300ms cubic-bezier(0, 0, 0.2, 1) forwards;
+  }
+  @keyframes messageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .anim-message-streaming {
+    animation: messagePulse 2s ease-in-out infinite;
+  }
+  @keyframes messagePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* ==================== 评分露出动效 — 「刷刷刷」 ==================== */
+  .anim-score-reveal {
+    animation: scoreReveal 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes scoreReveal {
+    0% {
+      opacity: 0;
+      transform: scale(0.5) translateY(8px);
+      filter: blur(4px);
+    }
+    60% {
+      opacity: 1;
+      transform: scale(1.15) translateY(-2px);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  /* 评分中脉冲 */
+  .anim-score-pulse {
+    animation: scorePulse 1.2s ease-in-out infinite;
+  }
+  @keyframes scorePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+  }
+
+  /* ==================== prefers-reduced-motion ==================== */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .anim-message-enter {
+      animation: none !important;
+      opacity: 1 !important;
+    }
   }
 }
 

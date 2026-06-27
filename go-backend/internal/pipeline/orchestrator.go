@@ -307,7 +307,11 @@ saveResult:
 	return nil
 }
 
-// onParseComplete triggers verify, score, and similarity stages in parallel.
+// onParseComplete triggers verify and similarity stages in parallel.
+// NOTE: Scoring is NOT triggered here. Scoring is initiated by the teacher
+// via the "一键AI批改" button (POST /api/grading/tasks/{id}/auto-score).
+// This keeps the upload→parse→score flow decoupled so teachers control
+// when scoring happens and can observe real-time "刷刷刷" progress via SSE.
 func (o *Orchestrator) onParseComplete(ctx context.Context, upload *model.Upload, rawText string, simhash uint64) {
 	// 1. Submit verification task
 	_ = o.pool.Submit(&worker.Task{
@@ -317,37 +321,7 @@ func (o *Orchestrator) onParseComplete(ctx context.Context, upload *model.Upload
 		},
 	})
 
-	// 2. Create evaluation and submit scoring task
-	eval := &model.Evaluation{
-		TaskID:    upload.TaskID,
-		StudentID: upload.StudentID,
-		UploadID:  upload.ID,
-		Status:    "pending",
-	}
-	if err := o.evalRepo.Create(ctx, eval); err != nil {
-		slog.Error("pipeline: create evaluation", "error", err.Error())
-		return
-	}
-
-	o.markScoringActive(upload.ID)
-	o.publishEvalProgress(upload.StudentID, upload.ID, "scoring")
-
-	_ = o.pool.Submit(&worker.Task{
-		ID: fmt.Sprintf("score-%d", eval.ID),
-		Fn: func(taskCtx context.Context) error {
-			defer o.markScoringDone(upload.ID)
-			if err := o.scorer.Score(taskCtx, eval.ID, rawText); err != nil {
-				return err
-			}
-			// Trigger profile recompute for this student
-			if o.onScored != nil {
-				o.onScored(upload.StudentID)
-			}
-			return nil
-		},
-	})
-
-	// 3. Submit similarity check task
+	// 2. Submit similarity check task
 	_ = o.pool.Submit(&worker.Task{
 		ID: fmt.Sprintf("similarity-%d", upload.ID),
 		Fn: func(taskCtx context.Context) error {

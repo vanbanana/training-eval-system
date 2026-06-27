@@ -186,6 +186,10 @@ function requiredRoles(path: string): string[] | null {
 }
 
 router.beforeEach(async (to) => {
+  // Dev preview: add ?preview to any URL to skip auth checks (dev only)
+  if (import.meta.env.DEV && to.query.preview !== undefined) {
+    return
+  }
   const auth = useAuthStore()
   if (!auth.user && auth.token) {
     await auth.fetchMe()

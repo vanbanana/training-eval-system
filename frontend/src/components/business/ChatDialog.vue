@@ -3,11 +3,6 @@
  * 业务组件：ChatDialog（常驻 sidebar 风格）
  *
  * 嵌入 EvaluationView / TaskDetailView 等页面右侧，与 AI 助手对话。
- * 与 ChatHistoryView 区别：
- *   - ChatHistoryView 是独立页面（左 session 列表 + 右消息流）
- *   - 本组件是 fixed 定位的常驻 panel：右下角浮动按钮，点击展开 sidebar
- *
- * 后端：使用 /api/agent/stream（SSE 流式）；session 由组件自动创建
  */
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import {
@@ -117,7 +112,6 @@ async function send(text?: string) {
       sessionId.value = sessionData.id
     }
 
-    // Build request body with agent_role and optional evaluation context
     const reqBody: Record<string, unknown> = {
       session_id: sessionId.value,
       message: msg,
@@ -148,7 +142,6 @@ async function send(text?: string) {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-    // Structured SSE event parsing
     const reader = res.body?.getReader()
     const decoder = new TextDecoder()
     if (reader) {
@@ -183,7 +176,6 @@ async function send(text?: string) {
                 aiMsg.toolCall = event.tool ?? event.name ?? '调用工具'
                 break
               case 'tool_result':
-                // tool result received, clear tool indicator
                 aiMsg.toolCall = undefined
                 break
               case 'error':
@@ -193,7 +185,6 @@ async function send(text?: string) {
                 break
             }
           } catch {
-            // Fallback: treat as plain text
             aiMsg.content += payload
           }
           scrollBottom()
@@ -216,7 +207,6 @@ function toggle() {
 
 const showSuggestions = computed(() => messages.value.length === 1 && messages.value[0].role === 'assistant')
 
-// Abort any in-flight SSE stream when the dialog unmounts.
 let streamAbort: AbortController | null = null
 onUnmounted(() => {
   if (streamAbort) {
@@ -233,19 +223,20 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
 </script>
 
 <template>
-  <!-- Inline mode: render directly in parent -->
+  <!-- Inline mode -->
   <section
     v-if="variant === 'inline'"
-    class="bg-card border border-border rounded-lg flex flex-col overflow-hidden h-[600px]"
+    class="bg-card rounded-lg flex flex-col overflow-hidden tes-panel"
+    style="min-height: 460px; max-height: 600px;"
   >
     <header class="px-4 py-3 bg-surface-2 border-b border-border flex justify-between items-center">
       <div class="flex items-center gap-2">
-        <span class="w-7 h-7 rounded-full grid place-items-center text-white" style="background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))">
+        <span class="w-7 h-7 rounded-full bg-primary grid place-items-center text-primary-foreground">
           <Sparkles class="w-3.5 h-3.5" />
         </span>
         <div>
-          <div class="text-xs font-semibold text-ink">AI 学习助手</div>
-          <div class="text-[10px] text-muted-foreground">基于本次评价上下文</div>
+          <div class="text-sm font-semibold text-ink">AI 学习助手</div>
+          <div class="text-xs text-muted-foreground"><!-- label -->基于本次评价上下文</div>
         </div>
       </div>
       <Button variant="ghost" size="icon-sm" @click="reset" title="清空">
@@ -255,11 +246,11 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
 
     <ScrollArea class="flex-1">
       <div ref="bodyRef" class="p-4 flex flex-col gap-3">
-        <div v-for="(m, i) in messages" :key="i" :class="cn('flex gap-2', m.role === 'user' ? 'justify-end' : '')">
+        <div v-for="(m, i) in messages" :key="i" :class="cn('flex gap-2 anim-message-enter', m.role === 'user' ? 'justify-end' : '')">
           <div :class="m.role === 'user' ? 'flex flex-col items-end' : ''">
             <div
               :class="cn(
-                'px-3 py-2 rounded-md text-xs leading-relaxed whitespace-pre-wrap max-w-[280px]',
+                'px-3 py-2 rounded-md text-sm leading-relaxed whitespace-pre-wrap max-w-[280px]',
                 m.role === 'user'
                   ? 'bg-primary text-primary-foreground rounded-br-[2px]'
                   : 'bg-surface-2 border border-border rounded-bl-[2px]',
@@ -267,14 +258,14 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
             >
               {{ m.content || (sending && i === messages.length - 1 ? '正在思考...' : '') }}
             </div>
-            <div v-if="m.time" class="text-[10px] text-subtle-foreground mt-1 font-mono">{{ m.time }}</div>
+            <div v-if="m.time" class="text-xs text-subtle-foreground mt-1 font-mono"><!-- label -->{{ m.time }}</div>
             <div v-if="showSuggestions && i === 0" class="flex flex-wrap gap-1.5 mt-2">
               <Button
                 v-for="s in suggestions"
                 :key="s"
                 variant="outline"
                 size="sm"
-                class="h-7 text-[11px]"
+                class="h-7 text-xs"
                 @click="send(s)"
               >
                 {{ s }}
@@ -290,7 +281,7 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
         <textarea
           v-model="input"
           rows="1"
-          class="flex-1 border-0 outline-none bg-transparent text-xs resize-none min-h-4 max-h-20"
+          class="flex-1 border-0 outline-none bg-transparent text-sm resize-none min-h-4 max-h-20"
           placeholder="向 AI 提问..."
           @keydown.enter.exact.prevent="send()"
         />
@@ -301,7 +292,7 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
     </footer>
   </section>
 
-  <!-- Floating mode: fixed bottom-right -->
+  <!-- Floating mode -->
   <template v-else>
     <Button
       v-if="!open"
@@ -327,12 +318,12 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
       >
         <header class="px-4 py-3 bg-surface-2 border-b border-border flex justify-between items-center">
           <div class="flex items-center gap-2">
-            <span class="w-7 h-7 rounded-full grid place-items-center text-white" style="background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))">
+            <span class="w-7 h-7 rounded-full bg-primary grid place-items-center text-primary-foreground">
               <Sparkles class="w-3.5 h-3.5" />
             </span>
             <div>
               <div class="text-sm font-semibold text-ink">AI 学习助手</div>
-              <div class="text-[11px] text-muted-foreground">基于本次评价上下文</div>
+              <div class="text-xs text-muted-foreground"><!-- label -->基于本次评价上下文</div>
             </div>
           </div>
           <div class="flex gap-1">
@@ -346,11 +337,11 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
         </header>
 
         <div ref="bodyRef" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-          <div v-for="(m, i) in messages" :key="i" :class="cn('flex gap-2', m.role === 'user' ? 'justify-end' : '')">
+          <div v-for="(m, i) in messages" :key="i" :class="cn('flex gap-2 anim-message-enter', m.role === 'user' ? 'justify-end' : '')">
             <div :class="m.role === 'user' ? 'flex flex-col items-end' : ''">
               <div
                 v-if="m.toolCall"
-                class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-info-soft text-info rounded-sm text-[10px] font-medium mb-1.5"
+                class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-info-soft text-info rounded-sm text-xs font-medium mb-1.5"
               >
                 <Database class="w-3 h-3" />
                 <span>{{ m.toolCall }}</span>
@@ -365,14 +356,14 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
               >
                 {{ m.content || (sending && i === messages.length - 1 ? '正在思考...' : '') }}
               </div>
-              <div v-if="m.time" class="text-[10px] text-subtle-foreground mt-1 font-mono">{{ m.time }}</div>
+              <div v-if="m.time" class="text-xs text-subtle-foreground mt-1 font-mono"><!-- label -->{{ m.time }}</div>
               <div v-if="showSuggestions && i === 0" class="flex flex-wrap gap-1.5 mt-2">
                 <Button
                   v-for="s in suggestions"
                   :key="s"
                   variant="outline"
                   size="sm"
-                  class="h-7 text-[11px]"
+                  class="h-7 text-xs"
                   @click="send(s)"
                 >
                   {{ s }}
@@ -395,7 +386,7 @@ defineExpose({ toggle, open: () => (open.value = true), close: () => (open.value
               <Send class="w-3.5 h-3.5" />
             </Button>
           </div>
-          <div class="flex justify-between text-[10px] text-muted-foreground mt-1.5">
+          <div class="flex justify-between text-xs text-muted-foreground mt-1.5"><!-- label -->
             <span>基于 LLM 配置</span>
             <span>单次提问 ≤ 2000 字</span>
           </div>

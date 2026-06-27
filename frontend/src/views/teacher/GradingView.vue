@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { avatarInitial } from '@/lib/utils'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
@@ -158,25 +158,136 @@ interface TaskSummary {
 const taskSummary = ref<TaskSummary | null>(null)
 const autoScoring = ref(false)
 
+// ─── SSE 实时评分进度 ───
+interface ScoringProgress {
+  upload_id: number
+  student_name: string
+  status: 'queued' | 'scoring' | 'scored' | 'failed'
+  score?: number
+}
+const scoringProgress = ref<Map<number, ScoringProgress>>(new Map())
+const scoringAnimReady = ref(false)
+
+// 分数露出动画队列 — 「刷刷刷」
+const scoreRevealQueue = ref<Array<{ upload_id: number; score: number }>>([])
+const revealActive = ref(false)
+
+let sseEventSource: EventSource | null = null
+
+function connectSSE() {
+  const raw = localStorage.getItem('tes_token')
+  let token = ''
+  if (raw) {
+    try { token = JSON.parse(raw) } catch { token = raw }
+  }
+  if (!token) return
+
+  const url = `${window.location.protocol === 'https:' ? 'https:' : 'http:'}//${window.location.host}/api/sse/events?token=${encodeURIComponent(token)}`
+  sseEventSource = new EventSource(url)
+
+  sseEventSource.addEventListener('progress', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as {
+        user_id: number
+        upload_id: number
+        stage: string
+        status: string
+        evaluation_id?: number
+        total_score?: number
+      }
+      if (data.stage === 'eval' || data.stage === 'eval_dimensions') {
+        scoringProgress.value.set(data.upload_id, {
+          upload_id: data.upload_id,
+          student_name: '',
+          status: data.status === 'scored' ? 'scored' : 'scoring',
+          score: data.total_score,
+        })
+        scoringProgress.value = new Map(scoringProgress.value)
+      }
+    } catch {}
+  })
+
+  sseEventSource.addEventListener('score_complete', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data) as {
+        evaluation_id: number
+        upload_id: number
+        total_score: number
+      }
+      // 更新评分状态
+      scoringProgress.value.set(data.upload_id, {
+        upload_id: data.upload_id,
+        student_name: '',
+        status: 'scored',
+        score: data.total_score,
+      })
+      scoringProgress.value = new Map(scoringProgress.value)
+
+      // 加入露出动画队列
+      scoreRevealQueue.value.push({ upload_id: data.upload_id, score: data.total_score })
+      if (!revealActive.value) playRevealQueue()
+    } catch {}
+  })
+}
+
+function playRevealQueue() {
+  if (scoreRevealQueue.value.length === 0) {
+    revealActive.value = false
+    return
+  }
+  revealActive.value = true
+  const item = scoreRevealQueue.value.shift()!
+  // 找到对应提交行，更新总分为动画值
+  const sub = submissionIndex.value.get(item.upload_id)
+  if (sub) {
+    sub.total_score = item.score
+    sub.eval_status = 'scored'
+  }
+  // 每个间隔 300-500ms，「刷刷刷」的感觉
+  setTimeout(() => playRevealQueue(), 300 + Math.random() * 200)
+}
+
+onMounted(() => {
+  fetchAll()
+  connectSSE()
+})
+
+onUnmounted(() => {
+  if (sseEventSource) sseEventSource.close()
+})
+
 async function triggerAutoScore() {
   if (autoScoring.value) return
   const ok = await confirm({
     title: '一键 AI 批改',
-    description: '将批改所有已解析但未评分的提交。已评分/已确认的将自动跳过。',
+    description: '将对所有已解析但未评分的提交执行 AI 批改，评分结果将实时推送展示。',
   })
   if (!ok) return
   autoScoring.value = true
+  scoringProgress.value = new Map()
   try {
     const { data } = await axios.post(`/api/grading/tasks/${taskId.value}/auto-score`, { mode: 'unscored' })
+    // 把排队中的先标记为 queued
+    if (data.items) {
+      for (const item of data.items) {
+        if (item.status === 'queued') {
+          const sub = submissions.value.find(s => s.upload_id === item.upload_id)
+          scoringProgress.value.set(item.upload_id, {
+            upload_id: item.upload_id,
+            student_name: sub?.student_name ?? '',
+            status: 'queued',
+          })
+        }
+      }
+      scoringProgress.value = new Map(scoringProgress.value)
+    }
     toast({
-      description: `排队 ${data.queued} 份，跳过 ${data.skipped} 份${data.failed ? `，失败 ${data.failed} 份` : ''}`,
+      description: `⏳ 队列 ${data.queued} 份，跳过 ${data.skipped} 份${data.failed ? `，失败 ${data.failed} 份` : ''}`,
       variant: data.failed ? 'warning' : 'success',
     })
-    await fetchAll()
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     toast({ description: msg ?? '一键批改请求失败', variant: 'destructive' })
-  } finally {
     autoScoring.value = false
   }
 }
