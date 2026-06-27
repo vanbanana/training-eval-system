@@ -69,6 +69,11 @@ onMounted(async () => {
 })
 
 const currentCourse = () => data.value?.courses.find((c) => c.id === selectedCourse.value)
+
+function selectCourse(id: number) {
+  selectedCourse.value = id
+  selectedClass.value = null
+}
 const currentClass = () => currentCourse()?.classes.find((c) => c.id === selectedClass.value)
 </script>
 
@@ -138,10 +143,7 @@ const currentClass = () => currentCourse()?.classes.find((c) => c.id === selecte
             :key="c.id"
             class="px-3 py-2.5 text-left text-sm hover:bg-accent-soft transition-colors"
             :class="c.id === selectedCourse ? 'bg-accent-soft text-accent-strong font-semibold' : ''"
-            @click="
-              selectedCourse = c.id
-              selectedClass = null
-            "
+            @click="selectCourse(c.id)"
           >
             <GraduationCap class="w-3.5 h-3.5 inline mr-1.5" />{{ c.name }}
           </button>

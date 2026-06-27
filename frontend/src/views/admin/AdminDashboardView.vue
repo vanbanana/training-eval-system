@@ -180,6 +180,11 @@ async function refreshActivity() {
   todayErrors.value = todays.filter((l) => /error|fail|timeout/i.test(l.action)).length
 }
 
+function retryActivity() {
+  fetchAll()
+  refreshActivity()
+}
+
 onMounted(async () => {
   startTime.value = Date.now()
   await fetchAll()
@@ -245,15 +250,7 @@ function bar(pct: number): string {
     >
       <CircleAlert class="w-4 h-4 text-warning" />
       <span class="text-xs text-warning font-medium"> 审计日志 {{ auditError }} · "今日活动" 与 QPS 折线可能为空 </span>
-      <button
-        class="ml-auto text-xs text-warning underline hover:opacity-80"
-        @click="
-          fetchAll()
-          refreshActivity()
-        "
-      >
-        重试
-      </button>
+      <button class="ml-auto text-xs text-warning underline hover:opacity-80" @click="retryActivity()">重试</button>
     </div>
 
     <!-- KPI -->
