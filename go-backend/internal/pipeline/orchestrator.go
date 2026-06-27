@@ -11,13 +11,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/smartedu/training-eval-system/internal/llm"
-	"github.com/smartedu/training-eval-system/internal/model"
-	"github.com/smartedu/training-eval-system/internal/parser"
-	"github.com/smartedu/training-eval-system/internal/repository"
-	"github.com/smartedu/training-eval-system/internal/similarity"
-	"github.com/smartedu/training-eval-system/internal/sse"
-	"github.com/smartedu/training-eval-system/internal/worker"
+"github.com/smartedu/training-eval-system/internal/llm"
+		"github.com/smartedu/training-eval-system/internal/model"
+		"github.com/smartedu/training-eval-system/internal/parser"
+		"github.com/smartedu/training-eval-system/internal/repository"
+		"github.com/smartedu/training-eval-system/internal/similarity"
+		"github.com/smartedu/training-eval-system/internal/sse"
+		"github.com/smartedu/training-eval-system/internal/vision"
+		"github.com/smartedu/training-eval-system/internal/worker"
 )
 
 // OrchestratorDeps groups constructor dependencies.
@@ -31,7 +32,8 @@ type OrchestratorDeps struct {
 	ProfileRepo   repository.ProfileRepo
 	SystemCfgRepo repository.SystemConfigRepo
 	LLMClient     llm.LLMClient
-	OnScored      func(studentID int64) // called after scoring completes to trigger profile recompute
+	VisionParser  *VisionParser // GLM-4V-Flash vision parser (optional, replaces text-only parse)
+	OnScored      func(studentID int64)
 }
 
 // Orchestrator coordinates the multi-stage evaluation pipeline.
@@ -44,6 +46,7 @@ type Orchestrator struct {
 	taskRepo    repository.TaskRepo
 	profileRepo repository.ProfileRepo
 	llmClient   llm.LLMClient
+	vision      *VisionParser
 	onScored    func(studentID int64)
 
 	scorer     *Scorer
@@ -66,6 +69,7 @@ func NewOrchestrator(deps OrchestratorDeps) *Orchestrator {
 		taskRepo:    deps.TaskRepo,
 		profileRepo: deps.ProfileRepo,
 		llmClient:   deps.LLMClient,
+		vision:      deps.VisionParser,
 		onScored:    deps.OnScored,
 		activeTasks: make(map[int64]struct{}),
 	}
@@ -218,21 +222,29 @@ func (o *Orchestrator) markScoringDone(uploadID int64) {
 }
 
 // executeParse runs the document parsing logic.
+// Uses GLM-4V-Flash vision parser when configured, falls back to text-only parsing.
 func (o *Orchestrator) executeParse(ctx context.Context, upload *model.Upload) error {
 	var rawText string
 	var parseErr error
 
+	// Priority 1: GLM-4V-Flash vision parsing (most accurate for all formats)
+	if o.vision != nil {
+		rawText, parseErr = o.parseWithVision(ctx, upload)
+		if parseErr == nil && rawText != "" {
+			goto saveResult
+		}
+		slog.Warn("vision parse failed, falling back to text-only", "upload_id", upload.ID, "error", parseErr)
+	}
+
+	// Priority 2: Traditional text-based parsing
 	switch upload.FileType {
 	case "docx":
 		rawText, parseErr = o.parseDocx(upload.StoragePath)
 	case "doc":
-		// .doc files: try docx parser first (many .doc files are actually docx format)
 		rawText, parseErr = o.parseDocx(upload.StoragePath)
 		if parseErr != nil {
-			// Try the legacy .doc parser (extracts UTF-16LE text from OLE2 binary)
 			rawText, parseErr = o.parseDocWithOCR(ctx, upload.StoragePath)
 		} else {
-			// Even if docx parser succeeded, also try to extract images for OCR
 			imgText, _ := o.ocrDocImages(ctx, upload.StoragePath)
 			if imgText != "" {
 				rawText = rawText + "\n\n--- 图片内容 ---\n" + imgText
@@ -247,7 +259,6 @@ func (o *Orchestrator) executeParse(ctx context.Context, upload *model.Upload) e
 	}
 
 	if parseErr != nil {
-		// Save failure
 		slog.Error("parse failed", "upload_id", upload.ID, "error", parseErr.Error())
 		_ = o.uploadRepo.UpdateStatus(ctx, upload.ID, "failed")
 		_ = o.uploadRepo.SaveParseResult(ctx, &model.ParseResult{
@@ -258,6 +269,7 @@ func (o *Orchestrator) executeParse(ctx context.Context, upload *model.Upload) e
 		return parseErr
 	}
 
+saveResult:
 	if rawText == "" {
 		parseErr = fmt.Errorf("extracted text is empty")
 		_ = o.uploadRepo.UpdateStatus(ctx, upload.ID, "failed")
@@ -572,6 +584,29 @@ func (o *Orchestrator) parseImage(ctx context.Context, storagePath string, fileT
 	}
 
 	return o.llmClient.ExtractTextFromImage(ctx, b64, mimeType)
+}
+
+// parseWithVision converts the document to page images and uses GLM-4V-Flash to extract text.
+func (o *Orchestrator) parseWithVision(ctx context.Context, upload *model.Upload) (string, error) {
+	ext := "." + upload.FileType
+	pages, err := vision.ConvertFile(upload.StoragePath, ext)
+	if err != nil {
+		return "", fmt.Errorf("vision convert: %w", err)
+	}
+
+	if len(pages) == 0 {
+		return "", fmt.Errorf("vision: no pages produced")
+	}
+
+	slog.Info("vision: converting document",
+		"upload_id", upload.ID, "pages", len(pages), "file_type", upload.FileType)
+
+	dataURIs := make([]string, len(pages))
+	for i, p := range pages {
+		dataURIs[i] = p.DataURI
+	}
+
+	return o.vision.ParsePages(ctx, dataURIs)
 }
 
 // --- SSE helpers ---

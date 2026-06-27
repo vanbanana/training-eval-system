@@ -9,18 +9,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/smartedu/training-eval-system/internal/config"
-	"github.com/smartedu/training-eval-system/internal/crypto"
-	"github.com/smartedu/training-eval-system/internal/handler"
-	"github.com/smartedu/training-eval-system/internal/llm"
-	"github.com/smartedu/training-eval-system/internal/middleware"
-	"github.com/smartedu/training-eval-system/internal/model"
-	"github.com/smartedu/training-eval-system/internal/pipeline"
-	"github.com/smartedu/training-eval-system/internal/repository"
-	"github.com/smartedu/training-eval-system/internal/service"
-	"github.com/smartedu/training-eval-system/internal/sse"
-	"github.com/smartedu/training-eval-system/internal/store"
-	"github.com/smartedu/training-eval-system/internal/worker"
+"github.com/smartedu/training-eval-system/internal/config"
+		"github.com/smartedu/training-eval-system/internal/crypto"
+		"github.com/smartedu/training-eval-system/internal/handler"
+		"github.com/smartedu/training-eval-system/internal/llm"
+		"github.com/smartedu/training-eval-system/internal/middleware"
+		"github.com/smartedu/training-eval-system/internal/model"
+		"github.com/smartedu/training-eval-system/internal/pipeline"
+		"github.com/smartedu/training-eval-system/internal/repository"
+		"github.com/smartedu/training-eval-system/internal/service"
+		"github.com/smartedu/training-eval-system/internal/sse"
+		"github.com/smartedu/training-eval-system/internal/store"
+		"github.com/smartedu/training-eval-system/internal/vision"
+		"github.com/smartedu/training-eval-system/internal/worker"
 )
 
 func main() {
@@ -148,6 +149,25 @@ func main() {
 		profileComputer.SetLLMClient(llmClient)
 	}
 
+	// Create GLM-4V-Flash vision parser if API key is configured
+	var visionParser *pipeline.VisionParser
+	if cfg.GLMAPIKey != "" {
+		visionParser = pipeline.NewVisionParser(cfg.GLMAPIKey)
+		slog.Info("GLM vision parser configured for document parsing")
+		tools := vision.ToolsAvailable()
+		var available []string
+		for name, ok := range tools {
+			if ok {
+				available = append(available, name)
+			}
+		}
+		if len(available) > 0 {
+			slog.Info("document conversion tools", "available", available)
+		} else {
+			slog.Warn("no document conversion tools (install libreoffice, ghostscript, or poppler-utils)")
+		}
+	}
+
 	orch := pipeline.NewOrchestrator(pipeline.OrchestratorDeps{
 		Pool:          pool,
 		Broker:        broker,
@@ -158,6 +178,7 @@ func main() {
 		ProfileRepo:   profileRepo,
 		SystemCfgRepo: repository.NewSystemConfigRepo(db),
 		LLMClient:     llmClient,
+		VisionParser:  visionParser,
 		OnScored:      profileComputer.TriggerRecompute,
 	})
 	_ = orch // used by handlers below
@@ -223,6 +244,7 @@ func main() {
 	usageHandler := handler.NewUsageHandler(usageSvc)
 	accountHandler := handler.NewAccountHandler(userSvc)
 	parseHandler := handler.NewParseHandler(uploadSvc)
+	parseAdminHandler := handler.NewParseAdminHandler(uploadRepo, taskRepo, evalRepo, orch, cfg.GLMAPIKey)
 	sseHandler := handler.NewSSEHandler(broker, cfg.JWTSecret)
 	healthHandler := handler.NewHealthHandler(db)
 	staticHandler := handler.NewStaticHandler(cfg.DistDir)
@@ -265,7 +287,8 @@ func main() {
 		SSEHandler:           sseHandler,
 		HealthHandler:        healthHandler,
 		StaticHandler:        staticHandler,
-		CapabilitiesHandler:  handler.NewCapabilitiesHandler(featureFlags),
+		ParseAdminHandler:  parseAdminHandler,
+			CapabilitiesHandler:  handler.NewCapabilitiesHandler(featureFlags),
 	})
 
 	// 10. Start HTTP server

@@ -34,11 +34,12 @@ type RouterConfig struct {
 	AccountHandler       *AccountHandler
 	SSEHandler           *SSEHandler
 	ParseHandler         *ParseHandler
-	AgentHandler         *AgentHandler
-	UsageHandler         *UsageHandler
-	HealthHandler        *HealthHandler
-	StaticHandler        *StaticHandler
-	CapabilitiesHandler  *CapabilitiesHandler
+AgentHandler         *AgentHandler
+		UsageHandler         *UsageHandler
+		HealthHandler        *HealthHandler
+		StaticHandler        *StaticHandler
+		CapabilitiesHandler  *CapabilitiesHandler
+		ParseAdminHandler    *ParseAdminHandler
 }
 
 // NewRouter creates the chi router with all routes and middleware.
@@ -120,6 +121,16 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Route("/usage", func(r chi.Router) {
 					r.Use(middleware.RequireRole("admin"))
 					r.Get("/summary", cfg.UsageHandler.GetSummary)
+				})
+			}
+
+			// Admin parse management dashboard
+			if cfg.ParseAdminHandler != nil {
+				r.Route("/parse-admin", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Get("/dashboard", cfg.ParseAdminHandler.Dashboard)
+					r.Post("/retry/{id}", cfg.ParseAdminHandler.RetryFailed)
+					r.Post("/retry-all", cfg.ParseAdminHandler.RetryAllFailed)
 				})
 			}
 

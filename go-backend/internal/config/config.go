@@ -66,6 +66,10 @@ type Config struct {
 	LLMBreakerThreshold  int           // consecutive failures before circuit opens (default 50)
 	LLMBreakerCooldown   time.Duration // cooldown before half-open recovery attempt (default 30s)
 
+	// GLM-4V-Flash vision parser settings (optional, replaces text-only parsing)
+	GLMAPIKey   string // GLM API key for vision parsing
+	GLMBaseURL  string // default "https://open.bigmodel.cn/api/paas/v4"
+
 	// Feature flags — gradual rollout for the agent system (T9.2).
 	// All default to true (fully enabled). Set to false to disable a role's
 	// agent routes — the backend returns 503 and the frontend hides the entry.
@@ -130,6 +134,10 @@ func Load() (*Config, error) {
 		LLMMaxToolRounds:     envInt("TES_LLM_MAX_TOOL_ROUNDS", 5),
 		LLMBreakerThreshold:  envInt("TES_LLM_BREAKER_THRESHOLD", 50),
 		LLMBreakerCooldown:   envDuration("TES_LLM_BREAKER_COOLDOWN_SECONDS", 30*time.Second),
+
+		// GLM-4V-Flash vision parser (optional)
+		GLMAPIKey:  envStr("TES_GLM_API_KEY", ""),
+		GLMBaseURL: envStr("TES_GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"),
 
 		// Feature flags (T9.2) — all enabled by default.
 		AgentV2Enabled:         envBool("TES_AGENT_V2_ENABLED", true),
