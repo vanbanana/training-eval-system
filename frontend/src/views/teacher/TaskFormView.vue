@@ -13,13 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -37,8 +31,17 @@ interface Dimension {
   description: string
   weight: number
 }
-interface Course { id: number; name: string; code: string }
-interface ClassItem { id: number; name: string; course_id: number; student_count: number }
+interface Course {
+  id: number
+  name: string
+  code: string
+}
+interface ClassItem {
+  id: number
+  name: string
+  course_id: number
+  student_count: number
+}
 interface Template {
   id: number
   name: string
@@ -87,13 +90,20 @@ const error = ref('')
 const dirty = ref(false) // tracks unsaved changes for navigation guard
 
 // Mark form as dirty when user interacts with any field
-watch([name, description, requirements, courseId, deadline, selectedClassIds, dimensions], () => {
-  if (!loadingTask.value) dirty.value = true
-}, { deep: true })
+watch(
+  [name, description, requirements, courseId, deadline, selectedClassIds, dimensions],
+  () => {
+    if (!loadingTask.value) dirty.value = true
+  },
+  { deep: true },
+)
 
 // Guard against accidental navigation with unsaved changes
 onBeforeRouteLeave((_to, _from, next) => {
-  if (!dirty.value) { next(); return }
+  if (!dirty.value) {
+    next()
+    return
+  }
   const ok = window.confirm('有未保存的更改，确定离开吗？')
   if (ok) next()
   else next(false)
@@ -124,9 +134,7 @@ const breadcrumbs = computed(() => [
   { label: editing.value ? '编辑实训任务' : '创建实训任务' },
 ])
 
-const selectedClasses = computed(() =>
-  allClasses.value.filter((c) => selectedClassIds.value.has(c.id)),
-)
+const selectedClasses = computed(() => allClasses.value.filter((c) => selectedClassIds.value.has(c.id)))
 
 const filteredClassesForPicker = computed(() => {
   if (!classPickerSearch.value.trim()) return allClasses.value
@@ -135,33 +143,33 @@ const filteredClassesForPicker = computed(() => {
 })
 
 async function loadCourses() {
-	  try {
-	    const { data } = await axios.get('/api/courses')
-	    allCourses.value = data
-	    if (allCourses.value.length > 0 && !courseId.value) {
-	      courseId.value = allCourses.value[0].id
-	    }
-	  } catch {
-	    toast({ description: '加载课程列表失败', variant: 'warning' })
-	  }
-	}
-	
-	async function loadClasses() {
-	  try {
-	    const { data } = await axios.get('/api/courses/' + courseId.value + '/classes')
-	    allClasses.value = data
-	  } catch {
-	    toast({ description: '加载班级列表失败', variant: 'warning' })
-	  }
-	}
-	
-	async function loadTemplates() {
-	  try {
-	    const { data } = await axios.get('/api/templates')
-	    templates.value = data
-	  } catch {
-	    toast({ description: '加载评语模板失败', variant: 'warning' })
-	  }
+  try {
+    const { data } = await axios.get('/api/courses')
+    allCourses.value = data
+    if (allCourses.value.length > 0 && !courseId.value) {
+      courseId.value = allCourses.value[0].id
+    }
+  } catch {
+    toast({ description: '加载课程列表失败', variant: 'warning' })
+  }
+}
+
+async function loadClasses() {
+  try {
+    const { data } = await axios.get('/api/courses/' + courseId.value + '/classes')
+    allClasses.value = data
+  } catch {
+    toast({ description: '加载班级列表失败', variant: 'warning' })
+  }
+}
+
+async function loadTemplates() {
+  try {
+    const { data } = await axios.get('/api/templates')
+    templates.value = data
+  } catch {
+    toast({ description: '加载评语模板失败', variant: 'warning' })
+  }
 }
 
 async function loadTaskForEdit(id: number) {
@@ -174,15 +182,19 @@ async function loadTaskForEdit(id: number) {
     courseId.value = data.course_id
     deadline.value = data.deadline ? data.deadline.slice(0, 16) : ''
     if (Array.isArray(data.dimensions) && data.dimensions.length > 0) {
-      dimensions.value = data.dimensions.map((d: { id?: number; name: string; description?: string; weight: number }) => ({
-        id: d.id,
-        name: d.name,
-        description: d.description ?? '',
-        weight: d.weight,
-      }))
+      dimensions.value = data.dimensions.map(
+        (d: { id?: number; name: string; description?: string; weight: number }) => ({
+          id: d.id,
+          name: d.name,
+          description: d.description ?? '',
+          weight: d.weight,
+        }),
+      )
     }
     if (Array.isArray(data.class_ids)) {
-      selectedClassIds.value = new Set(data.class_ids); const { data: cl } = await axios.get("/api/courses/" + data.course_id + "/classes"); allClasses.value = Array.isArray(cl) ? cl : []
+      selectedClassIds.value = new Set(data.class_ids)
+      const { data: cl } = await axios.get('/api/courses/' + data.course_id + '/classes')
+      allClasses.value = Array.isArray(cl) ? cl : []
     }
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -294,13 +306,23 @@ async function saveAsTemplate() {
   }
 }
 
-async function saveDraft() { await doSubmit('draft') }
-async function publish() { await doSubmit('published') }
+async function saveDraft() {
+  await doSubmit('draft')
+}
+async function publish() {
+  await doSubmit('published')
+}
 
 async function doSubmit(status: 'draft' | 'published') {
   error.value = ''
-  if (!name.value) { error.value = '请输入任务名称'; return }
-  if (weightSum.value !== 100) { error.value = '维度权重和必须为 100%'; return }
+  if (!name.value) {
+    error.value = '请输入任务名称'
+    return
+  }
+  if (weightSum.value !== 100) {
+    error.value = '维度权重和必须为 100%'
+    return
+  }
   submitting.value = true
   try {
     const payload = {
@@ -355,9 +377,7 @@ async function doSubmit(status: 'draft' | 'published') {
     <div class="flex justify-between items-end">
       <div>
         <h1 class="text-2xl font-bold text-ink">{{ editing ? '编辑实训任务' : '创建实训任务' }}</h1>
-        <p class="mt-1.5 text-sm text-muted-foreground">
-          配置任务信息与多维度评价指标，发布后将通知关联班级所有学生
-        </p>
+        <p class="mt-1.5 text-sm text-muted-foreground">配置任务信息与多维度评价指标，发布后将通知关联班级所有学生</p>
       </div>
       <div class="flex gap-3 items-center">
         <Button variant="outline" :disabled="submitting" @click="saveDraft">保存为草稿</Button>
@@ -377,7 +397,10 @@ async function doSubmit(status: 'draft' | 'published') {
       <div class="flex flex-col gap-5">
         <Card class="tes-card-container overflow-hidden">
           <header class="flex items-center gap-2.5 px-6 py-4 border-b border-border">
-            <span class="w-[22px] h-[22px] rounded-full bg-primary-soft text-primary grid place-items-center text-[11px] font-semibold">1</span>
+            <span
+              class="w-[22px] h-[22px] rounded-full bg-primary-soft text-primary grid place-items-center text-[11px] font-semibold"
+              >1</span
+            >
             <span class="text-[15px] font-semibold text-ink">基本信息</span>
           </header>
           <div class="p-6 flex flex-col gap-4">
@@ -404,9 +427,15 @@ async function doSubmit(status: 'draft' | 'published') {
               </div>
               <div class="space-y-2">
                 <Label>截止时间<span class="text-danger ml-0.5">*</span></Label>
-                <div class="flex items-center gap-2 h-9 px-3 border border-border-strong rounded-md bg-surface focus-within:border-primary">
+                <div
+                  class="flex items-center gap-2 h-9 px-3 border border-border-strong rounded-md bg-surface focus-within:border-primary"
+                >
                   <CalendarClock class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <input v-model="deadline" type="datetime-local" class="border-0 outline-none bg-transparent flex-1 text-sm" />
+                  <input
+                    v-model="deadline"
+                    type="datetime-local"
+                    class="border-0 outline-none bg-transparent flex-1 text-sm"
+                  />
                 </div>
               </div>
             </div>
@@ -418,13 +447,10 @@ async function doSubmit(status: 'draft' | 'published') {
                   + 添加更多班级
                 </button>
               </div>
-              <div class="flex items-center gap-2 flex-wrap min-h-[40px] px-2.5 py-2 border border-border-strong rounded-md bg-surface">
-                <Badge
-                  v-for="cls in selectedClasses"
-                  :key="cls.id"
-                  variant="default"
-                  class="gap-1.5 px-2 py-1"
-                >
+              <div
+                class="flex items-center gap-2 flex-wrap min-h-[40px] px-2.5 py-2 border border-border-strong rounded-md bg-surface"
+              >
+                <Badge v-for="cls in selectedClasses" :key="cls.id" variant="default" class="gap-1.5 px-2 py-1">
                   {{ cls.name }} · {{ cls.student_count }} 人
                   <button class="opacity-60 hover:opacity-100" @click="toggleClass(cls.id, false)">
                     <X class="w-3 h-3" />
@@ -451,7 +477,10 @@ async function doSubmit(status: 'draft' | 'published') {
 
         <Card class="tes-card-container overflow-hidden">
           <header class="flex items-center gap-2.5 px-6 py-4 border-b border-border">
-            <span class="w-[22px] h-[22px] rounded-full bg-primary-soft text-primary grid place-items-center text-[11px] font-semibold">2</span>
+            <span
+              class="w-[22px] h-[22px] rounded-full bg-primary-soft text-primary grid place-items-center text-[11px] font-semibold"
+              >2</span
+            >
             <span class="text-[15px] font-semibold text-ink">评价指标</span>
             <Badge :variant="weightSum === 100 ? 'success' : 'destructive'" class="ml-2">
               权重总和 {{ weightSum }}%
@@ -469,45 +498,55 @@ async function doSubmit(status: 'draft' | 'published') {
           </header>
 
           <div class="tes-table-shell">
-          <div class="grid min-w-[820px] grid-cols-[60px_240px_minmax(18rem,1fr)_120px_80px] items-center px-5 py-3.5 bg-surface-2 border-b border-border text-[11px] font-semibold text-muted-foreground tracking-wider">
-            <div></div>
-            <div>指标名称</div>
-            <div>评分依据</div>
-            <div>权重</div>
-            <div class="text-right">操作</div>
-          </div>
+            <div
+              class="grid min-w-[820px] grid-cols-[60px_240px_minmax(18rem,1fr)_120px_80px] items-center px-5 py-3.5 bg-surface-2 border-b border-border text-[11px] font-semibold text-muted-foreground tracking-wider"
+            >
+              <div></div>
+              <div>指标名称</div>
+              <div>评分依据</div>
+              <div>权重</div>
+              <div class="text-right">操作</div>
+            </div>
 
-          <div
-            v-for="(d, i) in dimensions"
-            :key="i"
-            class="grid min-w-[820px] grid-cols-[60px_240px_minmax(18rem,1fr)_120px_80px] items-center px-5 py-3.5 border-b border-border last:border-b-0 transition-colors"
-            :class="dragIndex === i ? 'bg-primary-soft/40' : ''"
-            draggable="true"
-            @dragstart="onDragStart(i, $event)"
-            @dragover="onDragOver"
-            @drop="onDrop(i)"
-          >
-            <span class="w-6 h-6 grid place-items-center text-subtle-foreground cursor-grab active:cursor-grabbing">
-              <GripVertical class="w-4 h-4" />
-            </span>
-            <Input v-model="d.name" placeholder="维度名称" class="border-0 shadow-none bg-transparent px-2 font-semibold text-ink" />
-            <Input v-model="d.description" placeholder="评分依据说明" class="border-0 shadow-none bg-transparent px-2 text-xs text-muted-foreground" />
-            <div class="flex items-center gap-1.5 w-20 h-8 px-2.5 border border-border-strong rounded-md bg-surface">
-              <input
-                v-model.number="d.weight"
-                type="number"
-                min="1"
-                max="100"
-                class="border-0 outline-none bg-transparent w-[30px] text-sm text-right"
+            <div
+              v-for="(d, i) in dimensions"
+              :key="i"
+              class="grid min-w-[820px] grid-cols-[60px_240px_minmax(18rem,1fr)_120px_80px] items-center px-5 py-3.5 border-b border-border last:border-b-0 transition-colors"
+              :class="dragIndex === i ? 'bg-primary-soft/40' : ''"
+              draggable="true"
+              @dragstart="onDragStart(i, $event)"
+              @dragover="onDragOver"
+              @drop="onDrop(i)"
+            >
+              <span class="w-6 h-6 grid place-items-center text-subtle-foreground cursor-grab active:cursor-grabbing">
+                <GripVertical class="w-4 h-4" />
+              </span>
+              <Input
+                v-model="d.name"
+                placeholder="维度名称"
+                class="border-0 shadow-none bg-transparent px-2 font-semibold text-ink"
               />
-              <span class="text-xs text-muted-foreground">%</span>
+              <Input
+                v-model="d.description"
+                placeholder="评分依据说明"
+                class="border-0 shadow-none bg-transparent px-2 text-xs text-muted-foreground"
+              />
+              <div class="flex items-center gap-1.5 w-20 h-8 px-2.5 border border-border-strong rounded-md bg-surface">
+                <input
+                  v-model.number="d.weight"
+                  type="number"
+                  min="1"
+                  max="100"
+                  class="border-0 outline-none bg-transparent w-[30px] text-sm text-right"
+                />
+                <span class="text-xs text-muted-foreground">%</span>
+              </div>
+              <div class="text-right">
+                <Button variant="ghost" size="icon-sm" @click="removeDimension(i)">
+                  <Trash2 class="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
-            <div class="text-right">
-              <Button variant="ghost" size="icon-sm" @click="removeDimension(i)">
-                <Trash2 class="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
           </div>
 
           <button
@@ -527,9 +566,7 @@ async function doSubmit(status: 'draft' | 'published') {
             <span class="text-[15px] font-semibold text-ink">评价模板</span>
             <RouterLink to="/templates" class="text-xs text-primary font-medium">管理 ›</RouterLink>
           </header>
-          <div v-if="templates.length === 0" class="px-5 py-6 text-center text-xs text-muted-foreground">
-            暂无模板
-          </div>
+          <div v-if="templates.length === 0" class="px-5 py-6 text-center text-xs text-muted-foreground">暂无模板</div>
           <div v-else class="max-h-[280px] overflow-auto">
             <button
               v-for="tpl in templates"
@@ -558,13 +595,17 @@ async function doSubmit(status: 'draft' | 'published') {
 
         <Card class="p-6 flex flex-col gap-3.5">
           <div>
-            <div class="text-sm font-semibold text-ink">客观与主观比例</div>
-            <div class="text-xs text-muted-foreground mt-1">系统将按以下比例计算综合得分</div>
+            <div class="text-sm font-semibold text-ink">评分方式</div>
+            <div class="text-xs text-muted-foreground mt-1">AI 完成全部维度评分，教师可在批改工作台手动调整</div>
           </div>
           <div class="h-9 rounded-md overflow-hidden flex">
-            <div class="flex-[0_0_60%] flex items-center justify-center bg-primary text-primary-foreground text-xs font-semibold">AI 客观 60%</div>
-            <div class="flex-[0_0_40%] flex items-center justify-center bg-accent text-accent-foreground text-xs font-semibold">教师主观 40%</div>
+            <div
+              class="flex-1 flex items-center justify-center bg-primary text-primary-foreground text-xs font-semibold"
+            >
+              AI 评分 100%
+            </div>
           </div>
+          <div class="text-[11px] text-muted-foreground">教师手动修改某维度后，该维度分将直接覆盖 AI 分</div>
         </Card>
 
         <div class="flex flex-col gap-2.5 bg-accent-soft border border-accent rounded-lg p-4">
@@ -603,10 +644,15 @@ async function doSubmit(status: 'draft' | 'published') {
               />
               <div class="flex-1">
                 <span class="text-sm font-semibold text-ink">{{ cls.name }}</span>
-                <div class="text-[11px] text-muted-foreground">{{ courseNameOf(cls.course_id) }} · {{ cls.student_count }} 人</div>
+                <div class="text-[11px] text-muted-foreground">
+                  {{ courseNameOf(cls.course_id) }} · {{ cls.student_count }} 人
+                </div>
               </div>
             </li>
-            <li v-if="filteredClassesForPicker.length === 0" class="px-4 py-8 text-center text-xs text-muted-foreground">
+            <li
+              v-if="filteredClassesForPicker.length === 0"
+              class="px-4 py-8 text-center text-xs text-muted-foreground"
+            >
               无匹配班级
             </li>
           </ul>
@@ -635,9 +681,7 @@ async function doSubmit(status: 'draft' | 'published') {
               <div class="text-sm font-semibold text-ink">{{ tpl.name }}</div>
               <div class="text-[11px] text-muted-foreground mt-0.5">{{ tpl.dimensions.length }} 个维度</div>
             </li>
-            <li v-if="templates.length === 0" class="px-4 py-8 text-center text-xs text-muted-foreground">
-              暂无模板
-            </li>
+            <li v-if="templates.length === 0" class="px-4 py-8 text-center text-xs text-muted-foreground">暂无模板</li>
           </ul>
         </ScrollArea>
       </DialogContent>

@@ -373,6 +373,14 @@ func (h *GradingHandler) AutoScore(w http.ResponseWriter, r *http.Request) {
 			result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "skipped", Reason: "already_queued"})
 			continue
 		}
+		// A rejected evaluation already exists for this upload. Creating another
+		// pending evaluation here would leave a duplicate (rejected + pending)
+		// for the same upload. It must be explicitly reopened before re-scoring.
+		if exists && status == "rejected" {
+			result.Skipped++
+			result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "skipped", Reason: "rejected"})
+			continue
+		}
 
 		// Create pending evaluation
 		eval := &model.Evaluation{

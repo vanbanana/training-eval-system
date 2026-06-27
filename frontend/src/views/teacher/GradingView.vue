@@ -622,8 +622,9 @@ async function submitDimUpdate() {
     )
     toast({ description: '已保存维度调整', variant: 'success' })
     showDimDialog.value = false
-    // 刷新详情
+    // 刷新详情与列表（含总分、状态、汇总计数）
     if (detailTarget.value) await openDetail(detailTarget.value)
+    await fetchAll()
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     toast({ description: msg ?? '保存失败', variant: 'destructive' })
@@ -1042,7 +1043,7 @@ function goToSimilarity(uploadId: number) {
             <Label>主观分（0-100）</Label>
             <Input v-model.number="dimSubjScore" type="number" min="0" max="100" />
             <p class="text-[11px] text-muted-foreground">
-              AI 客观分 {{ editingDim?.obj_score }}，最终 = AI×60% + 教师×40%
+              AI 评分 {{ editingDim?.obj_score }}，保存后教师分将直接覆盖该维度 AI 分
             </p>
           </div>
           <div class="space-y-2">

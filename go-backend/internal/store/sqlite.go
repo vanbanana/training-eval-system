@@ -8,9 +8,15 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 
 	_ "modernc.org/sqlite"
 )
+
+// memDBSeq gives every in-memory database a unique shared-cache name so that
+// independent callers (notably each test's SetupTestApp) get an isolated
+// database instead of all sharing one process-wide ":memory:" instance.
+var memDBSeq atomic.Uint64
 
 // DB wraps *sql.DB with SQLite-specific initialization.
 type DB struct {
@@ -107,8 +113,10 @@ func (db *DB) Backup(ctx context.Context, destPath string) error {
 
 // openMemory creates an in-memory database where Writer and Reader share the same instance.
 func openMemory() (*DB, error) {
-	// Use shared cache so both connections see the same in-memory DB
-	dsn := "file::memory:?cache=shared&_foreign_keys=ON"
+	// Use a uniquely-named shared cache: Writer and Reader of this call see the
+	// same in-memory DB, while separate Open(":memory:") calls stay isolated.
+	name := fmt.Sprintf("memdb_%d", memDBSeq.Add(1))
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=ON", name)
 	writer, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("store: open memory writer: %w", err)
