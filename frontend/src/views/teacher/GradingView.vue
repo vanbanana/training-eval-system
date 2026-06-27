@@ -28,22 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import {
-  AlertTriangle,
-  Loader2,
-  Search,
-  History,
-  Edit3,
-  Eye,
-  Sparkles,
-} from 'lucide-vue-next'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { AlertTriangle, Loader2, Search, History, Edit3, Eye, Sparkles } from 'lucide-vue-next'
 
 interface Submission {
   upload_id: number
@@ -166,7 +152,6 @@ interface ScoringProgress {
   score?: number
 }
 const scoringProgress = ref<Map<number, ScoringProgress>>(new Map())
-const scoringAnimReady = ref(false)
 
 // 分数露出动画队列 — 「刷刷刷」
 const scoreRevealQueue = ref<Array<{ upload_id: number; score: number }>>([])
@@ -178,7 +163,11 @@ function connectSSE() {
   const raw = localStorage.getItem('tes_token')
   let token = ''
   if (raw) {
-    try { token = JSON.parse(raw) } catch { token = raw }
+    try {
+      token = JSON.parse(raw)
+    } catch {
+      token = raw
+    }
   }
   if (!token) return
 
@@ -271,7 +260,7 @@ async function triggerAutoScore() {
     if (data.items) {
       for (const item of data.items) {
         if (item.status === 'queued') {
-          const sub = submissions.value.find(s => s.upload_id === item.upload_id)
+          const sub = submissions.value.find((s) => s.upload_id === item.upload_id)
           scoringProgress.value.set(item.upload_id, {
             upload_id: item.upload_id,
             student_name: sub?.student_name ?? '',
@@ -307,10 +296,7 @@ async function fetchAll() {
     }
 
     // 相似度记录可降级（404=任务无相似度记录是常态）
-    const simResult = await safeGet<SimilarityRecord[]>(
-      `/api/similarity/task/${taskId.value}`,
-      [],
-    )
+    const simResult = await safeGet<SimilarityRecord[]>(`/api/similarity/task/${taskId.value}`, [])
     if (simResult.error && simResult.status !== 404) {
       toast({
         description: `相似度数据 ${simResult.error}`,
@@ -358,7 +344,8 @@ const similarityHint = computed<Record<number, string>>(() => {
   const map: Record<number, string> = {}
   for (const p of similarityPairs.value) {
     if (!pairIsSuspicious(p)) continue
-    const ratio = p.cosine_similarity != null ? Math.round(p.cosine_similarity * 100) + '%' : `汉明 ${p.hamming_distance}`
+    const ratio =
+      p.cosine_similarity != null ? Math.round(p.cosine_similarity * 100) + '%' : `汉明 ${p.hamming_distance}`
     const a = submissionIndex.value.get(p.upload_a_id)
     const b = submissionIndex.value.get(p.upload_b_id)
     if (a && b) {
@@ -393,11 +380,7 @@ const filtered = computed(() => {
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.trim().toLowerCase()
-    list = list.filter(
-      (s) =>
-        s.student_name.toLowerCase().includes(q) ||
-        String(s.student_id).includes(q),
-    )
+    list = list.filter((s) => s.student_name.toLowerCase().includes(q) || String(s.student_id).includes(q))
   }
   return list
 })
@@ -439,12 +422,17 @@ const selectedCount = computed(() => selectedIds.value.size)
 function statusBadge(s: Submission) {
   if (suspiciousUploadIds.value.has(s.upload_id)) return { label: '疑似相似', variant: 'destructive' as const }
   switch (s.eval_status) {
-    case 'confirmed': return { label: '已确认', variant: 'success' as const }
-    case 'scored': return { label: '待批改', variant: 'warning' as const }
-    case 'rejected': return { label: '已打回', variant: 'destructive' as const }
-    case 'pending': return { label: 'AI 评分中', variant: 'info' as const }
+    case 'confirmed':
+      return { label: '已确认', variant: 'success' as const }
+    case 'scored':
+      return { label: '待批改', variant: 'warning' as const }
+    case 'rejected':
+      return { label: '已打回', variant: 'destructive' as const }
+    case 'pending':
+      return { label: 'AI 评分中', variant: 'info' as const }
     default:
-      if (s.parse_status === 'pending' || s.parse_status === 'parsing') return { label: '解析中', variant: 'info' as const }
+      if (s.parse_status === 'pending' || s.parse_status === 'parsing')
+        return { label: '解析中', variant: 'info' as const }
       return { label: '待批改', variant: 'warning' as const }
   }
 }
@@ -548,9 +536,7 @@ function bulkReject() {
     toast({ description: '请先勾选要打回的提交', variant: 'info' })
     return
   }
-  const targets = submissions.value.filter(
-    (s) => selectedIds.value.has(s.upload_id) && s.evaluation_id,
-  )
+  const targets = submissions.value.filter((s) => selectedIds.value.has(s.upload_id) && s.evaluation_id)
   if (targets.length === 0) {
     toast({ description: '所选项目没有可打回的评价', variant: 'warning' })
     return
@@ -605,10 +591,7 @@ async function openDetail(s: Submission) {
     const evRes = await axios.get(`/api/evaluations/${s.evaluation_id}`)
     detailEvaluation.value = { ...evRes.data, scores: evRes.data.scores ?? [] }
     // history 可降级（404=新评价无历史是常态）
-    const histResult = await safeGet<HistoryItem[]>(
-      `/api/evaluations/${s.evaluation_id}/history`,
-      [],
-    )
+    const histResult = await safeGet<HistoryItem[]>(`/api/evaluations/${s.evaluation_id}/history`, [])
     detailHistory.value = histResult.data
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -694,12 +677,8 @@ function goToSimilarity(uploadId: number) {
           <Sparkles v-else class="w-4 h-4 mr-1.5" />
           一键 AI 批改未评分提交
         </Button>
-        <Button variant="outline" :disabled="selectedCount === 0" @click="bulkReject">
-          批量打回
-        </Button>
-        <Button :disabled="selectedCount === 0" @click="bulkConfirm">
-          一键确认所选 ({{ selectedCount }})
-        </Button>
+        <Button variant="outline" :disabled="selectedCount === 0" @click="bulkReject"> 批量打回 </Button>
+        <Button :disabled="selectedCount === 0" @click="bulkConfirm"> 一键确认所选 ({{ selectedCount }}) </Button>
       </div>
     </div>
 
@@ -715,7 +694,10 @@ function goToSimilarity(uploadId: number) {
             <span class="text-sm text-muted-foreground">已提交</span>
           </div>
           <div class="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-            <div class="h-full bg-primary rounded-full transition-all duration-700" :style="{ width: `${stats.submitted > 0 ? 100 : 0}%` }"></div>
+            <div
+              class="h-full bg-primary rounded-full transition-all duration-700"
+              :style="{ width: `${stats.submitted > 0 ? 100 : 0}%` }"
+            ></div>
           </div>
         </div>
         <div class="hidden w-px bg-border self-stretch"></div>
@@ -762,7 +744,11 @@ function goToSimilarity(uploadId: number) {
           <TabsTrigger value="scored">已评分 {{ counts.scored }}</TabsTrigger>
           <TabsTrigger value="confirmed">已确认 {{ counts.confirmed }}</TabsTrigger>
           <TabsTrigger value="rejected">已打回 {{ counts.rejected }}</TabsTrigger>
-          <TabsTrigger v-if="counts.suspicious > 0" value="suspicious" class="data-[state=active]:bg-danger data-[state=active]:text-destructive-foreground">
+          <TabsTrigger
+            v-if="counts.suspicious > 0"
+            value="suspicious"
+            class="data-[state=active]:bg-danger data-[state=active]:text-destructive-foreground"
+          >
             <AlertTriangle class="w-3 h-3 mr-1" />
             疑似 {{ counts.suspicious }}
           </TabsTrigger>
@@ -773,7 +759,7 @@ function goToSimilarity(uploadId: number) {
         <label class="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
           <Checkbox
             :model-value="allSelectedOnList ? true : someSelectedOnList ? 'indeterminate' : false"
-            @update:model-value="(v) => allSelectedOnList = v === true"
+            @update:model-value="(v) => (allSelectedOnList = v === true)"
             aria-label="全选"
           />
           全选
@@ -787,11 +773,7 @@ function goToSimilarity(uploadId: number) {
 
       <div class="flex flex-col">
         <template v-if="loading">
-          <div
-            v-for="n in 6"
-            :key="n"
-            class="flex items-center gap-4 px-5 py-4 border-b border-border"
-          >
+          <div v-for="n in 6" :key="n" class="flex items-center gap-4 px-5 py-4 border-b border-border">
             <Skeleton class="h-4 w-4" />
             <Skeleton class="h-9 w-9 rounded-full" />
             <div class="flex-1 space-y-2">
@@ -814,7 +796,9 @@ function goToSimilarity(uploadId: number) {
           v-else
           :key="s.upload_id"
           class="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 border-b border-border last:border-b-0 transition-colors"
-          :class="suspiciousUploadIds.has(s.upload_id) ? 'bg-danger-soft hover:bg-danger-soft/80' : 'hover:bg-surface-2'"
+          :class="
+            suspiciousUploadIds.has(s.upload_id) ? 'bg-danger-soft hover:bg-danger-soft/80' : 'hover:bg-surface-2'
+          "
         >
           <Checkbox
             :model-value="selectedIds.has(s.upload_id)"
@@ -832,7 +816,10 @@ function goToSimilarity(uploadId: number) {
               <Badge :variant="statusBadge(s).variant">{{ statusBadge(s).label }}</Badge>
             </div>
             <span class="text-[11px] text-muted-foreground truncate">
-              学号 {{ s.student_id }} · {{ formatDate(s.uploaded_at) }}<template v-if="similarityHint[s.upload_id]"> · <span class="text-danger">{{ similarityHint[s.upload_id] }}</span></template>
+              学号 {{ s.student_id }} · {{ formatDate(s.uploaded_at)
+              }}<template v-if="similarityHint[s.upload_id]">
+                · <span class="text-danger">{{ similarityHint[s.upload_id] }}</span></template
+              >
             </span>
           </div>
 
@@ -844,8 +831,11 @@ function goToSimilarity(uploadId: number) {
             <template v-else-if="s.total_score !== null">
               <span
                 class="text-xl font-bold leading-none"
-                :class="s.eval_status === 'confirmed' ? 'text-success' : (s.total_score < 70 ? 'text-accent' : 'text-ink')"
-              >{{ s.total_score }}</span>
+                :class="
+                  s.eval_status === 'confirmed' ? 'text-success' : s.total_score < 70 ? 'text-accent' : 'text-ink'
+                "
+                >{{ s.total_score }}</span
+              >
               <span class="mt-0.5 text-[10px] text-muted-foreground">综合得分</span>
             </template>
             <span v-else class="font-mono text-sm text-subtle-foreground">——</span>
@@ -862,9 +852,23 @@ function goToSimilarity(uploadId: number) {
             >
               <AlertTriangle class="w-3 h-3" />
             </Button>
-            <Button v-if="s.eval_status === 'scored'" variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="confirmEval(s)">确认</Button>
+            <Button
+              v-if="s.eval_status === 'scored'"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-primary"
+              @click="confirmEval(s)"
+              >确认</Button
+            >
             <Button variant="ghost" size="sm" class="h-7 px-2" @click="openDetail(s)">详情</Button>
-            <Button v-if="s.evaluation_id && s.eval_status !== 'rejected'" variant="ghost" size="sm" class="h-7 px-2 text-danger hover:text-danger" @click="rejectEval(s)">打回</Button>
+            <Button
+              v-if="s.evaluation_id && s.eval_status !== 'rejected'"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-danger hover:text-danger"
+              @click="rejectEval(s)"
+              >打回</Button
+            >
           </div>
         </div>
       </div>
@@ -876,9 +880,11 @@ function goToSimilarity(uploadId: number) {
         <DialogHeader>
           <DialogTitle class="flex items-center gap-2">
             <AlertTriangle class="w-4 h-4 text-danger" />
-            {{ bulkRejectTargets.length > 0
+            {{
+              bulkRejectTargets.length > 0
                 ? `批量打回（${bulkRejectTargets.length} 项）`
-                : `打回 ${rejectTarget?.student_name ?? ''} 的提交` }}
+                : `打回 ${rejectTarget?.student_name ?? ''} 的提交`
+            }}
           </DialogTitle>
           <DialogDescription>打回操作不可撤销。学生将收到通知并被要求重新提交。</DialogDescription>
         </DialogHeader>
@@ -901,7 +907,10 @@ function goToSimilarity(uploadId: number) {
           <div class="space-y-2">
             <Label class="flex items-center justify-between">
               详细说明 <span class="text-danger">*</span>
-              <span class="font-mono text-[11px]" :class="rejectReason.trim().length >= 20 ? 'text-success' : 'text-danger'">
+              <span
+                class="font-mono text-[11px]"
+                :class="rejectReason.trim().length >= 20 ? 'text-success' : 'text-danger'"
+              >
                 {{ rejectReason.trim().length }}/20
               </span>
             </Label>
@@ -943,7 +952,11 @@ function goToSimilarity(uploadId: number) {
               <Eye class="w-3.5 h-3.5" />
               完整评价页
             </Button>
-            <Button v-if="detailTarget && detailTarget.eval_status === 'scored'" size="sm" @click="confirmEval(detailTarget)">
+            <Button
+              v-if="detailTarget && detailTarget.eval_status === 'scored'"
+              size="sm"
+              @click="confirmEval(detailTarget)"
+            >
               确认评价
             </Button>
           </div>
@@ -952,7 +965,9 @@ function goToSimilarity(uploadId: number) {
           <div>
             <h4 class="text-sm font-semibold text-ink mb-2">维度评分</h4>
             <div class="tes-table-shell border border-border rounded-md">
-              <div class="grid min-w-[460px] grid-cols-[minmax(12rem,1fr)_60px_60px_60px_70px] px-3 py-2 bg-surface-2 text-[11px] font-semibold text-muted-foreground border-b border-border">
+              <div
+                class="grid min-w-[460px] grid-cols-[minmax(12rem,1fr)_60px_60px_60px_70px] px-3 py-2 bg-surface-2 text-[11px] font-semibold text-muted-foreground border-b border-border"
+              >
                 <span>维度</span>
                 <span class="text-right">权重</span>
                 <span class="text-right">AI</span>
@@ -981,7 +996,10 @@ function goToSimilarity(uploadId: number) {
               <History class="w-3.5 h-3.5" />
               修订历史 ({{ detailHistory.length }})
             </h4>
-            <div v-if="detailHistory.length === 0" class="text-xs text-muted-foreground border border-border rounded-md px-3 py-4 text-center">
+            <div
+              v-if="detailHistory.length === 0"
+              class="text-xs text-muted-foreground border border-border rounded-md px-3 py-4 text-center"
+            >
               暂无修订记录
             </div>
             <div v-else class="space-y-1.5">
@@ -995,9 +1013,13 @@ function goToSimilarity(uploadId: number) {
                   <span class="text-muted-foreground">{{ formatDate(h.changed_at) }}</span>
                 </div>
                 <div v-if="h.before_value || h.after_value" class="mt-1 text-muted-foreground">
-                  <span v-if="h.before_value">前: <code class="font-mono">{{ h.before_value }}</code></span>
+                  <span v-if="h.before_value"
+                    >前: <code class="font-mono">{{ h.before_value }}</code></span
+                  >
                   <span v-if="h.before_value && h.after_value"> → </span>
-                  <span v-if="h.after_value">后: <code class="font-mono">{{ h.after_value }}</code></span>
+                  <span v-if="h.after_value"
+                    >后: <code class="font-mono">{{ h.after_value }}</code></span
+                  >
                 </div>
               </div>
             </div>
@@ -1019,7 +1041,9 @@ function goToSimilarity(uploadId: number) {
           <div class="space-y-2">
             <Label>主观分（0-100）</Label>
             <Input v-model.number="dimSubjScore" type="number" min="0" max="100" />
-            <p class="text-[11px] text-muted-foreground">AI 客观分 {{ editingDim?.obj_score }}，最终 = AI×60% + 教师×40%</p>
+            <p class="text-[11px] text-muted-foreground">
+              AI 客观分 {{ editingDim?.obj_score }}，最终 = AI×60% + 教师×40%
+            </p>
           </div>
           <div class="space-y-2">
             <Label>批注</Label>
