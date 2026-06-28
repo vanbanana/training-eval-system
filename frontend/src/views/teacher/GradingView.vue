@@ -639,6 +639,14 @@ function viewFullEvaluation() {
   }
 }
 
+function openSideBySide(s: Submission) {
+  if (!s.evaluation_id) {
+    toast({ description: '该提交尚未生成评价', variant: 'info' })
+    return
+  }
+  router.push(`/teacher/evaluations/${s.evaluation_id}`)
+}
+
 function goToSimilarity(uploadId: number) {
   // 找包含该 upload 的第一条 suspect 记录
   const pair = similarityPairs.value.find(
@@ -861,6 +869,17 @@ function goToSimilarity(uploadId: number) {
               @click="confirmEval(s)"
               >确认</Button
             >
+            <Button
+              v-if="s.evaluation_id"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-primary"
+              @click="openSideBySide(s)"
+              title="并排查看原文与评分"
+            >
+              <Eye class="w-3 h-3" />
+              原文
+            </Button>
             <Button variant="ghost" size="sm" class="h-7 px-2" @click="openDetail(s)">详情</Button>
             <Button
               v-if="s.evaluation_id && s.eval_status !== 'rejected'"
