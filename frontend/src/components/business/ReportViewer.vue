@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import axios from 'axios'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,8 @@ const emit = defineEmits<{ (e: 'load-error'): void }>()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const data = ref<ReportData | null>(null)
+
+const hasGarbled = computed(() => data.value?.warnings?.includes('garbled_segments_removed') ?? false)
 
 async function fetchReport() {
   loading.value = true
@@ -65,7 +67,15 @@ onMounted(fetchReport)
         <Badge variant="secondary" class="text-[10px]">{{ data.filename }}</Badge>
       </div>
       <div class="flex items-center gap-2">
-        <Badge v-if="data.is_readable" variant="success" class="text-[10px]">文本正常</Badge>
+        <Badge
+          v-if="data.is_readable && hasGarbled"
+          variant="warning"
+          class="text-[10px]"
+          title="原文档含无法识别的二进制片段（旧版 .doc 提取产生的乱码），已自动隐藏"
+        >
+          已清理乱码片段
+        </Badge>
+        <Badge v-else-if="data.is_readable" variant="success" class="text-[10px]">文本正常</Badge>
         <Badge v-else variant="destructive" class="text-[10px]">不可读</Badge>
         <Button v-if="data.download_url" variant="ghost" size="icon-sm" :href="data.download_url">
           <Download class="w-3.5 h-3.5" />
@@ -86,9 +96,7 @@ onMounted(fetchReport)
     <div v-else-if="error" class="flex-1 flex flex-col items-center justify-center gap-3 px-6">
       <AlertTriangle class="w-8 h-8 text-warning" />
       <p class="text-sm text-muted-foreground text-center">{{ error }}</p>
-      <Button variant="outline" size="sm" @click="fetchReport">
-        <RefreshCw class="w-3.5 h-3.5 mr-1.5" />重试
-      </Button>
+      <Button variant="outline" size="sm" @click="fetchReport"> <RefreshCw class="w-3.5 h-3.5 mr-1.5" />重试 </Button>
     </div>
 
     <!-- Unavailable state -->
@@ -99,9 +107,7 @@ onMounted(fetchReport)
         解析文本不可读
         <span v-if="data.warnings.length">（{{ data.warnings.join('、') }}）</span>
       </p>
-      <Button variant="outline" size="sm">
-        <Download class="w-3.5 h-3.5 mr-1.5" />下载原文件
-      </Button>
+      <Button variant="outline" size="sm"> <Download class="w-3.5 h-3.5 mr-1.5" />下载原文件 </Button>
     </div>
 
     <!-- Structured text -->
