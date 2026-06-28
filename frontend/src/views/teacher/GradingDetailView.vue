@@ -16,14 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import {
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-  Save,
-  History,
-} from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, Save, History } from 'lucide-vue-next'
 
 interface DimensionScore {
   dimension_id: number
@@ -110,11 +103,20 @@ async function fetchAll() {
 onMounted(fetchAll)
 
 // Track unsaved grading edits
-watch([teacherComment, subjScores], () => { dirty.value = true }, { deep: true })
+watch(
+  [teacherComment, subjScores],
+  () => {
+    dirty.value = true
+  },
+  { deep: true },
+)
 
 // Guard against navigation with unsaved changes (prev/next, refresh, tab close)
 onBeforeRouteLeave((_to, _from, next) => {
-  if (!dirty.value) { next(); return }
+  if (!dirty.value) {
+    next()
+    return
+  }
   const ok = window.confirm('有未保存的更改，确定离开吗？')
   if (ok) next()
   else next(false)
@@ -164,11 +166,11 @@ const previewFinalTotal = computed(() => {
   return Math.round(
     evaluation.value.scores.reduce((sum, d) => {
       const dimSubj = subjScores.value[d.dimension_id]
-      const adoptedScore = dimSubj !== undefined ? dimSubj : d.obj_score;
-      return sum + adoptedScore * (d.weight / 100);
+      const adoptedScore = dimSubj !== undefined ? dimSubj : d.obj_score
+      return sum + adoptedScore * (d.weight / 100)
     }, 0),
-  );
-});
+  )
+})
 
 async function submitConfirm() {
   if (!evaluation.value) return
@@ -236,9 +238,7 @@ async function saveDraft() {
 }
 
 const rejectTargets = computed(() =>
-  submission.value
-    ? [{ id: submission.value.upload_id, label: `${submission.value.student_name} 的提交` }]
-    : [],
+  submission.value ? [{ id: submission.value.upload_id, label: `${submission.value.student_name} 的提交` }] : [],
 )
 
 function openHistory() {
@@ -263,13 +263,20 @@ function openHistory() {
         <div class="flex items-center gap-3">
           <h1 class="text-2xl font-bold text-ink">并排对比</h1>
           <Badge v-if="submission" variant="info">{{ submission.student_name }}</Badge>
-          <Badge v-if="evaluation" :variant="evaluation.status === 'confirmed' ? 'success' : evaluation.status === 'rejected' ? 'destructive' : 'warning'">
+          <Badge
+            v-if="evaluation"
+            :variant="
+              evaluation.status === 'confirmed'
+                ? 'success'
+                : evaluation.status === 'rejected'
+                  ? 'destructive'
+                  : 'warning'
+            "
+          >
             {{ evaluation.status === 'confirmed' ? '已确认' : evaluation.status === 'rejected' ? '已打回' : '待批改' }}
           </Badge>
         </div>
-        <p class="mt-1.5 text-sm text-muted-foreground">
-          左栏文档原文 · 右栏 AI 评分及调整 · ← / → 切换上下条
-        </p>
+        <p class="mt-1.5 text-sm text-muted-foreground">左栏文档原文 · 右栏 AI 评分及调整 · ← / → 切换上下条</p>
       </div>
       <div class="flex items-center gap-2">
         <Button variant="outline" size="icon" :disabled="!prevEvalId" @click="goPrev">
@@ -292,10 +299,7 @@ function openHistory() {
     <div v-else-if="evaluation" class="tes-grid-main-aside">
       <!-- LEFT: report preview via ReportViewer -->
       <Card class="tes-card-container flex flex-col overflow-hidden max-h-[44rem]">
-        <ReportViewer
-          v-if="submission?.upload_id"
-          :upload-id="submission.upload_id"
-        />
+        <ReportViewer v-if="submission?.upload_id" :upload-id="submission.upload_id" />
         <div v-else class="flex-1 flex items-center justify-center p-8">
           <p class="text-sm text-muted-foreground">暂无提交原文</p>
         </div>
@@ -315,8 +319,12 @@ function openHistory() {
             <span class="text-sm font-semibold text-ink">综合得分预览</span>
             <span class="text-2xl font-bold text-primary num-tabular">{{ previewFinalTotal }}</span>
           </header>
-          <div class="px-5 py-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-xs text-muted-foreground">
-            <div>最终分（AI 默认，教师覆盖后生效）：<span class="text-ink font-semibold">{{ previewFinalTotal }}</span></div>
+          <div
+            class="px-5 py-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-xs text-muted-foreground"
+          >
+            <div>
+              最终分（AI 默认，教师覆盖后生效）：<span class="text-ink font-semibold">{{ previewFinalTotal }}</span>
+            </div>
           </div>
         </Card>
 
@@ -325,33 +333,42 @@ function openHistory() {
             <span class="text-sm font-semibold text-ink">维度评分</span>
           </header>
           <div
-            v-for="d in (evaluation.scores ?? [])"
+            v-for="d in evaluation.scores ?? []"
             :key="d.dimension_id"
-            class="px-5 py-3.5 border-b border-border last:border-b-0 grid grid-cols-[minmax(12rem,1fr)_70px_70px_70px] items-center gap-3"
+            class="px-5 py-4 border-b border-border last:border-b-0"
           >
-            <div>
-              <div class="text-sm font-semibold text-ink">{{ d.dimension_name }}</div>
-              <div v-if="d.comment" class="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{{ d.comment }}</div>
-            </div>
-            <div class="text-center">
-              <div class="text-[10px] text-muted-foreground">权重</div>
-              <div class="font-mono text-xs text-foreground">{{ d.weight }}%</div>
-            </div>
-            <div class="text-center">
-              <div class="text-[10px] text-muted-foreground">AI</div>
-              <div class="font-mono text-sm font-semibold" :class="d.obj_score < 70 ? 'text-accent' : 'text-ink'">
-                {{ d.obj_score }}
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-ink">{{ d.dimension_name }}</div>
+                <div v-if="d.comment" class="text-[11px] leading-relaxed text-muted-foreground mt-1 line-clamp-3">
+                  {{ d.comment }}
+                </div>
+              </div>
+              <div class="shrink-0 text-right">
+                <div class="text-[10px] text-muted-foreground">AI 评分</div>
+                <div
+                  class="font-mono text-xl font-semibold leading-none mt-0.5"
+                  :class="d.obj_score < 70 ? 'text-accent' : 'text-ink'"
+                >
+                  {{ d.obj_score }}
+                </div>
               </div>
             </div>
-            <div>
-              <Label class="text-[10px] text-muted-foreground block text-center mb-1">教师</Label>
-              <Input
-                v-model.number="subjScores[d.dimension_id]"
-                type="number"
-                min="0"
-                max="100"
-                class="h-8 text-center font-mono text-sm"
-              />
+            <div class="mt-3 flex items-center justify-between gap-3">
+              <span class="text-[11px] text-muted-foreground"
+                >权重 <span class="font-mono text-foreground">{{ d.weight }}%</span></span
+              >
+              <div class="flex items-center gap-2">
+                <Label class="text-[11px] text-muted-foreground whitespace-nowrap">教师覆盖</Label>
+                <Input
+                  v-model.number="subjScores[d.dimension_id]"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="—"
+                  class="h-8 w-20 text-center font-mono text-sm"
+                />
+              </div>
             </div>
           </div>
         </Card>
@@ -366,11 +383,7 @@ function openHistory() {
             <Save class="w-4 h-4" />
             保存草稿
           </Button>
-          <Button
-            variant="destructive"
-            :disabled="submitting || !evaluation.id"
-            @click="rejectOpen = true"
-          >
+          <Button variant="destructive" :disabled="submitting || !evaluation.id" @click="rejectOpen = true">
             <XCircle class="w-4 h-4" />
             打回重做
           </Button>
