@@ -306,79 +306,81 @@ function openHistory() {
       </Card>
 
       <!-- RIGHT: AI scores + teacher input -->
-      <div class="flex flex-col gap-4">
-        <EvaluationProgressPanel
-          v-if="submission"
-          :parse-status="submission.parse_status"
-          :eval-status="evaluation.status"
-          :uploaded-at="submission.uploaded_at"
-        />
+      <div class="flex flex-col gap-4 max-h-[44rem]">
+        <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pr-1">
+          <EvaluationProgressPanel
+            v-if="submission"
+            :parse-status="submission.parse_status"
+            :eval-status="evaluation.status"
+            :uploaded-at="submission.uploaded_at"
+          />
 
-        <Card class="tes-card-container">
-          <header class="px-5 py-4 border-b border-border flex justify-between items-center">
-            <span class="text-sm font-semibold text-ink">综合得分预览</span>
-            <span class="text-2xl font-bold text-primary num-tabular">{{ previewFinalTotal }}</span>
-          </header>
-          <div
-            class="px-5 py-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-xs text-muted-foreground"
-          >
-            <div>
-              最终分（AI 默认，教师覆盖后生效）：<span class="text-ink font-semibold">{{ previewFinalTotal }}</span>
+          <Card class="tes-card-container">
+            <header class="px-5 py-4 border-b border-border flex justify-between items-center">
+              <span class="text-sm font-semibold text-ink">综合得分预览</span>
+              <span class="text-2xl font-bold text-primary num-tabular">{{ previewFinalTotal }}</span>
+            </header>
+            <div
+              class="px-5 py-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3 text-xs text-muted-foreground"
+            >
+              <div>
+                最终分（AI 默认，教师覆盖后生效）：<span class="text-ink font-semibold">{{ previewFinalTotal }}</span>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card class="tes-card-container overflow-hidden">
-          <header class="px-5 py-4 border-b border-border">
-            <span class="text-sm font-semibold text-ink">维度评分</span>
-          </header>
-          <div
-            v-for="d in evaluation.scores ?? []"
-            :key="d.dimension_id"
-            class="px-5 py-4 border-b border-border last:border-b-0"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <div class="text-sm font-semibold text-ink">{{ d.dimension_name }}</div>
-                <div v-if="d.comment" class="text-[11px] leading-relaxed text-muted-foreground mt-1 line-clamp-3">
-                  {{ d.comment }}
+          <Card class="tes-card-container overflow-hidden">
+            <header class="px-5 py-4 border-b border-border">
+              <span class="text-sm font-semibold text-ink">维度评分</span>
+            </header>
+            <div
+              v-for="d in evaluation.scores ?? []"
+              :key="d.dimension_id"
+              class="px-5 py-4 border-b border-border last:border-b-0"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="text-sm font-semibold text-ink">{{ d.dimension_name }}</div>
+                  <div v-if="d.comment" class="text-[11px] leading-relaxed text-muted-foreground mt-1 line-clamp-3">
+                    {{ d.comment }}
+                  </div>
+                </div>
+                <div class="shrink-0 text-right">
+                  <div class="text-[10px] text-muted-foreground">AI 评分</div>
+                  <div
+                    class="font-mono text-xl font-semibold leading-none mt-0.5"
+                    :class="d.obj_score < 70 ? 'text-accent' : 'text-ink'"
+                  >
+                    {{ d.obj_score }}
+                  </div>
                 </div>
               </div>
-              <div class="shrink-0 text-right">
-                <div class="text-[10px] text-muted-foreground">AI 评分</div>
-                <div
-                  class="font-mono text-xl font-semibold leading-none mt-0.5"
-                  :class="d.obj_score < 70 ? 'text-accent' : 'text-ink'"
+              <div class="mt-3 flex items-center justify-between gap-3">
+                <span class="text-[11px] text-muted-foreground"
+                  >权重 <span class="font-mono text-foreground">{{ d.weight }}%</span></span
                 >
-                  {{ d.obj_score }}
+                <div class="flex items-center gap-2">
+                  <Label class="text-[11px] text-muted-foreground whitespace-nowrap">教师覆盖</Label>
+                  <Input
+                    v-model.number="subjScores[d.dimension_id]"
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="—"
+                    class="h-8 w-20 text-center font-mono text-sm"
+                  />
                 </div>
               </div>
             </div>
-            <div class="mt-3 flex items-center justify-between gap-3">
-              <span class="text-[11px] text-muted-foreground"
-                >权重 <span class="font-mono text-foreground">{{ d.weight }}%</span></span
-              >
-              <div class="flex items-center gap-2">
-                <Label class="text-[11px] text-muted-foreground whitespace-nowrap">教师覆盖</Label>
-                <Input
-                  v-model.number="subjScores[d.dimension_id]"
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="—"
-                  class="h-8 w-20 text-center font-mono text-sm"
-                />
-              </div>
-            </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card class="p-5 flex flex-col gap-2">
-          <Label class="text-sm font-semibold text-ink">教师评语</Label>
-          <Textarea v-model="teacherComment" rows="3" placeholder="给学生的整体反馈和改进建议（可选）" />
-        </Card>
+          <Card class="p-5 flex flex-col gap-2">
+            <Label class="text-sm font-semibold text-ink">教师评语</Label>
+            <Textarea v-model="teacherComment" rows="3" placeholder="给学生的整体反馈和改进建议（可选）" />
+          </Card>
+        </div>
 
-        <div class="flex gap-3 sticky bottom-0">
+        <div class="flex flex-wrap gap-2 shrink-0 border-t border-border bg-background pt-3">
           <Button variant="outline" :disabled="submitting" @click="saveDraft">
             <Save class="w-4 h-4" />
             保存草稿
@@ -387,7 +389,7 @@ function openHistory() {
             <XCircle class="w-4 h-4" />
             打回重做
           </Button>
-          <Button class="flex-1" :disabled="submitting" @click="submitConfirm">
+          <Button class="flex-1 min-w-[12rem]" :disabled="submitting" @click="submitConfirm">
             <CheckCircle2 class="w-4 h-4" />
             确认评价并通知学生
           </Button>
