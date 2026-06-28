@@ -11,14 +11,14 @@ import (
 	"sync"
 	"time"
 
-"github.com/smartedu/training-eval-system/internal/llm"
-		"github.com/smartedu/training-eval-system/internal/model"
-		"github.com/smartedu/training-eval-system/internal/parser"
-		"github.com/smartedu/training-eval-system/internal/repository"
-		"github.com/smartedu/training-eval-system/internal/similarity"
-		"github.com/smartedu/training-eval-system/internal/sse"
-		"github.com/smartedu/training-eval-system/internal/vision"
-		"github.com/smartedu/training-eval-system/internal/worker"
+	"github.com/smartedu/training-eval-system/internal/llm"
+	"github.com/smartedu/training-eval-system/internal/model"
+	"github.com/smartedu/training-eval-system/internal/parser"
+	"github.com/smartedu/training-eval-system/internal/repository"
+	"github.com/smartedu/training-eval-system/internal/similarity"
+	"github.com/smartedu/training-eval-system/internal/sse"
+	"github.com/smartedu/training-eval-system/internal/vision"
+	"github.com/smartedu/training-eval-system/internal/worker"
 )
 
 // OrchestratorDeps groups constructor dependencies.
@@ -33,21 +33,23 @@ type OrchestratorDeps struct {
 	SystemCfgRepo repository.SystemConfigRepo
 	LLMClient     llm.LLMClient
 	VisionParser  *VisionParser // GLM-4V-Flash vision parser (optional, replaces text-only parse)
+	PageImageDir  string        // where rendered original-document page images are cached
 	OnScored      func(studentID int64)
 }
 
 // Orchestrator coordinates the multi-stage evaluation pipeline.
 type Orchestrator struct {
-	pool        *worker.Pool
-	broker      *sse.Broker
-	uploadRepo  repository.UploadRepo
-	evalRepo    repository.EvaluationRepo
-	simRepo     repository.SimilarityRepo
-	taskRepo    repository.TaskRepo
-	profileRepo repository.ProfileRepo
-	llmClient   llm.LLMClient
-	vision      *VisionParser
-	onScored    func(studentID int64)
+	pool         *worker.Pool
+	broker       *sse.Broker
+	uploadRepo   repository.UploadRepo
+	evalRepo     repository.EvaluationRepo
+	simRepo      repository.SimilarityRepo
+	taskRepo     repository.TaskRepo
+	profileRepo  repository.ProfileRepo
+	llmClient    llm.LLMClient
+	vision       *VisionParser
+	pageImageDir string
+	onScored     func(studentID int64)
 
 	scorer     *Scorer
 	verifier   *Verifier
@@ -61,17 +63,21 @@ type Orchestrator struct {
 // NewOrchestrator creates a pipeline orchestrator with all dependencies injected.
 func NewOrchestrator(deps OrchestratorDeps) *Orchestrator {
 	o := &Orchestrator{
-		pool:        deps.Pool,
-		broker:      deps.Broker,
-		uploadRepo:  deps.UploadRepo,
-		evalRepo:    deps.EvalRepo,
-		simRepo:     deps.SimRepo,
-		taskRepo:    deps.TaskRepo,
-		profileRepo: deps.ProfileRepo,
-		llmClient:   deps.LLMClient,
-		vision:      deps.VisionParser,
-		onScored:    deps.OnScored,
-		activeTasks: make(map[int64]struct{}),
+		pool:         deps.Pool,
+		broker:       deps.Broker,
+		uploadRepo:   deps.UploadRepo,
+		evalRepo:     deps.EvalRepo,
+		simRepo:      deps.SimRepo,
+		taskRepo:     deps.TaskRepo,
+		profileRepo:  deps.ProfileRepo,
+		llmClient:    deps.LLMClient,
+		vision:       deps.VisionParser,
+		pageImageDir: deps.PageImageDir,
+		onScored:     deps.OnScored,
+		activeTasks:  make(map[int64]struct{}),
+	}
+	if o.pageImageDir == "" {
+		o.pageImageDir = "./data/page_images"
 	}
 
 	o.scorer = &Scorer{
@@ -178,8 +184,8 @@ func (o *Orchestrator) TriggerScore(ctx context.Context, uploadID int64) error {
 	// Check for existing pending evaluation
 	pendingStatus := "pending"
 	evals, _, _ := o.evalRepo.List(ctx, repository.EvalListParams{
-		UploadID: &uploadID,
-		Status:   &pendingStatus,
+		UploadID:   &uploadID,
+		Status:     &pendingStatus,
 		ListParams: repository.ListParams{Page: 1, PageSize: 1},
 	})
 	if len(evals) == 0 {
@@ -574,6 +580,12 @@ func (o *Orchestrator) parseWithVision(ctx context.Context, upload *model.Upload
 
 	slog.Info("vision: converting document",
 		"upload_id", upload.ID, "pages", len(pages), "file_type", upload.FileType)
+
+	// Cache the rendered pages so the teacher can view the faithful original
+	// document (图文原貌) alongside the OCR text.
+	if err := o.savePageImages(upload.ID, pages); err != nil {
+		slog.Warn("vision: failed to cache page images", "upload_id", upload.ID, "error", err.Error())
+	}
 
 	dataURIs := make([]string, len(pages))
 	for i, p := range pages {

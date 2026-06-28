@@ -25,10 +25,10 @@ type GradingHandler struct {
 	userSvc   *service.UserService
 	db        *store.DB
 	orch      *pipeline.Orchestrator
-llmClient llm.LLMClient
-	}
-	
-	func NewGradingHandler(evalSvc *service.EvaluationService, uploadSvc *service.UploadService, userSvc *service.UserService, db *store.DB, orch *pipeline.Orchestrator, llmClient llm.LLMClient) *GradingHandler {
+	llmClient llm.LLMClient
+}
+
+func NewGradingHandler(evalSvc *service.EvaluationService, uploadSvc *service.UploadService, userSvc *service.UserService, db *store.DB, orch *pipeline.Orchestrator, llmClient llm.LLMClient) *GradingHandler {
 	return &GradingHandler{evalSvc: evalSvc, uploadSvc: uploadSvc, userSvc: userSvc, db: db, orch: orch, llmClient: llmClient}
 }
 
@@ -172,15 +172,15 @@ func (h *GradingHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
 		summary.ProgressPercent = float64(summary.ConfirmedCount) / float64(totalUploads) * 100
 	}
 
-// Total students from task_classes
-		var totalStudents int64
-		if err := h.db.Reader.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM class_memberships cm
+	// Total students from task_classes
+	var totalStudents int64
+	if err := h.db.Reader.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM class_memberships cm
 			 JOIN task_classes tc ON tc.class_id = cm.class_id
 			 WHERE tc.task_id = ?`, taskID).Scan(&totalStudents); err != nil {
-			slog.Error("grading summary: count students failed", "task_id", taskID, "error", err)
-		}
-		summary.TotalStudents = int(totalStudents)
+		slog.Error("grading summary: count students failed", "task_id", taskID, "error", err)
+	}
+	summary.TotalStudents = int(totalStudents)
 
 	JSON(w, http.StatusOK, summary)
 }
@@ -395,16 +395,16 @@ func (h *GradingHandler) AutoScore(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-// Submit scoring task to pipeline if orchestrator is available
-			if h.orch != nil {
-				uploadID := u.ID
-				bgCtx := context.WithoutCancel(ctx) // prevent context cancellation from killing background scoring
-				go func() {
-					if err := h.orch.TriggerScore(bgCtx, uploadID); err != nil {
-						slog.Error("auto-score: trigger scoring failed", "upload_id", uploadID, "error", err)
-					}
-				}()
-			}
+		// Submit scoring task to pipeline if orchestrator is available
+		if h.orch != nil {
+			uploadID := u.ID
+			bgCtx := context.WithoutCancel(ctx) // prevent context cancellation from killing background scoring
+			go func() {
+				if err := h.orch.TriggerScore(bgCtx, uploadID); err != nil {
+					slog.Error("auto-score: trigger scoring failed", "upload_id", uploadID, "error", err)
+				}
+			}()
+		}
 		result.Queued++
 		result.Requested++
 		result.Items = append(result.Items, dto.AutoScoreItem{UploadID: u.ID, Status: "queued"})
@@ -507,74 +507,74 @@ func (h *GradingHandler) Workbench(w http.ResponseWriter, r *http.Request) {
 			} `json:"classes"`
 		}{ID: c.ID, Name: c.Name, Code: c.Code}
 
-// Get classes for this course
-			var teacherID *int64
-			if claims.Role == "teacher" {
-				teacherID = &claims.Sub
-			}
-			classes, err := h.db.Reader.QueryContext(ctx,
-				`SELECT id, name, student_count FROM classes WHERE course_id=? AND is_archived=0
+		// Get classes for this course
+		var teacherID *int64
+		if claims.Role == "teacher" {
+			teacherID = &claims.Sub
+		}
+		classes, err := h.db.Reader.QueryContext(ctx,
+			`SELECT id, name, student_count FROM classes WHERE course_id=? AND is_archived=0
 				 AND (? IS NULL OR teacher_id=?) ORDER BY name`,
-				c.ID, teacherID, claims.Sub)
-			if err != nil {
-				slog.Error("workbench: class query failed", "course_id", c.ID, "error", err)
-				continue
-			}
-			func() {
-				defer classes.Close()
-				for classes.Next() {
-					var cl struct {
-						classInfo
-						Tasks []taskInfo `json:"tasks"`
-					}
-					if err := classes.Scan(&cl.ID, &cl.Name, &cl.StudentCount); err != nil {
-						slog.Error("workbench: scan class row", "error", err)
-						continue
-					}
+			c.ID, teacherID, claims.Sub)
+		if err != nil {
+			slog.Error("workbench: class query failed", "course_id", c.ID, "error", err)
+			continue
+		}
+		func() {
+			defer classes.Close()
+			for classes.Next() {
+				var cl struct {
+					classInfo
+					Tasks []taskInfo `json:"tasks"`
+				}
+				if err := classes.Scan(&cl.ID, &cl.Name, &cl.StudentCount); err != nil {
+					slog.Error("workbench: scan class row", "error", err)
+					continue
+				}
 
-					// Get tasks for this class
-					tasks, err := h.db.Reader.QueryContext(ctx,
-						`SELECT t.id, t.name, t.status FROM training_tasks t
+				// Get tasks for this class
+				tasks, err := h.db.Reader.QueryContext(ctx,
+					`SELECT t.id, t.name, t.status FROM training_tasks t
 						 JOIN task_classes tc ON tc.task_id = t.id
 						 WHERE tc.class_id = ? AND t.course_id = ? AND t.status != 'draft'
 						 ORDER BY t.created_at DESC`, cl.ID, c.ID)
-					if err != nil {
-						slog.Error("workbench: task query failed", "class_id", cl.ID, "error", err)
-						continue
-					}
-					func() {
-						defer tasks.Close()
-						for tasks.Next() {
-							var tk taskInfo
-							if err := tasks.Scan(&tk.ID, &tk.Name, &tk.Status); err != nil {
-								slog.Error("workbench: scan task row", "error", err)
-								continue
-							}
+				if err != nil {
+					slog.Error("workbench: task query failed", "class_id", cl.ID, "error", err)
+					continue
+				}
+				func() {
+					defer tasks.Close()
+					for tasks.Next() {
+						var tk taskInfo
+						if err := tasks.Scan(&tk.ID, &tk.Name, &tk.Status); err != nil {
+							slog.Error("workbench: scan task row", "error", err)
+							continue
+						}
 
-							// Count eval statuses for this task
-							h.db.Reader.QueryRowContext(ctx,
-								`SELECT COUNT(*) FROM evaluations e
+						// Count eval statuses for this task
+						h.db.Reader.QueryRowContext(ctx,
+							`SELECT COUNT(*) FROM evaluations e
 								 JOIN uploads u ON u.id = e.upload_id
 								 WHERE e.task_id = ? AND e.status = 'pending'`, tk.ID).Scan(&tk.PendingAICount)
-							h.db.Reader.QueryRowContext(ctx,
-								`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'scored'`, tk.ID).Scan(&tk.ScoredCount)
-							h.db.Reader.QueryRowContext(ctx,
-								`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'confirmed'`, tk.ID).Scan(&tk.ConfirmedCount)
-							h.db.Reader.QueryRowContext(ctx,
-								`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'rejected'`, tk.ID).Scan(&tk.RejectedCount)
+						h.db.Reader.QueryRowContext(ctx,
+							`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'scored'`, tk.ID).Scan(&tk.ScoredCount)
+						h.db.Reader.QueryRowContext(ctx,
+							`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'confirmed'`, tk.ID).Scan(&tk.ConfirmedCount)
+						h.db.Reader.QueryRowContext(ctx,
+							`SELECT COUNT(*) FROM evaluations WHERE task_id = ? AND status = 'rejected'`, tk.ID).Scan(&tk.RejectedCount)
 
-							cl.Tasks = append(cl.Tasks, tk)
-							workbench.Summary.PendingAICount += tk.PendingAICount
-							workbench.Summary.ScoredUnconfirmed += tk.ScoredCount
-							workbench.Summary.ConfirmedTodayCount += tk.ConfirmedCount
-						}
-					}()
-					if cl.Tasks == nil {
-						cl.Tasks = []taskInfo{}
+						cl.Tasks = append(cl.Tasks, tk)
+						workbench.Summary.PendingAICount += tk.PendingAICount
+						workbench.Summary.ScoredUnconfirmed += tk.ScoredCount
+						workbench.Summary.ConfirmedTodayCount += tk.ConfirmedCount
 					}
-					courseEntry.Classes = append(courseEntry.Classes, cl)
+				}()
+				if cl.Tasks == nil {
+					cl.Tasks = []taskInfo{}
 				}
-			}()
+				courseEntry.Classes = append(courseEntry.Classes, cl)
+			}
+		}()
 		if courseEntry.Classes == nil {
 			courseEntry.Classes = []struct {
 				classInfo
@@ -637,6 +637,58 @@ func (h *GradingHandler) ReportView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, resp)
+}
+
+// PageList reports how many original-document page images are available for an
+// upload (rendered on demand from the source file).
+func (h *GradingHandler) PageList(w http.ResponseWriter, r *http.Request) {
+	uploadID, err := PathInt64(r, "uploadId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid upload ID")
+		return
+	}
+	ctx := r.Context()
+	upload, err := h.uploadSvc.GetByID(ctx, uploadID)
+	if err != nil || upload == nil {
+		Error(w, http.StatusNotFound, "Upload not found")
+		return
+	}
+	if h.orch == nil {
+		JSON(w, http.StatusOK, map[string]any{"page_count": 0, "available": false})
+		return
+	}
+	n, err := h.orch.EnsurePageImages(ctx, upload)
+	if err != nil || n == 0 {
+		JSON(w, http.StatusOK, map[string]any{"page_count": 0, "available": false})
+		return
+	}
+	JSON(w, http.StatusOK, map[string]any{"page_count": n, "available": true})
+}
+
+// PageImage serves a single rendered original-document page image.
+func (h *GradingHandler) PageImage(w http.ResponseWriter, r *http.Request) {
+	uploadID, err := PathInt64(r, "uploadId")
+	if err != nil {
+		Error(w, http.StatusBadRequest, "Invalid upload ID")
+		return
+	}
+	page, err := PathInt64(r, "page")
+	if err != nil || page < 1 {
+		Error(w, http.StatusBadRequest, "Invalid page")
+		return
+	}
+	if h.orch == nil {
+		Error(w, http.StatusNotFound, "Page not found")
+		return
+	}
+	path, ct, err := h.orch.PageImageFile(uploadID, int(page))
+	if err != nil {
+		Error(w, http.StatusNotFound, "Page not found")
+		return
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	http.ServeFile(w, r, path)
 }
 
 // canAccessTask returns error if the current user cannot access the given task.
