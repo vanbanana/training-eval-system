@@ -15,8 +15,10 @@ type StudentProfileResponse struct {
 // SchoolProfileResponse is the response for GET /api/profiles/school.
 type SchoolProfileResponse struct {
 	TotalStudents        int      `json:"total_students"`
+	EvalCount            int      `json:"eval_count"`
 	AverageScore         float64  `json:"average_score"`
 	CompletionRate       float64  `json:"completion_rate"`
+	AdoptionRate         float64  `json:"adoption_rate"`
 	ScoreDistribution    []int    `json:"score_distribution"`
 	TopDimensions        []any    `json:"top_dimensions"`
 	LLMSummary           string   `json:"llm_summary,omitempty"`            // requirement 14.4
@@ -29,9 +31,12 @@ type CourseProfileResponse struct {
 	CourseID             int64    `json:"course_id"`
 	CourseName           string   `json:"course_name"`
 	TotalStudents        int      `json:"total_students"`
+	EvalCount            int      `json:"eval_count"`
 	AverageScore         float64  `json:"average_score"`
 	ScoreDistribution    []int    `json:"score_distribution"`
 	CompletionRate       float64  `json:"completion_rate"`
+	AdoptionRate         float64  `json:"adoption_rate"`
+	TopDimensions        []any    `json:"top_dimensions"`
 	ClassComparisons     []any    `json:"class_comparisons"`
 	LLMSummary           string   `json:"llm_summary,omitempty"`            // requirement 14.4
 	CommonWeaknesses     []any    `json:"common_weaknesses,omitempty"`      // requirement 14.4

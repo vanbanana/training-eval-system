@@ -19,6 +19,7 @@ type Config struct {
 	ListenAddr      string        // default ":8000"
 	DBPath          string        // default "./data/app.db"
 	UploadRoot      string        // default "./data/uploads"
+	PageImageRoot   string        // default "./data/page_images"
 	DistDir         string        // default "./dist"
 	JWTSecret       string        // required, min 32 chars
 	JWTAccessTTL    time.Duration // default 60m
@@ -67,8 +68,8 @@ type Config struct {
 	LLMBreakerCooldown   time.Duration // cooldown before half-open recovery attempt (default 30s)
 
 	// GLM-4V-Flash vision parser settings (optional, replaces text-only parsing)
-	GLMAPIKey   string // GLM API key for vision parsing
-	GLMBaseURL  string // default "https://open.bigmodel.cn/api/paas/v4"
+	GLMAPIKey  string // GLM API key for vision parsing
+	GLMBaseURL string // default "https://open.bigmodel.cn/api/paas/v4"
 
 	// Feature flags — gradual rollout for the agent system (T9.2).
 	// All default to true (fully enabled). Set to false to disable a role's
@@ -92,6 +93,7 @@ func Load() (*Config, error) {
 		ListenAddr:           envStr("TES_LISTEN_ADDR", ":8000"),
 		DBPath:               envStr("TES_DB_PATH", "./data/app.db"),
 		UploadRoot:           envStr("TES_UPLOAD_ROOT", "./data/uploads"),
+		PageImageRoot:        envStr("TES_PAGE_IMAGE_ROOT", "./data/page_images"),
 		DistDir:              envStr("TES_DIST_DIR", "./dist"),
 		JWTSecret:            envStr("TES_JWT_SECRET", ""),
 		JWTAccessTTL:         envDuration("TES_JWT_ACCESS_TTL_MINUTES", 60*time.Minute),
@@ -162,17 +164,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: TES_JWT_SECRET must be at least 32 characters, got %d", len(cfg.JWTSecret))
 	}
 
-if cfg.LLMKeyMaster == "" {
-			return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER is required (base64-encoded 32 bytes)")
-		}
-		// Verify it's valid base64 decoding to exactly 32 bytes
-		decoded, err := base64.StdEncoding.DecodeString(cfg.LLMKeyMaster)
-		if err != nil {
-			return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER is not valid base64: %w", err)
-		}
-		if len(decoded) != 32 {
-			return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER decoded to %d bytes, expected exactly 32", len(decoded))
-		}
+	if cfg.LLMKeyMaster == "" {
+		return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER is required (base64-encoded 32 bytes)")
+	}
+	// Verify it's valid base64 decoding to exactly 32 bytes
+	decoded, err := base64.StdEncoding.DecodeString(cfg.LLMKeyMaster)
+	if err != nil {
+		return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER is not valid base64: %w", err)
+	}
+	if len(decoded) != 32 {
+		return nil, fmt.Errorf("config: TES_LLM_KEY_MASTER decoded to %d bytes, expected exactly 32", len(decoded))
+	}
 
 	// Validate log level
 	switch cfg.LogLevel {

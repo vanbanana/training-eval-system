@@ -161,7 +161,7 @@ func parseRadarData(raw any) map[string]float64 {
 func (h *ProfilesHandler) GetSchool(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	school := h.computeSchoolProfile(ctx)
+	school := h.computeSchoolProfile(ctx, r.URL.Query().Get("summary") == "1")
 	JSON(w, http.StatusOK, school)
 }
 
@@ -174,11 +174,11 @@ func (h *ProfilesHandler) GetCourse(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 
-	course := h.computeCourseProfile(ctx, courseID)
+	course := h.computeCourseProfile(ctx, courseID, r.URL.Query().Get("summary") == "1")
 	JSON(w, http.StatusOK, course)
 }
 
-func (h *ProfilesHandler) computeSchoolProfile(ctx context.Context) dto.SchoolProfileResponse {
+func (h *ProfilesHandler) computeSchoolProfile(ctx context.Context, withSummary bool) dto.SchoolProfileResponse {
 	resp := dto.SchoolProfileResponse{}
 
 	// Total students enrolled
@@ -195,6 +195,17 @@ func (h *ProfilesHandler) computeSchoolProfile(ctx context.Context) dto.SchoolPr
 		"SELECT COUNT(*) FROM evaluations WHERE status IN ('scored','confirmed')").Scan(&scoredEvals)
 	if totalUploads > 0 {
 		resp.CompletionRate = float64(scoredEvals) / float64(totalUploads) * 100
+	}
+	resp.EvalCount = int(scoredEvals)
+
+	// Adoption rate: share of confirmed evaluations where the teacher kept the AI score (no dimension override).
+	var confirmedTotal, confirmedAdopted int64
+	h.db.Reader.QueryRowContext(ctx, "SELECT COUNT(*) FROM evaluations WHERE status='confirmed'").Scan(&confirmedTotal)
+	h.db.Reader.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM evaluations e WHERE e.status='confirmed'
+		 AND NOT EXISTS (SELECT 1 FROM dimension_scores ds WHERE ds.evaluation_id=e.id AND ds.teacher_score IS NOT NULL)`).Scan(&confirmedAdopted)
+	if confirmedTotal > 0 {
+		resp.AdoptionRate = float64(confirmedAdopted) / float64(confirmedTotal) * 100
 	}
 
 	// Score distribution
@@ -245,8 +256,8 @@ func (h *ProfilesHandler) computeSchoolProfile(ctx context.Context) dto.SchoolPr
 		}
 	}
 
-	// LLM summary (requirement 14.4)
-	if h.llmClient != nil {
+	// LLM summary (requirement 14.4) — lazy: only when explicitly requested, since it is slow.
+	if withSummary && h.llmClient != nil {
 		llmSummary := h.generateTeachingSummary(ctx, "学校", []string{}, resp.AverageScore, resp.ScoreDistribution, resp.RecommendTeachingFor)
 		resp.LLMSummary = llmSummary
 	}
@@ -254,7 +265,7 @@ func (h *ProfilesHandler) computeSchoolProfile(ctx context.Context) dto.SchoolPr
 	return resp
 }
 
-func (h *ProfilesHandler) computeCourseProfile(ctx context.Context, courseID int64) dto.CourseProfileResponse {
+func (h *ProfilesHandler) computeCourseProfile(ctx context.Context, courseID int64, withSummary bool) dto.CourseProfileResponse {
 	resp := dto.CourseProfileResponse{CourseID: courseID}
 
 	// Course name
@@ -278,6 +289,19 @@ func (h *ProfilesHandler) computeCourseProfile(ctx context.Context, courseID int
 		`SELECT COUNT(*) FROM evaluations e JOIN training_tasks t ON t.id=e.task_id WHERE t.course_id=? AND e.status IN ('scored','confirmed')`, courseID).Scan(&scoredEvals)
 	if totalUploads > 0 {
 		resp.CompletionRate = float64(scoredEvals) / float64(totalUploads) * 100
+	}
+	resp.EvalCount = int(scoredEvals)
+
+	// Adoption rate within this course.
+	var confirmedTotal, confirmedAdopted int64
+	h.db.Reader.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM evaluations e JOIN training_tasks t ON t.id=e.task_id WHERE t.course_id=? AND e.status='confirmed'`, courseID).Scan(&confirmedTotal)
+	h.db.Reader.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM evaluations e JOIN training_tasks t ON t.id=e.task_id
+		 WHERE t.course_id=? AND e.status='confirmed'
+		 AND NOT EXISTS (SELECT 1 FROM dimension_scores ds WHERE ds.evaluation_id=e.id AND ds.teacher_score IS NOT NULL)`, courseID).Scan(&confirmedAdopted)
+	if confirmedTotal > 0 {
+		resp.AdoptionRate = float64(confirmedAdopted) / float64(confirmedTotal) * 100
 	}
 
 	// Score distribution
@@ -339,6 +363,9 @@ func (h *ProfilesHandler) computeCourseProfile(ctx context.Context, courseID int
 			var name string
 			var avg, weakRatio float64
 			dimRows.Scan(&name, &avg, &weakRatio)
+			resp.TopDimensions = append(resp.TopDimensions, map[string]any{
+				"name": name, "average_score": avg, "weak_student_ratio": weakRatio,
+			})
 			if weakRatio > 30 {
 				resp.CommonWeaknesses = append(resp.CommonWeaknesses, map[string]any{
 					"dimension": name, "avg_score": avg, "weak_ratio": weakRatio,
@@ -348,8 +375,8 @@ func (h *ProfilesHandler) computeCourseProfile(ctx context.Context, courseID int
 		}
 	}
 
-	// LLM summary (requirement 14.4)
-	if h.llmClient != nil {
+	// LLM summary (requirement 14.4) — lazy: only when explicitly requested, since it is slow.
+	if withSummary && h.llmClient != nil {
 		llmSummary := h.generateTeachingSummary(ctx, resp.CourseName, resp.RecommendTeachingFor, resp.AverageScore, resp.ScoreDistribution, resp.RecommendTeachingFor)
 		resp.LLMSummary = llmSummary
 	}

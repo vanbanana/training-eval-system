@@ -168,6 +168,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 				r.Post("/tasks/{id}/auto-score", cfg.GradingHandler.AutoScore)
 				r.Get("/workbench", cfg.GradingHandler.Workbench)
 				r.Get("/uploads/{uploadId}/report-view", cfg.GradingHandler.ReportView)
+				r.Get("/uploads/{uploadId}/pages", cfg.GradingHandler.PageList)
+				r.Get("/uploads/{uploadId}/pages/{page}", cfg.GradingHandler.PageImage)
 			})
 
 			r.Route("/similarity", func(r chi.Router) {

@@ -9,19 +9,19 @@ import (
 	"syscall"
 	"time"
 
-"github.com/smartedu/training-eval-system/internal/config"
-		"github.com/smartedu/training-eval-system/internal/crypto"
-		"github.com/smartedu/training-eval-system/internal/handler"
-		"github.com/smartedu/training-eval-system/internal/llm"
-		"github.com/smartedu/training-eval-system/internal/middleware"
-		"github.com/smartedu/training-eval-system/internal/model"
-		"github.com/smartedu/training-eval-system/internal/pipeline"
-		"github.com/smartedu/training-eval-system/internal/repository"
-		"github.com/smartedu/training-eval-system/internal/service"
-		"github.com/smartedu/training-eval-system/internal/sse"
-		"github.com/smartedu/training-eval-system/internal/store"
-		"github.com/smartedu/training-eval-system/internal/vision"
-		"github.com/smartedu/training-eval-system/internal/worker"
+	"github.com/smartedu/training-eval-system/internal/config"
+	"github.com/smartedu/training-eval-system/internal/crypto"
+	"github.com/smartedu/training-eval-system/internal/handler"
+	"github.com/smartedu/training-eval-system/internal/llm"
+	"github.com/smartedu/training-eval-system/internal/middleware"
+	"github.com/smartedu/training-eval-system/internal/model"
+	"github.com/smartedu/training-eval-system/internal/pipeline"
+	"github.com/smartedu/training-eval-system/internal/repository"
+	"github.com/smartedu/training-eval-system/internal/service"
+	"github.com/smartedu/training-eval-system/internal/sse"
+	"github.com/smartedu/training-eval-system/internal/store"
+	"github.com/smartedu/training-eval-system/internal/vision"
+	"github.com/smartedu/training-eval-system/internal/worker"
 )
 
 func main() {
@@ -179,6 +179,7 @@ func main() {
 		SystemCfgRepo: repository.NewSystemConfigRepo(db),
 		LLMClient:     llmClient,
 		VisionParser:  visionParser,
+		PageImageDir:  cfg.PageImageRoot,
 		OnScored:      profileComputer.TriggerRecompute,
 	})
 	_ = orch // used by handlers below
@@ -287,8 +288,8 @@ func main() {
 		SSEHandler:           sseHandler,
 		HealthHandler:        healthHandler,
 		StaticHandler:        staticHandler,
-		ParseAdminHandler:  parseAdminHandler,
-			CapabilitiesHandler:  handler.NewCapabilitiesHandler(featureFlags),
+		ParseAdminHandler:    parseAdminHandler,
+		CapabilitiesHandler:  handler.NewCapabilitiesHandler(featureFlags),
 	})
 
 	// 10. Start HTTP server

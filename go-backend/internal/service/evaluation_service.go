@@ -85,11 +85,25 @@ func (s *EvaluationService) Update(ctx context.Context, e *model.Evaluation) err
 	return s.repo.Update(ctx, e)
 }
 
-// SaveScores saves dimension scores and computes total score.
+// ErrRejectedEvaluation is returned when a caller tries to modify the scores of
+// a rejected evaluation. Rejected evaluations must be reopened (set back to
+// pending) before they can be scored again.
+var ErrRejectedEvaluation = fmt.Errorf("evaluation_service: cannot modify a rejected evaluation")
+
+// SaveScores saves dimension scores, recomputes the total and persists it.
+//
+// The evaluation status is preserved rather than forced to "scored": a teacher
+// editing a dimension of an already-confirmed evaluation keeps it confirmed
+// (previously it was silently downgraded to "scored"). A still-pending
+// evaluation is promoted to "scored" once it has scores. Rejected evaluations
+// are immutable until reopened.
 func (s *EvaluationService) SaveScores(ctx context.Context, evalID int64, scores []model.DimensionScore) error {
 	eval, err := s.repo.GetByID(ctx, evalID)
 	if err != nil {
 		return err
+	}
+	if eval.Status == "rejected" {
+		return ErrRejectedEvaluation
 	}
 	dims, err := s.taskRepo.GetDimensions(ctx, eval.TaskID)
 	if err != nil {
@@ -104,7 +118,9 @@ func (s *EvaluationService) SaveScores(ctx context.Context, evalID int64, scores
 		return err
 	}
 	eval.TotalScore = &totalScore
-	eval.Status = "scored"
+	if eval.Status == "pending" {
+		eval.Status = "scored"
+	}
 	return s.repo.Update(ctx, eval)
 }
 
@@ -120,42 +136,6 @@ func (s *EvaluationService) BatchConfirm(ctx context.Context, ids []int64) error
 		}
 	}
 	return s.repo.BatchConfirm(ctx, ids)
-}
-
-// OverrideTeacherScore sets teacher_score for a specific dimension and recalculates total.
-func (s *EvaluationService) OverrideTeacherScore(ctx context.Context, evalID, dimID int64, teacherScore *float64) error {
-	eval, err := s.repo.GetByID(ctx, evalID)
-	if err != nil {
-		return err
-	}
-	if eval.Status == "rejected" {
-		return fmt.Errorf("evaluation_service: cannot modify a rejected evaluation")
-	}
-	if err := s.repo.UpdateDimensionTeacherScore(ctx, evalID, dimID, teacherScore); err != nil {
-		return err
-	}
-	dims, err := s.taskRepo.GetDimensions(ctx, eval.TaskID)
-	if err != nil {
-		return err
-	}
-	weightMap := make(map[int64]int)
-	for _, d := range dims {
-		weightMap[d.ID] = d.Weight
-	}
-	scores, err := s.repo.GetDimensionScores(ctx, evalID)
-	if err != nil {
-		return err
-	}
-	totalScore := ComputeFinalScore(scores, weightMap)
-	eval.TotalScore = &totalScore
-	if err := s.repo.Update(ctx, eval); err != nil {
-		return err
-	}
-	return s.repo.AppendHistory(ctx, &model.EvaluationHistory{
-		EvaluationID: evalID,
-		OperatorID:   nil,
-		Action:       "teacher_override",
-	})
 }
 
 func (s *EvaluationService) AppendHistory(ctx context.Context, h *model.EvaluationHistory) error {

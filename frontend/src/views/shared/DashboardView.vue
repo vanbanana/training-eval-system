@@ -271,19 +271,30 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
       <!-- Header -->
       <div class="tes-page-header">
         <div class="min-w-0">
-          <h1 class="tes-clamp-title text-2xl font-bold text-ink">{{ greeting }}，{{ auth.user?.display_name }}{{ (auth.user?.display_name ?? '').endsWith('同学') ? '' : ' 同学' }}</h1>
+          <h1 class="tes-clamp-title text-2xl font-bold text-ink">
+            {{ greeting }}，{{ auth.user?.display_name
+            }}{{ (auth.user?.display_name ?? '').endsWith('同学') ? '' : ' 同学' }}
+          </h1>
           <p class="mt-1 text-sm text-muted-foreground">
             <template v-if="studentData.rank && studentData.class_size">
               班级排名第 {{ studentData.rank }} · 共 {{ studentData.class_size }} 人 ·
             </template>
-            已完成 {{ studentData.score_trend.length }} 次实训<template v-if="studentData.latest_score">，最近得分 {{ fmtScore(studentData.latest_score) }}</template>
+            已完成 {{ studentData.score_trend.length }} 次实训<template v-if="studentData.latest_score"
+              >，最近得分 {{ fmtScore(studentData.latest_score) }}</template
+            >
           </p>
         </div>
         <div class="tes-page-actions">
-          <RouterLink to="/student/history" class="inline-flex items-center gap-1.5 h-9 px-4 bg-surface border border-border-strong rounded-md text-sm font-semibold text-ink hover:bg-surface-2 transition-colors">
+          <RouterLink
+            to="/student/history"
+            class="inline-flex items-center gap-1.5 h-9 px-4 bg-surface border border-border-strong rounded-md text-sm font-semibold text-ink hover:bg-surface-2 transition-colors"
+          >
             我的评价历史
           </RouterLink>
-          <RouterLink to="/student/tasks" class="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-primary-foreground rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors">
+          <RouterLink
+            to="/student/tasks"
+            class="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-primary-foreground rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors"
+          >
             <Plus class="w-4 h-4" />
             提交实训成果
           </RouterLink>
@@ -295,46 +306,66 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">待提交任务</span>
-            <FileClock class="w-4 h-4 text-accent" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent"
+              ><FileClock class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold text-ink leading-none">{{ studentData.pending_task_count }}</div>
           <div class="flex items-center gap-1.5 text-xs font-medium text-accent">
             <AlarmClock class="w-3.5 h-3.5" />
-            <span v-if="studentData.pending_tasks.length > 0">最近一项 {{ formatDeadline(studentData.pending_tasks[0]?.deadline) }}</span>
+            <span v-if="studentData.pending_tasks.length > 0"
+              >最近一项 {{ formatDeadline(studentData.pending_tasks[0]?.deadline) }}</span
+            >
             <span v-else>暂无待提交</span>
           </div>
         </div>
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">近期评分</span>
-            <Award class="w-4 h-4 text-subtle-foreground" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-soft text-gold"
+              ><Award class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold text-ink leading-none">{{ fmtScore(studentData.latest_score) }}</div>
-          <div class="flex items-center gap-1.5 text-xs font-medium" :class="(studentData.score_diff ?? 0) >= 0 ? 'text-success' : 'text-danger'">
+          <div
+            class="flex items-center gap-1.5 text-xs font-medium"
+            :class="(studentData.score_diff ?? 0) >= 0 ? 'text-success' : 'text-danger'"
+          >
             <TrendingUp v-if="(studentData.score_diff ?? 0) >= 0" class="w-3.5 h-3.5" />
             <TrendingDown v-else class="w-3.5 h-3.5" />
-            <span v-if="studentData.score_diff != null">较上次 {{ studentData.score_diff >= 0 ? '+' : '' }}{{ fmtScore(studentData.score_diff) }}</span>
+            <span v-if="studentData.score_diff != null"
+              >较上次 {{ studentData.score_diff >= 0 ? '+' : '' }}{{ fmtScore(studentData.score_diff) }}</span
+            >
             <span v-else>首次评价</span>
           </div>
         </div>
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">班级排名</span>
-            <BarChart3 class="w-4 h-4 text-subtle-foreground" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary"
+              ><BarChart3 class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold text-ink leading-none">{{ studentData.rank ?? '—' }}</div>
           <div class="flex items-center gap-1.5 text-xs font-medium text-success">
             <TrendingUp class="w-3.5 h-3.5" />
-            <span v-if="studentData.rank && studentData.class_size">前 {{ Math.round((studentData.rank / studentData.class_size) * 100) }}% / {{ studentData.class_size }} 人</span>
+            <span v-if="studentData.rank && studentData.class_size"
+              >前 {{ Math.round((studentData.rank / studentData.class_size) * 100) }}% /
+              {{ studentData.class_size }} 人</span
+            >
             <span v-else>暂无排名</span>
           </div>
         </div>
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">AI 助手剩余次数</span>
-            <Sparkles class="w-4 h-4 text-subtle-foreground" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-info-soft text-info"
+              ><Sparkles class="w-4 h-4"
+            /></span>
           </div>
-          <div class="text-3xl font-bold text-ink leading-none">{{ (studentData.ai_daily_limit ?? 0) - (studentData.ai_used_today ?? 0) }}</div>
+          <div class="text-3xl font-bold text-ink leading-none">
+            {{ (studentData.ai_daily_limit ?? 0) - (studentData.ai_used_today ?? 0) }}
+          </div>
           <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <RefreshCw class="w-3.5 h-3.5" />
             <span>每日 {{ studentData.ai_daily_limit }} 次额度</span>
@@ -361,18 +392,41 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
               class="grid grid-cols-[36px_minmax(0,1fr)_minmax(8rem,17.5rem)_7.5rem] items-center gap-4 px-6 py-4 border-b border-border last:border-b-0 max-lg:grid-cols-[36px_minmax(0,1fr)_7.5rem] max-lg:[&_.deadline-copy]:hidden max-sm:grid-cols-1"
               :class="idx === 0 && deadlineUrgency(t.deadline) === 'danger' ? 'bg-accent-soft' : 'hover:bg-surface-2'"
             >
-              <div class="w-9 h-9 rounded-md grid place-items-center" :class="deadlineUrgency(t.deadline) === 'danger' ? 'bg-accent-soft text-accent' : deadlineUrgency(t.deadline) === 'warning' ? 'bg-primary-soft text-primary' : 'bg-muted text-muted-foreground'">
+              <div
+                class="w-9 h-9 rounded-md grid place-items-center"
+                :class="
+                  deadlineUrgency(t.deadline) === 'danger'
+                    ? 'bg-accent-soft text-accent'
+                    : deadlineUrgency(t.deadline) === 'warning'
+                      ? 'bg-primary-soft text-primary'
+                      : 'bg-muted text-muted-foreground'
+                "
+              >
                 <FileText class="w-4 h-4" />
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
                   <span class="tes-breakable text-sm font-semibold text-ink">{{ t.name }}</span>
-                  <span v-if="deadlineUrgency(t.deadline) === 'danger'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-danger-soft text-danger">{{ formatDeadline(t.deadline) }}</span>
+                  <span
+                    v-if="deadlineUrgency(t.deadline) === 'danger'"
+                    class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-danger-soft text-danger"
+                    >{{ formatDeadline(t.deadline) }}</span
+                  >
                 </div>
-                <div class="text-xs text-muted-foreground mt-1 font-mono">{{ t.deadline?.slice(0, 10) ?? '——' }} · {{ courseName(t.course_id) }}</div>
+                <div class="text-xs text-muted-foreground mt-1 font-mono">
+                  {{ t.deadline?.slice(0, 10) ?? '——' }} · {{ courseName(t.course_id) }}
+                </div>
               </div>
               <div class="deadline-copy text-xs text-muted-foreground">{{ formatDeadline(t.deadline) }}</div>
-              <RouterLink :to="`/student/tasks/${t.id}`" class="inline-flex items-center justify-center h-[34px] px-4 rounded-md text-sm font-semibold transition-colors" :class="idx === 0 ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-surface border border-border-strong text-ink hover:bg-surface-2'">
+              <RouterLink
+                :to="`/student/tasks/${t.id}`"
+                class="inline-flex items-center justify-center h-[34px] px-4 rounded-md text-sm font-semibold transition-colors"
+                :class="
+                  idx === 0
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-surface border border-border-strong text-ink hover:bg-surface-2'
+                "
+              >
                 {{ idx === 0 ? '提交成果' : '查看' }}
               </RouterLink>
             </div>
@@ -383,11 +437,16 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
             <div class="flex justify-between items-center mb-[18px]">
               <div>
                 <div class="text-base font-semibold text-ink">评分趋势</div>
-                <div class="text-xs text-muted-foreground mt-1">最近 {{ studentData.score_trend.length }} 次实训综合得分</div>
+                <div class="text-xs text-muted-foreground mt-1">
+                  最近 {{ studentData.score_trend.length }} 次实训综合得分
+                </div>
               </div>
               <RouterLink to="/student/history" class="text-xs text-primary font-medium">查看全部 ›</RouterLink>
             </div>
-            <div v-if="studentData.score_trend.length === 0" class="h-[160px] flex items-center justify-center text-sm text-muted-foreground">
+            <div
+              v-if="studentData.score_trend.length === 0"
+              class="h-[160px] flex items-center justify-center text-sm text-muted-foreground"
+            >
               暂无评分数据
             </div>
             <div v-else class="h-[160px] flex items-end justify-between gap-3 px-1">
@@ -401,7 +460,10 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
                   :class="idx === studentData.score_trend.length - 1 ? 'bg-primary' : 'bg-primary-soft'"
                   :style="{ height: `${Math.max(20, (point.score / 100) * 140)}px` }"
                 >
-                  <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-ink whitespace-nowrap">{{ point.score }}</span>
+                  <span
+                    class="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-semibold text-ink whitespace-nowrap"
+                    >{{ point.score }}</span
+                  >
                 </div>
                 <span class="text-[11px] text-muted-foreground">{{ point.label }}</span>
               </div>
@@ -416,14 +478,19 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
             <div class="flex justify-between items-center mb-3.5">
               <div>
                 <div class="text-base font-semibold text-ink">个人能力雷达</div>
-                <div class="text-xs text-muted-foreground mt-1">基于近 {{ studentData.score_trend.length }} 次评价数据</div>
+                <div class="text-xs text-muted-foreground mt-1">
+                  基于近 {{ studentData.score_trend.length }} 次评价数据
+                </div>
               </div>
             </div>
-            <div v-if="radarEntries.length === 0" class="h-[260px] flex items-center justify-center text-sm text-muted-foreground">
+            <div
+              v-if="radarEntries.length === 0"
+              class="h-[260px] flex items-center justify-center text-sm text-muted-foreground"
+            >
               评价数据不足
             </div>
             <div v-else class="flex items-center justify-center py-4">
-              <svg viewBox="0 0 300 300" class="w-full max-w-[300px] h-auto" style="overflow: visible;">
+              <svg viewBox="0 0 300 300" class="w-full max-w-[300px] h-auto" style="overflow: visible">
                 <!-- Background polygons -->
                 <g stroke="hsl(var(--border))" fill="none" stroke-width="1">
                   <polygon :points="radarPolygon(1.0)" />
@@ -434,16 +501,42 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
                 </g>
                 <!-- Axes -->
                 <g stroke="hsl(var(--border))" stroke-width="1">
-                  <line v-for="(_, i) in radarEntries" :key="'ax'+i" x1="150" y1="150" :x2="radarPoint(i, 1.0).x" :y2="radarPoint(i, 1.0).y" />
+                  <line
+                    v-for="(_, i) in radarEntries"
+                    :key="'ax' + i"
+                    x1="150"
+                    y1="150"
+                    :x2="radarPoint(i, 1.0).x"
+                    :y2="radarPoint(i, 1.0).y"
+                  />
                 </g>
                 <!-- Data polygon -->
-                <polygon :points="radarDataPoints" fill="hsl(var(--primary) / 0.18)" stroke="hsl(var(--primary))" stroke-width="2" />
+                <polygon
+                  :points="radarDataPoints"
+                  fill="hsl(var(--primary) / 0.18)"
+                  stroke="hsl(var(--primary))"
+                  stroke-width="2"
+                />
                 <g fill="hsl(var(--primary))">
-                  <circle v-for="(entry, i) in radarEntries" :key="'dot'+i" :cx="radarPoint(i, entry.score / maxRadarScore).x" :cy="radarPoint(i, entry.score / maxRadarScore).y" r="3" />
+                  <circle
+                    v-for="(entry, i) in radarEntries"
+                    :key="'dot' + i"
+                    :cx="radarPoint(i, entry.score / maxRadarScore).x"
+                    :cy="radarPoint(i, entry.score / maxRadarScore).y"
+                    r="3"
+                  />
                 </g>
                 <!-- Labels -->
                 <g font-size="11" fill="hsl(var(--muted-foreground))">
-                  <text v-for="(entry, i) in radarEntries" :key="'lbl'+i" :x="radarLabelPos(i).x" :y="radarLabelPos(i).y" :text-anchor="radarLabelPos(i).anchor">{{ entry.name }} {{ entry.score }}</text>
+                  <text
+                    v-for="(entry, i) in radarEntries"
+                    :key="'lbl' + i"
+                    :x="radarLabelPos(i).x"
+                    :y="radarLabelPos(i).y"
+                    :text-anchor="radarLabelPos(i).anchor"
+                  >
+                    {{ entry.name }} {{ entry.score }}
+                  </text>
                 </g>
               </svg>
             </div>
@@ -460,11 +553,14 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
             </div>
             <div v-else class="flex flex-col">
               <div
-                v-for="(w, idx) in (studentData.weakness_list ?? [])"
+                v-for="(w, idx) in studentData.weakness_list ?? []"
                 :key="idx"
                 class="flex gap-3.5 px-5 py-3.5 border-b border-border last:border-b-0 hover:bg-surface-2 cursor-pointer"
               >
-                <span class="w-[22px] h-[22px] bg-accent-soft text-accent font-bold text-[11px] rounded-full grid place-items-center flex-shrink-0 mt-0.5">{{ idx + 1 }}</span>
+                <span
+                  class="w-[22px] h-[22px] bg-accent-soft text-accent font-bold text-[11px] rounded-full grid place-items-center flex-shrink-0 mt-0.5"
+                  >{{ idx + 1 }}</span
+                >
                 <div class="flex-1">
                   <div class="flex justify-between items-center">
                     <span class="text-[13px] font-semibold text-ink">{{ w.name }}</span>
@@ -492,32 +588,50 @@ function radarLabelPos(index: number): { x: number; y: number; anchor: string } 
       <div class="tes-page-header">
         <div class="min-w-0">
           <h1 class="tes-clamp-title text-2xl font-bold text-ink">{{ greeting }}，{{ auth.user?.display_name }}</h1>
-          <p class="mt-1 text-sm text-muted-foreground">系统共有 {{ adminData.user_count }} 名用户，{{ adminData.task_count }} 个任务，{{ adminData.eval_count }} 份评价。</p>
+          <p class="mt-1 text-sm text-muted-foreground">
+            系统共有 {{ adminData.user_count }} 名用户，{{ adminData.task_count }} 个任务，{{ adminData.eval_count }}
+            份评价。
+          </p>
         </div>
         <div class="tes-page-actions">
-          <RouterLink to="/admin/dashboard" class="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-strong transition-colors">
+          <RouterLink
+            to="/admin/dashboard"
+            class="inline-flex items-center gap-1.5 h-9 px-4 bg-primary text-white rounded-md text-sm font-semibold hover:bg-primary-strong transition-colors"
+          >
             运行总览 →
           </RouterLink>
         </div>
       </div>
       <div class="tes-grid-kpi">
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center"><span class="text-xs font-medium tracking-wider text-muted-foreground">用户总数</span><Users class="w-4 h-4 text-subtle-foreground" /></div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-medium tracking-wider text-muted-foreground">用户总数</span
+            ><Users class="w-4 h-4 text-subtle-foreground" />
+          </div>
           <div class="text-3xl font-bold text-ink leading-none">{{ adminData.user_count }}</div>
           <div class="text-xs font-medium text-success">系统注册账号</div>
         </div>
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center"><span class="text-xs font-medium tracking-wider text-muted-foreground">实训任务</span><BookOpen class="w-4 h-4 text-subtle-foreground" /></div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-medium tracking-wider text-muted-foreground">实训任务</span
+            ><BookOpen class="w-4 h-4 text-subtle-foreground" />
+          </div>
           <div class="text-3xl font-bold text-ink leading-none">{{ adminData.task_count }}</div>
           <div class="text-xs font-medium text-info">含历史任务</div>
         </div>
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center"><span class="text-xs font-medium tracking-wider text-muted-foreground">评价总数</span><Award class="w-4 h-4 text-subtle-foreground" /></div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-medium tracking-wider text-muted-foreground">评价总数</span
+            ><Award class="w-4 h-4 text-subtle-foreground" />
+          </div>
           <div class="text-3xl font-bold text-ink leading-none">{{ adminData.eval_count }}</div>
           <div class="text-xs font-medium text-success">系统累计</div>
         </div>
         <div class="tes-card-container bg-surface border border-border rounded-lg p-5 flex flex-col gap-2.5">
-          <div class="flex justify-between items-center"><span class="text-xs font-medium tracking-wider text-muted-foreground">月活学生</span><TrendingUp class="w-4 h-4 text-subtle-foreground" /></div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-medium tracking-wider text-muted-foreground">月活学生</span
+            ><TrendingUp class="w-4 h-4 text-subtle-foreground" />
+          </div>
           <div class="text-3xl font-bold text-ink leading-none">{{ adminData.monthly_active_students }}</div>
           <div class="text-xs font-medium text-muted-foreground">近 30 天</div>
         </div>

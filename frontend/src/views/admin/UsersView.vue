@@ -17,13 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -143,19 +137,13 @@ const filtered = computed(() => {
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.trim().toLowerCase()
-    list = list.filter(
-      (u) =>
-        u.username.toLowerCase().includes(q) ||
-        u.display_name.toLowerCase().includes(q),
-    )
+    list = list.filter((u) => u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q))
   }
   return list
 })
 
 const allSelected = computed({
-  get: () =>
-    filtered.value.length > 0 &&
-    filtered.value.every((u) => selected.value.has(u.id)),
+  get: () => filtered.value.length > 0 && filtered.value.every((u) => selected.value.has(u.id)),
   set: (v: boolean) => {
     if (v) {
       filtered.value.forEach((u) => selected.value.add(u.id))
@@ -166,11 +154,7 @@ const allSelected = computed({
   },
 })
 
-const someSelected = computed(
-  () =>
-    filtered.value.some((u) => selected.value.has(u.id)) &&
-    !allSelected.value,
-)
+const someSelected = computed(() => filtered.value.some((u) => selected.value.has(u.id)) && !allSelected.value)
 
 function toggleRow(id: number, v: boolean) {
   if (v) selected.value.add(id)
@@ -183,11 +167,15 @@ function roleLabel(r: string) {
 }
 
 function roleBadgeVariant(r: string) {
-  return ({
-    admin: 'destructive',
-    teacher: 'info',
-    student: 'success',
-  } as const)[r] ?? 'secondary'
+  return (
+    (
+      {
+        admin: 'destructive',
+        teacher: 'info',
+        student: 'success',
+      } as const
+    )[r] ?? 'secondary'
+  )
 }
 
 function avatarChar(name: string) {
@@ -331,21 +319,13 @@ function downloadTemplate() {
 
 <template>
   <AppShell>
-    <BreadcrumbNav
-      :items="[
-        { label: '管理控制台', to: '/dashboard' },
-        { label: '组织' },
-        { label: '用户与权限' },
-      ]"
-    />
+    <BreadcrumbNav :items="[{ label: '管理控制台', to: '/dashboard' }, { label: '组织' }, { label: '用户与权限' }]" />
 
     <!-- Page Header -->
     <div class="tes-page-header">
       <div class="min-w-0">
         <h1 class="tes-clamp-title text-2xl font-bold text-ink">用户与权限</h1>
-        <p class="mt-1.5 text-sm text-muted-foreground">
-          管理学院教师、学生与管理员账号 · 支持批量导入与角色调整
-        </p>
+        <p class="mt-1.5 text-sm text-muted-foreground">管理学院教师、学生与管理员账号 · 支持批量导入与角色调整</p>
       </div>
       <div class="tes-page-actions">
         <Button variant="outline" @click="downloadTemplate">
@@ -365,16 +345,52 @@ function downloadTemplate() {
 
     <!-- KPI Cards -->
     <div class="tes-grid-kpi">
-      <Card v-for="(kpi, i) in [
-          { label: '系统总用户数', icon: Users, value: counts.all, hint: '含全部角色', positive: true },
-          { label: '教师', icon: GraduationCap, value: counts.teacher, hint: '教师角色总数', positive: false },
-          { label: '学生', icon: BookOpen, value: counts.student, hint: '在册学生', positive: false },
-          { label: '已禁用账号', icon: Lock, value: counts.disabled, hint: '需关注', positive: false, warn: counts.disabled > 0 },
-        ]" :key="kpi.label" class="tes-card-container anim-in" :style="{ animationDelay: i * 50 + 'ms' }">
+      <Card
+        v-for="(kpi, i) in [
+          {
+            label: '系统总用户数',
+            icon: Users,
+            value: counts.all,
+            hint: '含全部角色',
+            positive: true,
+            tint: 'bg-primary-soft text-primary',
+          },
+          {
+            label: '教师',
+            icon: GraduationCap,
+            value: counts.teacher,
+            hint: '教师角色总数',
+            positive: false,
+            tint: 'bg-info-soft text-info',
+          },
+          {
+            label: '学生',
+            icon: BookOpen,
+            value: counts.student,
+            hint: '在册学生',
+            positive: false,
+            tint: 'bg-success-soft text-success',
+          },
+          {
+            label: '已禁用账号',
+            icon: Lock,
+            value: counts.disabled,
+            hint: '需关注',
+            positive: false,
+            warn: counts.disabled > 0,
+            tint: 'bg-danger-soft text-danger',
+          },
+        ]"
+        :key="kpi.label"
+        class="tes-card-container anim-in"
+        :style="{ animationDelay: i * 50 + 'ms' }"
+      >
         <CardContent class="p-5 flex flex-col gap-2.5">
           <div class="flex justify-between items-center">
             <span class="text-xs font-medium tracking-wider text-muted-foreground">{{ kpi.label }}</span>
-            <component :is="kpi.icon" class="w-4 h-4 text-subtle-foreground" />
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg" :class="kpi.tint"
+              ><component :is="kpi.icon" class="w-4 h-4"
+            /></span>
           </div>
           <div class="text-3xl font-bold text-ink leading-none">
             <AnimatedNumber :value="kpi.value" />
@@ -400,7 +416,11 @@ function downloadTemplate() {
           <TabsTrigger value="teacher">教师 {{ counts.teacher }}</TabsTrigger>
           <TabsTrigger value="student">学生 {{ counts.student }}</TabsTrigger>
           <TabsTrigger value="admin">管理员 {{ counts.admin }}</TabsTrigger>
-          <TabsTrigger v-if="counts.disabled > 0" value="disabled" class="data-[state=active]:bg-danger data-[state=active]:text-destructive-foreground">
+          <TabsTrigger
+            v-if="counts.disabled > 0"
+            value="disabled"
+            class="data-[state=active]:bg-danger data-[state=active]:text-destructive-foreground"
+          >
             已禁用 {{ counts.disabled }}
           </TabsTrigger>
         </TabsList>
@@ -412,160 +432,162 @@ function downloadTemplate() {
           <Search class="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input v-model="searchQuery" type="text" placeholder="搜索账号 / 姓名" class="pl-9" />
         </div>
-        <span v-if="selected.size > 0" class="text-xs text-primary font-medium">
-          已选 {{ selected.size }} 项
-        </span>
+        <span v-if="selected.size > 0" class="text-xs text-primary font-medium"> 已选 {{ selected.size }} 项 </span>
         <div class="hidden sm:block flex-1"></div>
         <span class="text-xs text-muted-foreground">显示 {{ filtered.length }} 条</span>
       </div>
 
       <!-- Table -->
       <div class="tes-table-shell">
-      <div class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3 bg-surface-2 border-b border-border">
-        <Checkbox
-          :model-value="allSelected ? true : someSelected ? 'indeterminate' : false"
-          @update:model-value="(v) => allSelected = v === true"
-          aria-label="全选"
-        />
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">用户</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">角色</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">账号</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">上次登录</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
-        <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
-      </div>
-
-      <!-- Loading -->
-      <template v-if="loading">
         <div
-          v-for="n in 5"
-          :key="n"
-          class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border"
+          class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3 bg-surface-2 border-b border-border"
         >
-          <Skeleton class="h-4 w-4" />
-          <Skeleton class="h-8 w-3/4" />
-          <Skeleton class="h-5 w-16" />
-          <Skeleton class="h-4 w-20" />
-          <Skeleton class="h-4 w-20" />
-          <Skeleton class="h-5 w-12" />
-          <Skeleton class="h-4 w-16 ml-auto" />
+          <Checkbox
+            :model-value="allSelected ? true : someSelected ? 'indeterminate' : false"
+            @update:model-value="(v) => (allSelected = v === true)"
+            aria-label="全选"
+          />
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">用户</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">角色</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">账号</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">上次登录</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground">状态</div>
+          <div class="text-[11px] font-semibold tracking-wider text-muted-foreground text-right">操作</div>
         </div>
-      </template>
 
-      <!-- Empty -->
-      <EmptyState
-        v-else-if="filtered.length === 0"
-        title="无符合条件的用户"
-        description="尝试调整筛选条件，或新建一个用户"
-        action-label="新建用户"
-        @action="openCreateModal"
-      />
-
-      <!-- Rows -->
-      <div
-        v-for="(u, idx) in paged"
-        v-else
-        :key="u.id"
-        class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors hover:bg-surface-2 anim-in"
-        :class="!u.is_active ? 'opacity-60' : ''"
-        :style="{ animationDelay: Math.min(idx * 20, 200) + 'ms' }"
-      >
-        <Checkbox
-          :model-value="selected.has(u.id)"
-          @update:model-value="(v) => toggleRow(u.id, v === true)"
-          :aria-label="`选择用户 ${u.display_name}`"
-        />
-        <div class="flex items-center gap-2.5">
-          <Avatar
-            size="sm"
-            :class="u.role === 'admin' ? 'bg-danger-soft !text-danger' : ''"
+        <!-- Loading -->
+        <template v-if="loading">
+          <div
+            v-for="n in 5"
+            :key="n"
+            class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border"
           >
-            {{ avatarChar(u.display_name) }}
-          </Avatar>
-          <div class="flex flex-col gap-0.5 min-w-0">
-            <span class="text-sm font-semibold text-ink truncate">{{ u.display_name }}</span>
-            <span class="text-[11px] text-muted-foreground truncate">ID #{{ u.id }}</span>
+            <Skeleton class="h-4 w-4" />
+            <Skeleton class="h-8 w-3/4" />
+            <Skeleton class="h-5 w-16" />
+            <Skeleton class="h-4 w-20" />
+            <Skeleton class="h-4 w-20" />
+            <Skeleton class="h-5 w-12" />
+            <Skeleton class="h-4 w-16 ml-auto" />
+          </div>
+        </template>
+
+        <!-- Empty -->
+        <EmptyState
+          v-else-if="filtered.length === 0"
+          title="无符合条件的用户"
+          description="尝试调整筛选条件，或新建一个用户"
+          action-label="新建用户"
+          @action="openCreateModal"
+        />
+
+        <!-- Rows -->
+        <div
+          v-for="(u, idx) in paged"
+          v-else
+          :key="u.id"
+          class="grid min-w-[1060px] grid-cols-[40px_260px_140px_200px_160px_120px_140px] items-center px-6 py-3.5 border-b border-border last:border-b-0 transition-colors hover:bg-surface-2 anim-in"
+          :class="!u.is_active ? 'opacity-60' : ''"
+          :style="{ animationDelay: Math.min(idx * 20, 200) + 'ms' }"
+        >
+          <Checkbox
+            :model-value="selected.has(u.id)"
+            @update:model-value="(v) => toggleRow(u.id, v === true)"
+            :aria-label="`选择用户 ${u.display_name}`"
+          />
+          <div class="flex items-center gap-2.5">
+            <Avatar size="sm" :class="u.role === 'admin' ? 'bg-danger-soft !text-danger' : ''">
+              {{ avatarChar(u.display_name) }}
+            </Avatar>
+            <div class="flex flex-col gap-0.5 min-w-0">
+              <span class="text-sm font-semibold text-ink truncate">{{ u.display_name }}</span>
+              <span class="text-[11px] text-muted-foreground truncate">ID #{{ u.id }}</span>
+            </div>
+          </div>
+          <div>
+            <Badge :variant="roleBadgeVariant(u.role)">{{ roleLabel(u.role) }}</Badge>
+          </div>
+          <div class="font-mono text-xs text-foreground break-all">{{ u.username }}</div>
+          <div class="font-mono text-xs text-muted-foreground">{{ formatLastLogin(u.last_login_at) }}</div>
+          <div>
+            <Badge :variant="u.is_active ? 'success' : 'secondary'">
+              {{ u.is_active ? '启用' : '已禁用' }}
+            </Badge>
+          </div>
+          <div class="flex items-center justify-end gap-1.5">
+            <Button variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="openEditModal(u)">编辑</Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2"
+              :class="u.is_active ? 'text-danger hover:text-danger' : 'text-success hover:text-success'"
+              @click="toggleActive(u)"
+            >
+              {{ u.is_active ? '禁用' : '启用' }}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon-sm" aria-label="更多操作">
+                  <MoreHorizontal class="w-3.5 h-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-48">
+                <DropdownMenuItem @select="openEditModal(u)">
+                  <Pencil class="text-muted-foreground" />
+                  编辑信息
+                </DropdownMenuItem>
+                <DropdownMenuItem @select="openResetDialog(u)">
+                  <KeyRound class="text-muted-foreground" />
+                  重置密码
+                </DropdownMenuItem>
+                <DropdownMenuItem @select="viewLoginHistory(u)">
+                  <History class="text-muted-foreground" />
+                  查看登录历史
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  :class="
+                    u.is_active
+                      ? 'text-danger focus:bg-danger-soft focus:text-danger'
+                      : 'text-success focus:bg-success-soft focus:text-success'
+                  "
+                  @select="toggleActive(u)"
+                >
+                  <Power class="text-current" />
+                  {{ u.is_active ? '禁用账号' : '启用账号' }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-        <div>
-          <Badge :variant="roleBadgeVariant(u.role)">{{ roleLabel(u.role) }}</Badge>
-        </div>
-        <div class="font-mono text-xs text-foreground break-all">{{ u.username }}</div>
-        <div class="font-mono text-xs text-muted-foreground">{{ formatLastLogin(u.last_login_at) }}</div>
-        <div>
-          <Badge :variant="u.is_active ? 'success' : 'secondary'">
-            {{ u.is_active ? '启用' : '已禁用' }}
-          </Badge>
-        </div>
-        <div class="flex items-center justify-end gap-1.5">
-          <Button variant="ghost" size="sm" class="h-7 px-2 text-primary" @click="openEditModal(u)">编辑</Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            class="h-7 px-2"
-            :class="u.is_active ? 'text-danger hover:text-danger' : 'text-success hover:text-success'"
-            @click="toggleActive(u)"
-          >
-            {{ u.is_active ? '禁用' : '启用' }}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger as-child>
-              <Button variant="ghost" size="icon-sm" aria-label="更多操作">
-                <MoreHorizontal class="w-3.5 h-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="w-48">
-              <DropdownMenuItem @select="openEditModal(u)">
-                <Pencil class="text-muted-foreground" />
-                编辑信息
-              </DropdownMenuItem>
-              <DropdownMenuItem @select="openResetDialog(u)">
-                <KeyRound class="text-muted-foreground" />
-                重置密码
-              </DropdownMenuItem>
-              <DropdownMenuItem @select="viewLoginHistory(u)">
-                <History class="text-muted-foreground" />
-                查看登录历史
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                :class="u.is_active ? 'text-danger focus:bg-danger-soft focus:text-danger' : 'text-success focus:bg-success-soft focus:text-success'"
-                @select="toggleActive(u)"
-              >
-                <Power class="text-current" />
-                {{ u.is_active ? '禁用账号' : '启用账号' }}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
 
-      <!-- Footer -->
+        <!-- Footer -->
       </div>
 
       <div class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border-t border-border">
-          <div class="text-xs text-muted-foreground">
-            显示 {{ filtered.length > 0 ? (currentPage - 1) * pageSize + 1 : 0 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
-          </div>
-          <div v-if="totalItems > pageSize" class="flex items-center gap-1.5">
-            <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
-              <ChevronLeft class="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              v-for="page in totalPages"
-              :key="page"
-              :variant="page === currentPage ? 'default' : 'outline'"
-              size="sm"
-              class="h-8 min-w-[32px]"
-              @click="currentPage = page"
-            >
-              {{ page }}
-            </Button>
-            <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
-              <ChevronRight class="w-3.5 h-3.5" />
-            </Button>
-          </div>
+        <div class="text-xs text-muted-foreground">
+          显示 {{ filtered.length > 0 ? (currentPage - 1) * pageSize + 1 : 0 }} -
+          {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
         </div>
+        <div v-if="totalItems > pageSize" class="flex items-center gap-1.5">
+          <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
+            <ChevronLeft class="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            v-for="page in totalPages"
+            :key="page"
+            :variant="page === currentPage ? 'default' : 'outline'"
+            size="sm"
+            class="h-8 min-w-[32px]"
+            @click="currentPage = page"
+          >
+            {{ page }}
+          </Button>
+          <Button variant="outline" size="icon-sm" :disabled="currentPage >= totalPages" @click="currentPage++">
+            <ChevronRight class="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
     </Card>
 
     <!-- Create/Edit User Dialog -->
@@ -619,7 +641,7 @@ function downloadTemplate() {
         <DialogFooter class="gap-2">
           <Button variant="outline" @click="showUserModal = false">取消</Button>
           <Button :disabled="submittingUser" @click="submitUserForm">
-            {{ submittingUser ? '提交中...' : (editingUser === null ? '确认创建' : '保存修改') }}
+            {{ submittingUser ? '提交中...' : editingUser === null ? '确认创建' : '保存修改' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -631,7 +653,8 @@ function downloadTemplate() {
         <DialogHeader>
           <DialogTitle>重置密码</DialogTitle>
           <DialogDescription v-if="resetTarget">
-            为用户 <span class="font-semibold text-ink">{{ resetTarget.display_name }}</span>（{{ resetTarget.username }}）设置新密码
+            为用户 <span class="font-semibold text-ink">{{ resetTarget.display_name }}</span
+            >（{{ resetTarget.username }}）设置新密码
           </DialogDescription>
         </DialogHeader>
         <div class="space-y-2">

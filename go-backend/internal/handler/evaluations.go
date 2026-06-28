@@ -216,6 +216,12 @@ func (h *EvaluationsHandler) UpdateDimensionScore(w http.ResponseWriter, r *http
 		}
 	}
 
+	// A rejected evaluation is immutable until it is reopened.
+	if eval.Status == "rejected" {
+		Error(w, http.StatusConflict, "无法修改已打回的评价")
+		return
+	}
+
 	// Find and update the dimension score
 	var beforeScore *float64
 	found := false
@@ -249,7 +255,7 @@ func (h *EvaluationsHandler) UpdateDimensionScore(w http.ResponseWriter, r *http
 	_ = h.svc.AppendHistory(r.Context(), &model.EvaluationHistory{
 		EvaluationID: evalID,
 		OperatorID:   &claims.Sub,
-		Action:       "teacher_scored",
+		Action:       "teacher_override",
 		BeforeValue:  beforeScore,
 		AfterValue:   req.SubjScore,
 	})

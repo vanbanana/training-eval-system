@@ -72,13 +72,101 @@ func AnalyzeReadability(rawText string) ReadabilityResult {
 		result.IsReadable = true
 	}
 	if result.IsReadable {
+		// Drop binary-decoding garbage lines that survive UTF-8 validation
+		// (legacy .doc extraction misreads embedded XML/binary as CJK).
+		// Informational only: does not flip IsReadable.
+		cleaned, garbled := stripGarbledLines(result.CleanText)
+		result.CleanText = cleaned
+		if garbled > 0 {
+			result.Warnings = append(result.Warnings, "garbled_segments_removed")
+		}
 		result.Sections = ExtractSections(result.CleanText)
 	}
 	return result
 }
 
+// stripGarbledLines removes lines that are byte-decoding garbage produced by
+// legacy binary .doc extraction (embedded XML/binary runs misread as CJK).
+// It is conservative — a line is dropped only when it is pure CJK (no ASCII
+// letters/digits, no spaces) AND shows a strong corruption signal:
+//   - it contains CJK Extension-A characters (real modern Chinese text does not), or
+//   - >=60% of its CJK characters byte-swap into printable ASCII (UTF-16LE misread).
+//
+// Real Chinese prose tops out around 38% byte-swappable, well below the threshold.
+func stripGarbledLines(text string) (string, int) {
+	lines := strings.Split(text, "\n")
+	kept := make([]string, 0, len(lines))
+	dropped := 0
+	for _, line := range lines {
+		if isGarbledLine(line) {
+			dropped++
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n"), dropped
+}
+
+func isGarbledLine(line string) bool {
+	s := strings.TrimSpace(line)
+	if s == "" {
+		return false
+	}
+	var cjk, extA, swappable, asciiWord int
+	hasSpace := strings.ContainsRune(s, ' ')
+	for _, r := range s {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
+			asciiWord++
+		case r >= 0x3400 && r <= 0x4DBF: // CJK Extension-A
+			extA++
+			cjk++
+			if byteSwapsToASCII(r) {
+				swappable++
+			}
+		case r >= 0x4E00 && r <= 0x9FFF: // CJK Unified Ideographs
+			cjk++
+			if byteSwapsToASCII(r) {
+				swappable++
+			}
+		}
+	}
+	// Signal A: CJK Extension-A density. Real modern Chinese text never uses
+	// Ext-A, so even a 10% share among CJK chars is a corruption fingerprint —
+	// this holds even when binary junk is interspersed with ASCII/punctuation.
+	if extA >= 1 && float64(extA)/float64(cjk) >= 0.1 {
+		return true
+	}
+	if cjk == 0 || asciiWord > 0 || hasSpace {
+		return false
+	}
+	// Signal B: pure-CJK line where most chars byte-swap to printable ASCII
+	// (UTF-16LE text read in the wrong byte order, e.g. embedded OOXML).
+	if float64(swappable)/float64(cjk) >= 0.6 {
+		return true
+	}
+	return false
+}
+
+// byteSwapsToASCII reports whether a BMP rune, with its two bytes swapped,
+// becomes two printable ASCII bytes (the fingerprint of UTF-16LE text read in
+// the wrong byte order).
+func byteSwapsToASCII(r rune) bool {
+	if r > 0xFFFF {
+		return false
+	}
+	hi := byte(r >> 8)
+	lo := byte(r & 0xFF)
+	return lo >= 0x20 && lo <= 0x7E && hi >= 0x20 && hi <= 0x7E
+}
+
 // CleanText removes control chars, compresses blank lines.
 func CleanText(rawText string) string {
+	// Normalize line endings so line-based processing (sections, garbled-line
+	// filtering) works — legacy .doc extraction often emits CR-only separators.
+	rawText = strings.ReplaceAll(rawText, "\r\n", "\n")
+	rawText = strings.ReplaceAll(rawText, "\r", "\n")
+
 	cleaned := strings.Map(func(r rune) rune {
 		if r < 32 && r != '\n' && r != '\t' && r != '\r' {
 			return -1

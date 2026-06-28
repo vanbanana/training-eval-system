@@ -168,9 +168,7 @@ const filtered = computed(() => {
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.trim().toLowerCase()
-    list = list.filter(
-      (t) => t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q),
-    )
+    list = list.filter((t) => t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q))
   }
   // 紧急的排前面：未截止 + 距离截止时间最近
   return [...list].sort((a, b) => {
@@ -181,36 +179,29 @@ const filtered = computed(() => {
     if (!cb) return -1
     if (ca.expired && !cb.expired) return 1
     if (cb.expired && !ca.expired) return -1
-    return (
-      new Date(a.deadline ?? 0).getTime() - new Date(b.deadline ?? 0).getTime()
-    )
+    return new Date(a.deadline ?? 0).getTime() - new Date(b.deadline ?? 0).getTime()
   })
 })
 
 function formatDeadline(iso: string | null) {
-	  if (!iso) return '——'
-	  return iso.slice(0, 16).replace('T', ' ')
-	}
+  if (!iso) return '——'
+  return iso.slice(0, 16).replace('T', ' ')
+}
 
-	// Pagination
-	const pageSize = 8
-	const currentPage = ref(1)
-	const totalItems = computed(() => filtered.value.length)
-	const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
-	const paged = computed(() => {
-	  const start = (currentPage.value - 1) * pageSize
-	  return filtered.value.slice(start, start + pageSize)
-	})
+// Pagination
+const pageSize = 8
+const currentPage = ref(1)
+const totalItems = computed(() => filtered.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize)))
+const paged = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filtered.value.slice(start, start + pageSize)
+})
 </script>
 
 <template>
   <AppShell>
-    <BreadcrumbNav
-      :items="[
-        { label: '工作台', to: '/dashboard' },
-        { label: '我的实训任务' },
-      ]"
-    />
+    <BreadcrumbNav :items="[{ label: '工作台', to: '/dashboard' }, { label: '我的实训任务' }]" />
 
     <div class="flex justify-between items-end">
       <div>
@@ -279,7 +270,11 @@ function formatDeadline(iso: string | null) {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1.5">
                   <span class="text-sm font-bold text-ink truncate">{{ t.name }}</span>
-                  <Badge v-if="urgencyBadge(t.deadline)" :variant="urgencyBadge(t.deadline)!.variant" class="flex-shrink-0">
+                  <Badge
+                    v-if="urgencyBadge(t.deadline)"
+                    :variant="urgencyBadge(t.deadline)!.variant"
+                    class="flex-shrink-0"
+                  >
                     {{ urgencyBadge(t.deadline)!.label }}
                   </Badge>
                 </div>
@@ -292,57 +287,46 @@ function formatDeadline(iso: string | null) {
               </Badge>
             </div>
 
-            <div class="h-px bg-border"></div>
-
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center justify-between text-xs">
-                <span class="flex items-center gap-1.5 text-muted-foreground">
-                  <Calendar class="w-3 h-3" />
-                  <span>截止时间</span>
-                </span>
-                <span
-                  class="font-mono font-semibold"
-                  :class="getCountdown(t.deadline)?.expired
-                    ? 'text-muted-foreground'
-                    : (getCountdown(t.deadline)?.days ?? 99) < 3
-                      ? 'text-accent'
-                      : 'text-foreground'"
-                >
-                  {{ formatDeadline(t.deadline) }}
-                </span>
-              </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="flex items-center gap-1.5 text-muted-foreground">
+            <!-- 倒计时作为主视觉，弱化 key-value 表格感 -->
+            <div class="flex items-end justify-between gap-3 rounded-lg bg-surface-2 px-3.5 py-2.5">
+              <div class="flex flex-col gap-1">
+                <span class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <AlarmClock class="w-3 h-3" />
-                  <span>剩余</span>
+                  距截止
                 </span>
                 <span
-                  class="font-semibold"
-                  :class="getCountdown(t.deadline)?.expired
-                    ? 'text-muted-foreground'
-                    : (getCountdown(t.deadline)?.days ?? 99) < 1
-                      ? 'text-danger'
-                      : (getCountdown(t.deadline)?.days ?? 99) < 3
-                        ? 'text-accent'
-                        : 'text-foreground'"
+                  class="text-lg font-bold leading-none num-tabular"
+                  :class="
+                    getCountdown(t.deadline)?.expired
+                      ? 'text-muted-foreground'
+                      : (getCountdown(t.deadline)?.days ?? 99) < 1
+                        ? 'text-danger'
+                        : (getCountdown(t.deadline)?.days ?? 99) < 3
+                          ? 'text-accent'
+                          : 'text-foreground'
+                  "
                 >
                   {{ getCountdown(t.deadline)?.label ?? '不限' }}
                 </span>
               </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="flex items-center gap-1.5 text-muted-foreground">
-                  <FileText class="w-3 h-3" />
-                  <span>评价维度</span>
+              <div class="flex flex-col items-end gap-1">
+                <span class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Calendar class="w-3 h-3" />
+                  截止
                 </span>
-                <span class="font-semibold text-foreground">{{ t.dimensions.length }} 项</span>
+                <span class="font-mono text-xs font-medium text-foreground">{{ formatDeadline(t.deadline) }}</span>
               </div>
-              <div class="flex items-center justify-between text-xs">
-                <span class="flex items-center gap-1.5 text-muted-foreground">
-                  <Upload class="w-3 h-3" />
-                  <span>已提交</span>
-                </span>
-                <span class="font-semibold text-foreground">{{ uploadCountByTask[t.id] || 0 }} 次</span>
-              </div>
+            </div>
+
+            <!-- 次要信息内联，去后台表格感 -->
+            <div class="flex items-center gap-2.5 text-[11px] text-muted-foreground">
+              <span class="flex items-center gap-1">
+                <FileText class="w-3 h-3" />{{ t.dimensions.length }} 个评价维度
+              </span>
+              <span class="text-border">·</span>
+              <span class="flex items-center gap-1">
+                <Upload class="w-3 h-3" />已提交 {{ uploadCountByTask[t.id] || 0 }} 次
+              </span>
             </div>
 
             <div class="flex items-center justify-between mt-auto pt-2 border-t border-border">
@@ -367,9 +351,13 @@ function formatDeadline(iso: string | null) {
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalItems > pageSize" class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border border-border rounded-lg">
+      <div
+        v-if="totalItems > pageSize"
+        class="flex flex-wrap justify-between items-center gap-3 px-6 py-4 bg-surface-2 border border-border rounded-lg"
+      >
         <div class="text-xs text-muted-foreground">
-          显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共 {{ totalItems }} 条
+          显示 {{ (currentPage - 1) * pageSize + 1 }} - {{ Math.min(currentPage * pageSize, totalItems) }} 共
+          {{ totalItems }} 条
         </div>
         <div class="flex items-center gap-1.5">
           <Button variant="outline" size="icon-sm" :disabled="currentPage <= 1" @click="currentPage--">
